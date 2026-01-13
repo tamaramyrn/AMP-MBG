@@ -248,7 +248,7 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
       <div>
         <div className="flex justify-between items-center mb-2">
           <label htmlFor="location" className="block body-sm font-medium text-general-80">
-            Lokasi Spesifik (Nama Sekolah) <span className="text-red-100">*</span>
+            Lokasi Spesifik <span className="text-red-100">*</span>
           </label>
           <span className={`text-xs ${currentLength === maxLength ? 'text-red-100 font-bold' : 'text-general-60'}`}>
             {currentLength}/{maxLength} Karakter
