@@ -43,7 +43,7 @@ export default function CaraKerjaPage() {
                 <div>
                   <h2 className="h3 text-general-100 mb-4">Butuh Bantuan Menyusun Laporan?</h2>
                   
-                  <p className="body-sm text-general-70 mb-6 text-justify">
+                  <p className="body-md text-general-70 mb-6 text-justify">
                     Tim AMP MBG siap membantu merapikan kronologi dan memastikan laporan terekam dengan baik. Kirim pesan via WhatsApp dan kami akan memberikan panduan langkah demi langkah hingga laporan siap dikirim.
                   </p>
                   

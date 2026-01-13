@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { StepLocationCategory } from "./step-location-category"
 import { StepChronologyEvidence } from "./step-chronology-evidence"
 import { StepIdentityConfirmation } from "./step-identity-confirmation"
@@ -18,12 +18,14 @@ export interface ReportFormData {
   date: string
   province: string
   city: string
+  district: string
   location: string
   // Step 2
   description: string
   files: File[]
   // Step 3
   relation: string
+  relationDetail?: string
   agreement: boolean
 }
 
@@ -32,6 +34,7 @@ const initialFormData: ReportFormData = {
   date: "",
   province: "",
   city: "",
+  district: "",
   location: "",
   description: "",
   files: [],
@@ -44,6 +47,30 @@ export function ReportForm() {
   const [formData, setFormData] = useState<ReportFormData>(initialFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+
+  // --- LOGIKA VALIDASI ---
+  const isStepValid = useMemo(() => {
+    if (currentStep === 1) {
+      // Cek apakah semua field Step 1 terisi (termasuk district)
+      return (
+        formData.category &&
+        formData.date &&
+        formData.province &&
+        formData.city &&
+        formData.district &&
+        formData.location
+      )
+    }
+    if (currentStep === 2) {
+      // Validasi Step 2: Deskripsi wajib diisi
+      return formData.description.trim().length >= 50
+    }
+    if (currentStep === 3) {
+      // Validasi Step 3: Wajib centang agreement dan isi hubungan
+      return formData.relation && formData.agreement
+    }
+    return false
+  }, [currentStep, formData])
 
   const updateFormData = (data: Partial<ReportFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }))
@@ -59,7 +86,7 @@ export function ReportForm() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
-    // Simulate API call
+    // Simulasi API call
     await new Promise((resolve) => setTimeout(resolve, 1500))
     setIsSubmitting(false)
     setIsSubmitted(true)
@@ -67,19 +94,19 @@ export function ReportForm() {
 
   if (isSubmitted) {
     return (
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-8 text-center">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="bg-general-20 rounded-lg shadow-md border border-general-30 p-8 text-center">
+        <div className="w-16 h-16 bg-blue-20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-blue-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Laporan Berhasil Dikirim!</h2>
-        <p className="text-gray-600 mb-6">
-          Terima kasih atas partisipasi Anda. Tim kami akan memverifikasi laporan Anda dalam waktu 1-3 hari kerja.
+        <h2 className="h3 text-general-100 mb-2">Laporan Berhasil Dikirim!</h2>
+        <p className="body-md text-general-70 mb-6">
+          Terima kasih atas partisipasi Anda. Tim kami akan memverifikasi laporan Anda.
         </p>
         <a
           href="/"
-          className="inline-flex items-center justify-center px-6 py-3 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors"
+          className="inline-flex items-center justify-center px-6 py-3 bg-blue-100 hover:bg-blue-90 text-general-20 font-medium rounded-lg transition-colors body-sm font-heading"
         >
           Kembali ke Beranda
         </a>
@@ -88,30 +115,45 @@ export function ReportForm() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+    <div className="bg-general-20 rounded-lg shadow-md border border-general-30 overflow-hidden">
       {/* Step Indicators */}
-      <div className="bg-gray-50 border-b border-gray-200 p-4">
+      <div className="bg-general-20 border-b border-general-30 p-4">
         <div className="flex items-center justify-between">
           {steps.map((step, index) => (
             <div key={step.id} className="flex items-center flex-1">
               <div className="flex items-center">
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
-                    currentStep >= step.id ? "bg-primary text-white" : "bg-gray-200 text-gray-600",
+                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
+                    // Active step styling
+                    currentStep >= step.id 
+                      ? "bg-blue-100 text-general-20" 
+                      : "bg-general-30 text-general-70",
                   )}
                 >
                   {step.id}
                 </div>
                 <div className="ml-3 hidden sm:block">
-                  <p className={cn("text-sm font-medium", currentStep >= step.id ? "text-primary" : "text-gray-500")}>
+                  <p 
+                    className={cn(
+                      "body-sm font-heading font-medium", 
+                      // Text color styling
+                      currentStep >= step.id ? "text-blue-100" : "text-general-60"
+                    )}
+                  >
                     {step.title}
                   </p>
                 </div>
               </div>
               {index < steps.length - 1 && (
                 <div className="flex-1 mx-4">
-                  <div className={cn("h-1 rounded", currentStep > step.id ? "bg-primary" : "bg-gray-200")} />
+                  <div 
+                    className={cn(
+                      "h-1 rounded", 
+                      // Connector line styling
+                      currentStep > step.id ? "bg-blue-100" : "bg-general-30"
+                    )} 
+                  />
                 </div>
               )}
             </div>
@@ -122,7 +164,7 @@ export function ReportForm() {
       {/* Form Content */}
       <div className="p-6 md:p-8">
         <div className="mb-6">
-          <h2 className="text-lg font-bold text-gray-800">
+          <h2 className="h5 text-general-100">
             Langkah {currentStep} - {steps[currentStep - 1].subtitle}
           </h2>
         </div>
@@ -132,12 +174,12 @@ export function ReportForm() {
         {currentStep === 3 && <StepIdentityConfirmation formData={formData} updateFormData={updateFormData} />}
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
+        <div className="flex justify-between mt-8 pt-6 border-t border-general-30">
           {currentStep > 1 ? (
             <button
               type="button"
               onClick={prevStep}
-              className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-5 py-2.5 border border-general-30 text-general-80 font-medium rounded-lg hover:bg-general-30 transition-colors body-sm"
             >
               Sebelumnya
             </button>
@@ -149,7 +191,8 @@ export function ReportForm() {
             <button
               type="button"
               onClick={nextStep}
-              className="px-5 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors"
+              disabled={!isStepValid} // <-- VALIDASI TOMBOL NEXT
+              className="px-5 py-2.5 bg-blue-100 hover:bg-blue-90 text-general-20 font-medium rounded-lg transition-colors body-sm font-heading disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Selanjutnya
             </button>
@@ -157,8 +200,8 @@ export function ReportForm() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting || !formData.agreement}
-              className="px-8 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting || !isStepValid} // <-- VALIDASI TOMBOL SUBMIT
+              className="px-8 py-2.5 bg-blue-100 hover:bg-blue-90 text-general-20 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed body-sm font-heading"
             >
               {isSubmitting ? "Mengirim..." : "Kirim Laporan"}
             </button>

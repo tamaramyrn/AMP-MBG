@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import type { ReportFormData } from "./report-form"
 import { Upload, X, ImageIcon } from "lucide-react"
 
@@ -14,7 +13,7 @@ export function StepChronologyEvidence({ formData, updateFormData }: StepChronol
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || [])
     const validFiles = selectedFiles.filter((file) => {
-      const isValidType = file.type.startsWith("image/") || file.type.startsWith("video/")
+      const isValidType = file.type.startsWith("image/")
       const isValidSize = file.size <= 10 * 1024 * 1024 // 10MB
       return isValidType && isValidSize
     })
@@ -26,66 +25,101 @@ export function StepChronologyEvidence({ formData, updateFormData }: StepChronol
     updateFormData({ files: newFiles })
   }
 
+  // --- LOGIKA HITUNG KARAKTER ---
+  const minLength = 50
+  const currentLength = formData.description.length
+  // Error jika user sudah mulai mengetik tapi belum sampai 50
+  const isError = currentLength > 0 && currentLength < minLength
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Description */}
       <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1.5">
-          Deskripsi Kronologi Kejadian <span className="text-red-500">*</span>
-        </label>
+        <div className="flex justify-between items-center mb-2">
+            <label htmlFor="description" className="block body-sm font-medium text-general-80">
+            Deskripsi Kronologi Kejadian <span className="text-red-100">*</span>
+            </label>
+            {/* INDIKATOR KARAKTER */}
+            <span className={`text-xs ${isError ? 'text-red-100 font-bold' : 'text-general-60'}`}>
+                {currentLength}/{minLength} Karakter
+            </span>
+        </div>
+        
         <textarea
           id="description"
           value={formData.description}
           onChange={(e) => updateFormData({ description: e.target.value })}
           rows={6}
           placeholder="Jelaskan secara detail kronologi kejadian yang Anda laporkan..."
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors resize-none"
+          className={`w-full px-4 py-3 bg-general-20 border rounded-lg text-general-100 placeholder:text-general-40 focus:ring-2 transition-colors resize-none body-sm
+            ${isError 
+                ? 'border-red-100 focus:border-red-100 focus:ring-red-100' // Merah jika kurang
+                : 'border-general-30 focus:border-blue-100 focus:ring-blue-100' // Normal
+            }`}
         />
-        <p className="text-xs text-gray-500 mt-1">Minimal 50 karakter</p>
+        
+        {/* Pesan Bantuan / Error */}
+        {isError ? (
+            <p className="text-xs text-red-100 mt-1.5 animate-pulse">
+                Mohon tulis minimal 50 karakter agar laporan jelas.
+            </p>
+        ) : (
+            <p className="text-xs text-general-60 mt-1.5">
+                Minimal 50 karakter. Ceritakan apa, kapan, dan bagaimana kejadiannya.
+            </p>
+        )}
       </div>
 
-      {/* File Upload */}
+      {/* File Upload (IMAGE ONLY) */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">Unggah Bukti Foto/Video</label>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors">
+        <label className="block body-sm font-medium text-general-80 mb-2">Unggah Bukti Foto</label>
+        
+        {/* Upload Area */}
+        <div className="border-2 border-dashed border-general-30 rounded-lg p-8 text-center hover:border-blue-100 transition-colors bg-general-20 group">
           <input
             type="file"
             id="file-upload"
             multiple
-            accept="image/*,video/*"
+            accept="image/png, image/jpeg, image/jpg"
             onChange={handleFileChange}
             className="hidden"
           />
-          <label htmlFor="file-upload" className="cursor-pointer">
-            <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-            <p className="text-sm text-gray-600 mb-1">
-              <span className="text-primary font-medium">Klik untuk unggah</span> atau drag and drop
+          <label htmlFor="file-upload" className="cursor-pointer block w-full h-full">
+            <div className="w-12 h-12 bg-general-30/30 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-blue-20 transition-colors">
+                <Upload className="w-6 h-6 text-general-60 group-hover:text-blue-100 transition-colors" />
+            </div>
+            <p className="body-sm text-general-70 mb-1">
+              <span className="text-blue-100 font-bold hover:underline">Klik untuk unggah</span> atau drag and drop
             </p>
-            <p className="text-xs text-gray-500">PNG, JPG, MP4 (max. 10MB per file)</p>
+            <p className="text-xs text-general-50">
+              PNG, JPG (Maks. 10MB per file)
+            </p>
           </label>
         </div>
 
-        {/* File Preview */}
+        {/* File Preview List */}
         {formData.files.length > 0 && (
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 space-y-3">
             {formData.files.map((file, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200"
+                className="flex items-center justify-between bg-general-20 rounded-lg p-3 border border-general-30 hover:border-blue-30 transition-colors shadow-sm"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <ImageIcon className="w-5 h-5 text-green-600" />
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-10 h-10 bg-blue-20 rounded-lg flex-shrink-0 flex items-center justify-center">
+                    <ImageIcon className="w-5 h-5 text-blue-100" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 truncate max-w-[200px]">{file.name}</p>
-                    <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <div className="min-w-0">
+                    <p className="body-sm font-medium text-general-100 truncate">{file.name}</p>
+                    <p className="text-xs text-general-60">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                   </div>
                 </div>
+                
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                  className="p-2 text-general-50 hover:text-red-100 hover:bg-red-20 rounded-full transition-all"
+                  aria-label="Hapus file"
                 >
                   <X className="w-5 h-5" />
                 </button>
