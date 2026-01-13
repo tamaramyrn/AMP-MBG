@@ -1,0 +1,396 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ===========================================
+     AMP MBG Design System Colors
+     Based on provided color palette
+     =========================================== */
+
+  /* General (Gray) Scale */
+  --general-100: #000000;
+  --general-90: #333333;
+  --general-80: #4d4d4d;
+  --general-70: #666666;
+  --general-60: #808080;
+  --general-50: #999999;
+  --general-40: #b3b3b3;
+  --general-30: #cccccc;
+  --general-20: #ffffff;
+
+  /* Green Scale */
+  --green-100: #326e2f;
+  --green-90: #478544;
+  --green-80: #5c9c59;
+  --green-70: #71b36e;
+  --green-60: #9bc379;
+  --green-50: #86ca83;
+  --green-40: #b0e1ae;
+  --green-30: #c5f8c3;
+  --green-20: #f4ffeb;
+
+  /* Red Scale (New) */
+  --red-100: #d32e05;
+  --red-90: #d94b27;
+  --red-80: #e06849;
+  --red-70: #e6856b;
+  --red-60: #eda28d;
+  --red-50: #f87a63;
+  --red-40: #faa695;
+  --red-30: #fcd3c7;
+  --red-20: #ffefef;
+
+  /* Blue Scale (New) */
+  --blue-100: #2c4f63;
+  --blue-90: #355B6F;
+  --blue-80: #3E677C;
+  --blue-70: #487589;
+  --blue-60: #538297;
+  --blue-50: #6091A6;
+  --blue-40: #70A0B5;
+  --blue-30: #83B1C4;
+  --blue-20: #B2D6E4;
+
+  /* Theme tokens mapped to design system */
+  --background: var(--general-20);
+  --foreground: var(--general-100);
+  --card: var(--general-20);
+  --card-foreground: var(--general-100);
+  --popover: var(--general-20);
+  --popover-foreground: var(--general-100);
+
+  /* Primary: Green-100 (#326E2F) */
+  --primary: var(--green-100);
+  --primary-foreground: var(--general-20);
+
+  /* Primary variants */
+  --primary-dark: #2a5d28;
+  --primary-light: var(--green-20);
+
+  /* Secondary: Green-20 (#F4FFEB) */
+  --secondary: var(--green-20);
+  --secondary-foreground: var(--general-100);
+
+  --muted: var(--general-30);
+  --muted-foreground: var(--general-70);
+  --accent: var(--green-20);
+  --accent-foreground: var(--general-100);
+
+  /* Destructive: Updated to use Red Scale */
+  --destructive: var(--red-100);
+  --destructive-foreground: var(--general-20);
+
+  /* Warning */
+  --warning: #f59e0b;
+  --warning-foreground: var(--general-100);
+
+  /* Info: Updated to use Blue Scale */
+  --info: var(--blue-100);
+  --info-foreground: var(--general-20);
+
+  --border: var(--general-30);
+  --input: var(--general-30);
+  --ring: var(--green-100);
+
+  /* Chart colors using green scale */
+  --chart-1: var(--green-100);
+  --chart-2: var(--green-80);
+  --chart-3: var(--green-60);
+  --chart-4: var(--green-40);
+  --chart-5: var(--green-20);
+
+  --radius: 0.5rem;
+  --sidebar: var(--general-20);
+  --sidebar-foreground: var(--general-100);
+  --sidebar-primary: var(--green-100);
+  --sidebar-primary-foreground: var(--general-20);
+  --sidebar-accent: var(--green-20);
+  --sidebar-accent-foreground: var(--general-100);
+  --sidebar-border: var(--general-30);
+  --sidebar-ring: var(--green-100);
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: var(--general-20);
+  --card: #0a0a0a;
+  --card-foreground: var(--general-20);
+  --popover: #0a0a0a;
+  --popover-foreground: var(--general-20);
+  --primary: var(--green-70);
+  --primary-foreground: var(--general-100);
+  --primary-dark: var(--green-80);
+  --primary-light: #1a2e1a;
+  --secondary: #1a1a1a;
+  --secondary-foreground: var(--general-20);
+  --muted: #1a1a1a;
+  --muted-foreground: var(--general-50);
+  --accent: #1a1a1a;
+  --accent-foreground: var(--general-20);
+  
+  /* Destructive Dark Mode */
+  --destructive: var(--red-90);
+  --destructive-foreground: var(--general-20);
+  
+  --border: #262626;
+  --input: #262626;
+  --ring: var(--green-70);
+  --chart-1: var(--green-70);
+  --chart-2: var(--green-60);
+  --chart-3: var(--green-50);
+  --chart-4: var(--green-40);
+  --chart-5: var(--green-30);
+  --sidebar: #0f0f0f;
+  --sidebar-foreground: var(--general-20);
+  --sidebar-primary: var(--green-70);
+  --sidebar-primary-foreground: var(--general-20);
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: var(--general-20);
+  --sidebar-border: #262626;
+  --sidebar-ring: var(--green-70);
+}
+
+@theme inline {
+  /* ===========================================
+     Typography - Poppins for headings, Inter for body
+     =========================================== */
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-heading: var(--font-poppins), "Poppins", system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", monospace;
+
+  /* Color tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Green scale as Tailwind colors */
+  --color-green-100: var(--green-100);
+  --color-green-90: var(--green-90);
+  --color-green-80: var(--green-80);
+  --color-green-70: var(--green-70);
+  --color-green-60: var(--green-60);
+  --color-green-50: var(--green-50);
+  --color-green-40: var(--green-40);
+  --color-green-30: var(--green-30);
+  --color-green-20: var(--green-20);
+
+  /* Red scale as Tailwind colors (New) */
+  --color-red-100: var(--red-100);
+  --color-red-90: var(--red-90);
+  --color-red-80: var(--red-80);
+  --color-red-70: var(--red-70);
+  --color-red-60: var(--red-60);
+  --color-red-50: var(--red-50);
+  --color-red-40: var(--red-40);
+  --color-red-30: var(--red-30);
+  --color-red-20: var(--red-20);
+
+  /* Blue scale as Tailwind colors (New) */
+  --color-blue-100: var(--blue-100);
+  --color-blue-90: var(--blue-90);
+  --color-blue-80: var(--blue-80);
+  --color-blue-70: var(--blue-70);
+  --color-blue-60: var(--blue-60);
+  --color-blue-50: var(--blue-50);
+  --color-blue-40: var(--blue-40);
+  --color-blue-30: var(--blue-30);
+  --color-blue-20: var(--blue-20);
+
+  /* General (Gray) scale as Tailwind colors */
+  --color-general-100: var(--general-100);
+  --color-general-90: var(--general-90);
+  --color-general-80: var(--general-80);
+  --color-general-70: var(--general-70);
+  --color-general-60: var(--general-60);
+  --color-general-50: var(--general-50);
+  --color-general-40: var(--general-40);
+  --color-general-30: var(--general-30);
+  --color-general-20: var(--general-20);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* ===========================================
+     HEADINGS (Poppins)
+     Scale: Major Third / Perfect Fourth mix
+     =========================================== */
+  
+  /* Mobile Headings */
+  h1, .h1 {
+    font-family: var(--font-poppins);
+    font-weight: 700;
+    font-size: 2.25rem;    /* 36px */
+    line-height: 2.75rem;
+  }
+
+  h2, .h2 {
+    font-family: var(--font-poppins);
+    font-weight: 700;
+    font-size: 1.875rem;   /* 30px */
+    line-height: 2.25rem;
+  }
+
+  h3, .h3 {
+    font-family: var(--font-poppins);
+    font-weight: 700;
+    font-size: 1.5rem;     /* 24px */
+    line-height: 2rem;
+  }
+
+  h4, .h4 {
+    font-family: var(--font-poppins);
+    font-weight: 600;
+    font-size: 1.25rem;    /* 20px */
+    line-height: 1.75rem;
+  }
+
+  h5, .h5 {
+    font-family: var(--font-poppins);
+    font-weight: 600;
+    font-size: 1.125rem;   /* 18px */
+    line-height: 1.75rem;
+  }
+
+  h6, .h6 {
+    font-family: var(--font-poppins);
+    font-weight: 600;
+    font-size: 1rem;       /* 16px */
+    line-height: 1.5rem;
+  }
+
+  /* Desktop Headings (Min-width: 768px) */
+  @media (min-width: 768px) {
+    h1, .h1 {
+      font-size: 3.75rem;  /* 60px - Hero Title */
+      line-height: 1.1;
+    }
+
+    h2, .h2 {
+      font-size: 3rem;     /* 48px - Section Title */
+      line-height: 1.1;
+    }
+
+    h3, .h3 {
+      font-size: 2.25rem;  /* 36px - Card Title Large */
+      line-height: 2.75rem;
+    }
+
+    h4, .h4 {
+      font-size: 1.875rem; /* 30px - Card Title Med */
+      line-height: 2.25rem;
+    }
+
+    h5, .h5 {
+      font-size: 1.5rem;   /* 24px - Subsection */
+      line-height: 2rem;
+    }
+
+    h6, .h6 {
+      font-size: 1.25rem;  /* 20px - Small Heading */
+      line-height: 1.75rem;
+    }
+
+    title, .title {
+      font-size: 1.5rem;   /* 24px - Subsection */
+      line-height: 1.3rem;
+      font-weight: 1000
+    }
+  }
+}
+
+/* ===========================================
+   BODY TEXT UTILITIES (Inter)
+   Renormalized for readability
+   =========================================== */
+
+/* Mobile Body Sizes */
+.body-lg {
+  font-size: 1.125rem; /* 18px - Intro text mobile */
+  line-height: 1.75rem;
+}
+
+.body-md {
+  font-size: 1rem;     /* 16px - Standard text mobile */
+  line-height: 1.5rem;
+}
+
+.body-sm {
+  font-size: 0.875rem; /* 14px - Secondary text mobile */
+  line-height: 1.25rem;
+}
+
+.body-xs {
+  font-size: 0.75rem;  /* 12px - Caption mobile */
+  line-height: 1rem;
+}
+
+/* Desktop Body Sizes */
+@media (min-width: 768px) {
+  .body-lg {
+    font-size: 1.25rem;  /* 20px - Intro / Lead paragraph */
+    line-height: 1.8;
+  }
+
+  .body-md {
+    font-size: 1.125rem; /* 18px - Comfortable reading size */
+    line-height: 1.7;
+  }
+
+  .body-sm {
+    font-size: 1rem;     /* 16px - Standard UI text / dense info */
+    line-height: 1.5;
+  }
+
+  .body-xs {
+    font-size: 0.rem; /* 14px - Caption / Footer */
+    line-height: 1.4;
+  }
+}
+
+.font-heading {
+  font-family: var(--font-poppins), "Poppins", system-ui, sans-serif;
+}
