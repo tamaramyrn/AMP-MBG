@@ -20,28 +20,21 @@ export function Navbar() {
   return (
     <header className="bg-blue-100 text-white sticky top-0 z-50 shadow-sm">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* UBAH: Tinggi navbar dikembalikan ke standar (h-16) */}
         <div className="flex items-center justify-between h-16">
+          
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex items-center gap-3">
-              <img 
-                src="/images/logo_putih.png" 
-                alt="Logo AMP MBG" 
-                className="h-10 w-auto object-contain"
-              />
-              
-              <div className="flex flex-col leading-none">
-                {/* Font size TIDAK DIUBAH (tetap 'title' sesuai kode Anda) */}
-                <span className="title text-white">AMP</span>
-                <span className="title text-white">MBG</span>
-              </div>
-            </div>
+            <img 
+              src="/images/logo_putih.png" 
+              alt="Logo AMP MBG" 
+              // UBAH: Ukuran logo h-14 (56px). 
+              // Karena navbar h-16 (64px), logo ini akan hampir memenuhi tinggi navbar.
+              className="h-14 w-auto object-contain"
+            />
           </Link>
 
           {/* Desktop Navigation */}
-          {/* PERUBAHAN: Ganti 'md:flex' jadi 'lg:flex'. 
-              Menu ini sekarang hanya muncul di layar Besar (Laptop/Desktop). 
-              Di Tablet dia akan sembunyi (hidden). */}
           <div className="hidden lg:flex items-center gap-8">
             {navLinks.map((link) => (
               <Link
@@ -57,7 +50,6 @@ export function Navbar() {
           </div>
 
           {/* Auth Button (Desktop) */}
-          {/* PERUBAHAN: Ganti 'md:flex' jadi 'lg:flex' agar konsisten */}
           <div className="hidden lg:flex items-center gap-3">
             <Link
               href="/auth/register"
@@ -68,9 +60,6 @@ export function Navbar() {
           </div>
 
           {/* Mobile Menu Button */}
-          {/* PERUBAHAN: Ganti 'md:hidden' jadi 'lg:hidden'.
-              Artinya tombol Hamburger ini akan TETAP MUNCUL di layar Tablet (md).
-              Baru hilang kalau layar sudah masuk ukuran Large (lg). */}
           <button
             className="lg:hidden p-2 text-white"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -81,7 +70,6 @@ export function Navbar() {
         </div>
 
         {/* Mobile Menu */}
-        {/* PERUBAHAN: Ganti 'md:hidden' jadi 'lg:hidden' */}
         {mobileMenuOpen && (
           <div className="lg:hidden pb-4 border-t border-white/20">
             <div className="flex flex-col gap-2 pt-4">

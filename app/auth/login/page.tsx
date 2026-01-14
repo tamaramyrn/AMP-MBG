@@ -11,34 +11,36 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Selamat Datang!</h1>
-        <p className="text-gray-600">Masuk ke akun Anda</p>
+        {/* Menggunakan typography token: h2 & body-md */}
+        <h1 className="h2 text-general-100 mb-2">Selamat Datang!</h1>
+        <p className="body-md text-general-60">Masuk ke akun Anda</p>
       </div>
 
       <form className="space-y-5">
         {/* Email */}
-        <fieldset className="border border-gray-300 rounded-lg px-3 pb-3 pt-1">
-          <legend className="text-sm text-gray-600 px-1">Surel</legend>
+        {/* Border general-30, focus-within untuk highlight primary */}
+        <fieldset className="border border-general-30 rounded-lg px-3 pb-3 pt-1 focus-within:border-green-100 focus-within:ring-1 focus-within:ring-green-100 transition-all">
+          <legend className="body-xs text-general-60 px-1 font-medium">Surel</legend>
           <input
             type="email"
             placeholder="Masukkan surel Anda"
-            className="w-full outline-none text-gray-700 placeholder:text-gray-400"
+            className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
           />
         </fieldset>
 
         {/* Password */}
-        <fieldset className="border border-gray-300 rounded-lg px-3 pb-3 pt-1">
-          <legend className="text-sm text-gray-600 px-1">Kata Sandi</legend>
-          <div className="flex items-center">
+        <fieldset className="border border-general-30 rounded-lg px-3 pb-3 pt-1 focus-within:border-green-100 focus-within:ring-1 focus-within:ring-green-100 transition-all">
+          <legend className="body-xs text-general-60 px-1 font-medium">Kata Sandi</legend>
+          <div className="flex items-center gap-2">
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Masukkan kata sandi Anda"
-              className="w-full outline-none text-gray-700 placeholder:text-gray-400"
+              className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-general-40 hover:text-general-60 transition-colors"
             >
               {showPassword ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
             </button>
@@ -47,45 +49,50 @@ export default function LoginPage() {
 
         {/* Forgot Password */}
         <div className="text-right">
-          <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">
+          {/* Warna link menggunakan green-100 */}
+          <Link href="/auth/forgot-password" className="body-sm text-green-100 hover:text-green-90 hover:underline font-medium">
             Lupa kata sandi? Atur ulang
           </Link>
         </div>
 
         {/* Submit Button */}
+        {/* Primary button: bg-green-100, text-general-20, font-heading */}
         <button
           type="submit"
-          className="w-full py-3 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors"
+          className="w-full py-3 bg-green-100 hover:bg-green-90 text-general-20 font-heading font-semibold rounded-lg transition-colors shadow-sm body-sm"
         >
           Masuk
         </button>
       </form>
 
-      <p className="text-center text-sm text-gray-600 mt-6">
+      <p className="text-center body-sm text-general-60 mt-6">
         Belum memiliki akun?{" "}
-        <Link href="/auth/register" className="text-primary font-medium hover:underline">
+        <Link href="/auth/register" className="text-green-100 font-semibold hover:underline">
           Daftar
         </Link>
       </p>
 
       {/* Divider */}
       <div className="flex items-center gap-4 my-6">
-        <div className="flex-1 border-t border-gray-300"></div>
-        <span className="text-gray-500 text-sm">atau</span>
-        <div className="flex-1 border-t border-gray-300"></div>
+        <div className="flex-1 border-t border-general-30"></div>
+        <span className="text-general-50 body-xs">atau</span>
+        <div className="flex-1 border-t border-general-30"></div>
       </div>
 
       {/* Register Options */}
       <div className="space-y-3">
+        {/* Secondary Outline Button (Primary Color) */}
         <Link
           href="/auth/register"
-          className="block w-full py-3 border-2 border-primary text-primary font-medium rounded-lg text-center hover:bg-primary hover:text-white transition-colors"
+          className="block w-full py-3 border border-green-100 text-green-100 font-heading font-medium rounded-lg text-center hover:bg-green-100 hover:text-general-20 transition-all body-sm"
         >
           Daftar sebagai Masyarakat
         </Link>
+        
+        {/* Secondary Outline Button (Neutral Color) */}
         <Link
           href="/auth/register-anggota"
-          className="block w-full py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-lg text-center hover:bg-gray-50 transition-colors"
+          className="block w-full py-3 border border-general-30 text-general-80 font-heading font-medium rounded-lg text-center hover:border-general-80 hover:bg-general-20 hover:text-general-100 transition-all body-sm"
         >
           Daftar sebagai Anggota AMP MBG
         </Link>
