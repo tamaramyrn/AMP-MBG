@@ -1,0 +1,206 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ===========================================
+       AMP MBG Design System Colors (HSL)
+       Converted so tailwind opacity works
+       =========================================== */
+  
+    /* General (Gray) Scale */
+    --general-100: 0 0% 0%;
+    --general-90: 0 0% 20%;
+    --general-80: 0 0% 30%;
+    --general-70: 0 0% 40%;
+    --general-60: 0 0% 50%;
+    --general-50: 0 0% 60%;
+    --general-40: 0 0% 70%;
+    --general-30: 0 0% 80%;
+    --general-20: 0 0% 100%;
+  
+    /* Green Scale */
+    --green-100: 117 40% 31%;
+    --green-90: 117 32% 39%;
+    --green-80: 117 27% 48%;
+    --green-70: 117 31% 57%;
+    --green-60: 92 38% 62%;
+    --green-50: 117 40% 65%;
+    --green-40: 118 46% 78%;
+    --green-30: 118 79% 87%;
+    --green-20: 93 100% 96%;
+  
+    /* Red Scale */
+    --red-100: 12 95% 42%;
+    --red-90: 12 70% 50%;
+    --red-80: 12 71% 58%;
+    --red-70: 13 71% 66%;
+    --red-60: 13 73% 74%;
+    --red-50: 9 91% 68%;
+    --red-40: 10 91% 78%;
+    --red-30: 14 90% 88%;
+    --red-20: 0 100% 97%;
+  
+    /* Blue Scale */
+    --blue-100: 202 38% 28%;
+    --blue-90: 201 35% 32%;
+    --blue-80: 200 33% 36%;
+    --blue-70: 198 31% 41%;
+    --blue-60: 199 29% 46%;
+    --blue-50: 198 28% 51%;
+    --blue-40: 198 32% 57%;
+    --blue-30: 198 36% 64%;
+    --blue-20: 197 48% 80%;
+    
+    /* Warning */
+    --warning: 38 92% 50%;
+  
+    /* Theme tokens mapped to design system */
+    --background: var(--general-20);
+    --foreground: var(--general-100);
+    --card: var(--general-20);
+    --card-foreground: var(--general-100);
+    --popover: var(--general-20);
+    --popover-foreground: var(--general-100);
+  
+    /* Primary: Green-100 */
+    --primary: var(--green-100);
+    --primary-foreground: var(--general-20);
+  
+    /* Primary variants - Custom mappings for specific needs */
+    --primary-dark: 118 38% 26%;  /* #2a5d28 */
+    --primary-light: var(--green-20);
+  
+    /* Secondary: Green-20 */
+    --secondary: var(--green-20);
+    --secondary-foreground: var(--general-100);
+  
+    --muted: var(--general-30);
+    --muted-foreground: var(--general-70);
+    --accent: var(--green-20);
+    --accent-foreground: var(--general-100);
+  
+    /* Destructive: Red-100 */
+    --destructive: var(--red-100);
+    --destructive-foreground: var(--general-20);
+  
+    /* Info: Blue-100 */
+    --info: var(--blue-100);
+    --info-foreground: var(--general-20);
+  
+    --border: var(--general-30);
+    --input: var(--general-30);
+    --ring: var(--green-100);
+  
+    /* Chart colors using green scale */
+    --chart-1: var(--green-100);
+    --chart-2: var(--green-80);
+    --chart-3: var(--green-60);
+    --chart-4: var(--green-40);
+    --chart-5: var(--green-20);
+  
+    --radius: 0.5rem;
+    --sidebar: var(--general-20);
+    --sidebar-foreground: var(--general-100);
+    --sidebar-primary: var(--green-100);
+    --sidebar-primary-foreground: var(--general-20);
+    --sidebar-accent: var(--green-20);
+    --sidebar-accent-foreground: var(--general-100);
+    --sidebar-border: var(--general-30);
+    --sidebar-ring: var(--green-100);
+  }
+  
+  .dark {
+    --background: 0 0% 4%; /* #0a0a0a */
+    --foreground: var(--general-20);
+    --card: 0 0% 4%;
+    --card-foreground: var(--general-20);
+    --popover: 0 0% 4%;
+    --popover-foreground: var(--general-20);
+    
+    --primary: var(--green-70);
+    --primary-foreground: var(--general-100);
+    --primary-dark: var(--green-80);
+    --primary-light: 120 28% 14%; /* #1a2e1a */
+    
+    --secondary: 0 0% 10%; /* #1a1a1a */
+    --secondary-foreground: var(--general-20);
+    --muted: 0 0% 10%;
+    --muted-foreground: var(--general-50);
+    --accent: 0 0% 10%;
+    --accent-foreground: var(--general-20);
+    
+    /* Destructive Dark Mode */
+    --destructive: var(--red-90);
+    --destructive-foreground: var(--general-20);
+    
+    --border: 0 0% 15%; /* #262626 */
+    --input: 0 0% 15%; /* #262626 */
+    --ring: var(--green-70);
+    --chart-1: var(--green-70);
+    --chart-2: var(--green-60);
+    --chart-3: var(--green-50);
+    --chart-4: var(--green-40);
+    --chart-5: var(--green-30);
+    --sidebar: 0 0% 6%; /* #0f0f0f */
+    --sidebar-foreground: var(--general-20);
+    --sidebar-primary: var(--green-70);
+    --sidebar-primary-foreground: var(--general-20);
+    --sidebar-accent: 0 0% 10%; /* #1a1a1a */
+    --sidebar-accent-foreground: var(--general-20);
+    --sidebar-border: 0 0% 15%; /* #262626 */
+    --sidebar-ring: var(--green-70);
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  h1, .h1 {
+    @apply font-poppins font-bold text-4xl leading-tight;
+  }
+  h2, .h2 {
+    @apply font-poppins font-bold text-3xl leading-tight;
+  }
+  h3, .h3 {
+    @apply font-poppins font-bold text-2xl leading-snug;
+  }
+  h4, .h4 {
+    @apply font-poppins font-semibold text-xl leading-snug;
+  }
+  h5, .h5 {
+    @apply font-poppins font-semibold text-lg leading-normal;
+  }
+  h6, .h6 {
+    @apply font-poppins font-semibold text-base leading-normal;
+  }
+  
+  .body-lg { @apply text-lg leading-7; }
+  .body-md { @apply text-base leading-6; }
+  .body-sm { @apply text-sm leading-5; }
+  .body-xs { @apply text-xs leading-4; }
+
+  .font-heading {
+    font-family: "Poppins", system-ui, sans-serif;
+  }
+}
+
+@media (min-width: 768px) {
+  h1, .h1 { font-size: 3.75rem; line-height: 1.1; }
+  h2, .h2 { font-size: 3rem; line-height: 1.1; }
+  h3, .h3 { font-size: 2.25rem; line-height: 2.75rem; }
+  h4, .h4 { font-size: 1.875rem; line-height: 2.25rem; }
+  h5, .h5 { font-size: 1.5rem; line-height: 2rem; }
+  h6, .h6 { font-size: 1.25rem; line-height: 1.75rem; }
+
+  .body-lg { font-size: 1.25rem; line-height: 1.8; }
+  .body-md { font-size: 1.125rem; line-height: 1.7; }
+  .body-sm { font-size: 1rem; line-height: 1.5; }
+  .body-xs { font-size: 0.875rem; line-height: 1.4; }
+}
