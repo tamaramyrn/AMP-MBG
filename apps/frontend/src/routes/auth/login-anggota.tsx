@@ -3,46 +3,38 @@ import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 
-export const Route = createFileRoute("/auth/login")({
-  component: LoginPage,
+export const Route = createFileRoute("/auth/login-anggota")({
+  component: LoginAnggotaPage,
 })
 
-function LoginPage() {
-  const navigate = useNavigate() // 1. Hook untuk navigasi
+function LoginAnggotaPage() {
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
 
-  // 2. Fungsi Login Simulasi
+  // Handler Login Simulasi
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-
-    // A. Simpan data dummy ke LocalStorage (Simulasi Backend)
-    // Nama ini yang nanti akan muncul di Navbar
-    const dummyUser = { name: "Tamara", role: "public" }
-    localStorage.setItem("currentUser", JSON.stringify(dummyUser))
-
-    // B. Trigger Event agar Navbar langsung update (Tanpa Refresh)
+    // Simulasi set user sebagai anggota
+    localStorage.setItem("currentUser", JSON.stringify({ name: "Anggota Demo", role: "school" }))
+    // Trigger event agar Navbar update
     window.dispatchEvent(new Event("user-login"))
-
-    // C. Pindah ke Halaman Beranda
     navigate({ to: "/" })
   }
 
   return (
     <AuthLayout>
       <div className="mb-8">
-        <h1 className="h3 text-general-100 mb-2">Selamat Datang, Masyarakat!</h1>
-        <p className="body-md text-general-60">Masuk ke akun Anda</p>
+        <h1 className="h3 text-general-100 mb-2">Selamat Datang, Anggota!</h1>
+        <p className="body-md text-general-60">Masuk untuk mengelola laporan program MBG</p>
       </div>
 
-      {/* 3. Hubungkan handler ke form */}
       <form onSubmit={handleLogin} className="space-y-5">
-        
         {/* Email / NIK Field */}
         <fieldset className="border border-general-30 rounded-lg px-3 pb-3 pt-1 focus-within:border-blue-100 focus-within:ring-1 focus-within:ring-blue-100 transition-all">
-          <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Surel / NIK</legend>
+          <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Surel / NIK </legend>
           <input
             type="text"
-            placeholder="Masukkan surel atau NIK Anda"
+            placeholder="Masukkan surel atau NIK"
             className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
           />
         </fieldset>
@@ -86,8 +78,8 @@ function LoginPage() {
       </form>
 
       <p className="text-center body-sm text-general-60 mt-6">
-        Belum memiliki akun?{" "}
-        <Link to="/auth/register" className="text-blue-100 font-semibold hover:underline">
+        Belum terdaftar sebagai anggota?{" "}
+        <Link to="/auth/register-anggota" className="text-blue-100 font-semibold hover:underline">
           Daftar
         </Link>
       </p>
@@ -99,13 +91,13 @@ function LoginPage() {
         <div className="flex-1 border-t border-general-30"></div>
       </div>
 
-      {/* Secondary Action Link */}
+      {/* Secondary Action Link - Ke Login Masyarakat */}
       <div className="space-y-3">
         <Link
-          to="/auth/register-anggota"
+          to="/auth/register"
           className="block w-full py-3 border border-blue-100 text-blue-100 font-heading font-medium rounded-lg text-center hover:bg-blue-100 hover:text-general-20 transition-all body-sm"
         >
-          Daftar sebagai Anggota AMP MBG
+          Daftar sebagai Masyarakat
         </Link>
       </div>
     </AuthLayout>

@@ -17,7 +17,9 @@ import { Route as DataLaporanIndexRouteImport } from './routes/data-laporan/inde
 import { Route as CaraKerjaIndexRouteImport } from './routes/cara-kerja/index'
 import { Route as AuthRegisterAnggotaRouteImport } from './routes/auth/register-anggota'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
+import { Route as AuthLoginAnggotaRouteImport } from './routes/auth/login-anggota'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,15 +61,27 @@ const AuthRegisterRoute = AuthRegisterRouteImport.update({
   path: '/auth/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthLoginAnggotaRoute = AuthLoginAnggotaRouteImport.update({
+  id: '/auth/login-anggota',
+  path: '/auth/login-anggota',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/auth/login',
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/auth/forgot-password',
+  path: '/auth/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/login-anggota': typeof AuthLoginAnggotaRoute
   '/auth/register': typeof AuthRegisterRoute
   '/auth/register-anggota': typeof AuthRegisterAnggotaRoute
   '/cara-kerja': typeof CaraKerjaIndexRoute
@@ -78,7 +92,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/login-anggota': typeof AuthLoginAnggotaRoute
   '/auth/register': typeof AuthRegisterRoute
   '/auth/register-anggota': typeof AuthRegisterAnggotaRoute
   '/cara-kerja': typeof CaraKerjaIndexRoute
@@ -90,7 +106,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/login-anggota': typeof AuthLoginAnggotaRoute
   '/auth/register': typeof AuthRegisterRoute
   '/auth/register-anggota': typeof AuthRegisterAnggotaRoute
   '/cara-kerja/': typeof CaraKerjaIndexRoute
@@ -103,7 +121,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth/forgot-password'
     | '/auth/login'
+    | '/auth/login-anggota'
     | '/auth/register'
     | '/auth/register-anggota'
     | '/cara-kerja'
@@ -114,7 +134,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth/forgot-password'
     | '/auth/login'
+    | '/auth/login-anggota'
     | '/auth/register'
     | '/auth/register-anggota'
     | '/cara-kerja'
@@ -125,7 +147,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/auth/forgot-password'
     | '/auth/login'
+    | '/auth/login-anggota'
     | '/auth/register'
     | '/auth/register-anggota'
     | '/cara-kerja/'
@@ -137,7 +161,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
+  AuthLoginAnggotaRoute: typeof AuthLoginAnggotaRoute
   AuthRegisterRoute: typeof AuthRegisterRoute
   AuthRegisterAnggotaRoute: typeof AuthRegisterAnggotaRoute
   CaraKerjaIndexRoute: typeof CaraKerjaIndexRoute
@@ -205,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/login-anggota': {
+      id: '/auth/login-anggota'
+      path: '/auth/login-anggota'
+      fullPath: '/auth/login-anggota'
+      preLoaderRoute: typeof AuthLoginAnggotaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/login': {
       id: '/auth/login'
       path: '/auth/login'
@@ -212,12 +245,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/auth/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
+  AuthLoginAnggotaRoute: AuthLoginAnggotaRoute,
   AuthRegisterRoute: AuthRegisterRoute,
   AuthRegisterAnggotaRoute: AuthRegisterAnggotaRoute,
   CaraKerjaIndexRoute: CaraKerjaIndexRoute,

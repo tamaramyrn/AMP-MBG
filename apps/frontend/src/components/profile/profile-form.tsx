@@ -1,14 +1,30 @@
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 export function ProfileForm() {
   const [isEditing, setIsEditing] = useState(false)
+  
+  // Data default (Placeholder)
   const [formData, setFormData] = useState({
-    name: "Ahmad Sudirman",
-    nik: "3201010101010001",
-    email: "ahmad.sudirman@email.com",
+    name: "", // Kosongkan dulu, nanti diisi useEffect
+    nik: "3201010101010001", // Dummy karena belum disimpan di login
+    email: "user@ampmbg.id", // Dummy
+    phone: "081234567890", // Dummy
     password: "********",
   })
+
+  // AMBIL DATA DARI LOCALSTORAGE SAAT HALAMAN DIBUKA
+  useEffect(() => {
+    const userStr = localStorage.getItem("currentUser")
+    if (userStr) {
+      const user = JSON.parse(userStr)
+      setFormData((prev) => ({
+        ...prev,
+        name: user.name || "Pengguna Baru", // Ambil nama dari login
+        // Karena di login/register kita cuma simpan 'name', 
+        // sisa data lain kita biarkan default dulu.
+      }))
+    }
+  }, [])
 
   return (
     <div className="bg-general-20 rounded-lg shadow-md border border-general-30 p-6">
@@ -16,13 +32,14 @@ export function ProfileForm() {
         <h2 className="h5 text-general-100">Edit Informasi Akun</h2>
         <button
           onClick={() => setIsEditing(!isEditing)}
-          className="px-4 py-2 bg-green-100 hover:bg-green-90 text-general-20 font-heading font-medium rounded-lg transition-colors body-sm"
+          className="px-4 py-2 bg-blue-100 hover:bg-blue-90 text-general-20 font-heading font-medium rounded-lg transition-colors body-sm"
         >
           {isEditing ? "Simpan" : "Edit Profil"}
         </button>
       </div>
 
       <div className="grid gap-5">
+        {/* NAMA LENGKAP */}
         <div>
           <label htmlFor="name" className="block body-sm font-medium text-general-80 mb-1.5">
             Nama Lengkap
@@ -33,10 +50,11 @@ export function ProfileForm() {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             disabled={!isEditing}
-            className="w-full px-4 py-2.5 border border-general-30 rounded-lg focus:ring-2 focus:ring-green-100 focus:border-green-100 transition-colors disabled:bg-general-30/30 disabled:cursor-not-allowed body-sm text-general-100"
+            className="w-full px-4 py-2.5 border border-general-30 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-100 transition-colors disabled:bg-general-30/30 disabled:cursor-not-allowed body-sm text-general-100"
           />
         </div>
 
+        {/* NIK */}
         <div>
           <label htmlFor="nik" className="block body-sm font-medium text-general-80 mb-1.5">
             NIK
@@ -51,6 +69,7 @@ export function ProfileForm() {
           <p className="body-xs text-general-50 mt-1">NIK tidak dapat diubah</p>
         </div>
 
+        {/* EMAIL */}
         <div>
           <label htmlFor="email" className="block body-sm font-medium text-general-80 mb-1.5">
             Email
@@ -61,10 +80,11 @@ export function ProfileForm() {
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             disabled={!isEditing}
-            className="w-full px-4 py-2.5 border border-general-30 rounded-lg focus:ring-2 focus:ring-green-100 focus:border-green-100 transition-colors disabled:bg-general-30/30 disabled:cursor-not-allowed body-sm text-general-100"
+            className="w-full px-4 py-2.5 border border-general-30 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-100 transition-colors disabled:bg-general-30/30 disabled:cursor-not-allowed body-sm text-general-100"
           />
         </div>
 
+        {/* PASSWORD */}
         <div>
           <label htmlFor="password" className="block body-sm font-medium text-general-80 mb-1.5">
             Kata Sandi
@@ -75,7 +95,7 @@ export function ProfileForm() {
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             disabled={!isEditing}
-            className="w-full px-4 py-2.5 border border-general-30 rounded-lg focus:ring-2 focus:ring-green-100 focus:border-green-100 transition-colors disabled:bg-general-30/30 disabled:cursor-not-allowed body-sm text-general-100"
+            className="w-full px-4 py-2.5 border border-general-30 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-100 transition-colors disabled:bg-general-30/30 disabled:cursor-not-allowed body-sm text-general-100"
           />
         </div>
       </div>
