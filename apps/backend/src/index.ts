@@ -1,14 +1,22 @@
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
-import { prettyJSON } from "hono/pretty-json"
+import { compress } from "hono/compress"
 import { serveStatic } from "hono/bun"
+import { timing } from "hono/timing"
 import routes from "./routes"
 
 const app = new Hono()
 
-app.use("*", logger())
-app.use("*", prettyJSON())
+// Performance middleware
+app.use("*", timing())
+app.use("*", compress())
+
+// Logging in development only
+if (process.env.NODE_ENV !== "production") {
+  app.use("*", logger())
+}
+
 app.use(
   "*",
   cors({

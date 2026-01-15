@@ -1,36 +1,46 @@
-
-import { ChevronDown, CheckSquare, Square } from "lucide-react"
+import { memo, useCallback } from "react"
+import { ChevronDown, CheckSquare, Square, Loader2 } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
 import type { ReportFormData } from "./report-form"
+import { categoriesService } from "@/services/categories"
 
 interface StepIdentityConfirmationProps {
   formData: ReportFormData
   updateFormData: (data: Partial<ReportFormData>) => void
 }
 
-const relations = [
-  { value: "parent", label: "Orang Tua/Wali Murid" },
-  { value: "teacher", label: "Guru/Tenaga Pendidik" },
-  { value: "principal", label: "Kepala Sekolah" },
-  { value: "supplier", label: "Penyedia Makanan/Supplier" },
-  { value: "student", label: "Siswa" },
-  { value: "community", label: "Masyarakat Umum" },
-  { value: "other", label: "Lainnya" },
-]
+function StepIdentityConfirmationComponent({ formData, updateFormData }: StepIdentityConfirmationProps) {
+  // Fetch relations from API
+  const { data: relationsData, isLoading: relationsLoading } = useQuery({
+    queryKey: ["relations"],
+    queryFn: async () => {
+      const response = await categoriesService.getRelations()
+      return response.data
+    },
+    staleTime: 1000 * 60 * 60,
+  })
 
-// Mapping untuk menerjemahkan Value (poisoning) ke Label (Keracunan...)
-const categoryLabels: Record<string, string> = {
-  poisoning: "Keracunan dan Masalah Kesehatan",
-  kitchen: "Operasional Dapur",
-  quality: "Kualitas dan Keamanan Dapur",
-  policy: "Kebijakan dan Anggaran",
-  implementation: "Implementasi Program",
-  social: "Dampak Sosial dan Ekonomi",
-}
+  // Fetch categories for label mapping
+  const { data: categoriesData } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const response = await categoriesService.getCategories()
+      return response.data
+    },
+    staleTime: 1000 * 60 * 60,
+  })
 
-export function StepIdentityConfirmation({ formData, updateFormData }: StepIdentityConfirmationProps) {
-  
-  // Helper untuk mendapatkan Label Kategori
-  const getCategoryLabel = (val: string) => categoryLabels[val] || val
+  const relations = relationsData || []
+  const categories = categoriesData || []
+
+  const getCategoryLabel = useCallback(
+    (val: string) => categories.find((cat) => cat.value === val)?.label || val,
+    [categories]
+  )
+
+  const handleRelationChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => updateFormData({ relation: e.target.value }), [updateFormData])
+  const handleRelationDetailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => updateFormData({ relationDetail: e.target.value }), [updateFormData])
+  const toggleAgreement = useCallback(() => updateFormData({ agreement: !formData.agreement }), [formData.agreement, updateFormData])
 
   return (
     <div className="space-y-6">
@@ -44,10 +54,13 @@ export function StepIdentityConfirmation({ formData, updateFormData }: StepIdent
           <select
             id="relation"
             value={formData.relation}
-            onChange={(e) => updateFormData({ relation: e.target.value })}
-            className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg text-general-100 focus:ring-2 focus:ring-blue-100 focus:border-blue-100 transition-colors appearance-none cursor-pointer"
+            onChange={handleRelationChange}
+            disabled={relationsLoading}
+            className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg text-general-100 focus:ring-2 focus:ring-blue-100 focus:border-blue-100 transition-colors appearance-none cursor-pointer disabled:bg-general-30/30 disabled:cursor-not-allowed"
           >
-            <option value="">Pilih relasi anda</option>
+            <option value="">
+              {relationsLoading ? "Memuat relasi..." : "Pilih relasi anda"}
+            </option>
             {relations.map((rel) => (
               <option key={rel.value} value={rel.value}>
                 {rel.label}
@@ -55,7 +68,11 @@ export function StepIdentityConfirmation({ formData, updateFormData }: StepIdent
             ))}
           </select>
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-general-60">
-            <ChevronDown className="w-5 h-5" />
+            {relationsLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <ChevronDown className="w-5 h-5" />
+            )}
           </div>
         </div>
 
@@ -67,7 +84,7 @@ export function StepIdentityConfirmation({ formData, updateFormData }: StepIdent
                     placeholder="Sebutkan peran spesifik Anda (Opsional)"
                     // Pastikan Anda sudah menambahkan field 'relationDetail' di interface ReportFormData
                     value={formData.relationDetail || ""} 
-                    onChange={(e) => updateFormData({ relationDetail: e.target.value })}
+                    onChange={handleRelationDetailChange}
                     className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg text-general-100 placeholder:text-general-40 focus:ring-2 focus:ring-blue-100 focus:border-blue-100 transition-colors body-sm"
                 />
             </div>
@@ -85,7 +102,7 @@ export function StepIdentityConfirmation({ formData, updateFormData }: StepIdent
             ? "bg-blue-20/50 border-blue-100" 
             : "bg-general-20 border-general-30"
         }`}
-        onClick={() => updateFormData({ agreement: !formData.agreement })}
+        onClick={toggleAgreement}
       >
         <div className="flex items-start gap-3">
           <div className={`mt-0.5 transition-colors ${formData.agreement ? "text-blue-100" : "text-general-40"}`}>
@@ -126,3 +143,5 @@ export function StepIdentityConfirmation({ formData, updateFormData }: StepIdent
     </div>
   )
 }
+
+export const StepIdentityConfirmation = memo(StepIdentityConfirmationComponent)

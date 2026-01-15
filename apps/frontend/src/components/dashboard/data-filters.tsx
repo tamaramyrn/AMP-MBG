@@ -1,8 +1,9 @@
+import { useState, useCallback, memo } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { Search, ChevronDown, AlertCircle, Loader2 } from "lucide-react"
+import { locationsService } from "@/services/locations"
+import { categoriesService } from "@/services/categories"
 
-import { useState } from "react"
-import { Search, ChevronDown, AlertCircle } from "lucide-react"
-
-// Interface untuk data filter yang akan dikirim ke parent
 export interface FilterValues {
   startDate: string
   endDate: string
@@ -14,78 +15,70 @@ interface DataFiltersProps {
   onFilter: (filters: FilterValues) => void
 }
 
-const provinces = [
-  { value: "", label: "Semua Provinsi" },
-  { value: "jakarta", label: "DKI Jakarta" },
-  { value: "jabar", label: "Jawa Barat" },
-  { value: "jatim", label: "Jawa Timur" },
-  { value: "jateng", label: "Jawa Tengah" },
-  { value: "banten", label: "Banten" },
-]
-
-const categories = [
-  { value: "", label: "Semua Kategori" },
-  { value: "poisoning", label: "Keracunan dan Masalah Kesehatan" },
-  { value: "kitchen", label: "Operasional Dapur" },
-  { value: "quality", label: "Kualitas dan Keamanan Dapur" },
-  { value: "policy", label: "Kebijakan dan Anggaran" },
-  { value: "implementation", label: "Implementasi Program" },
-  { value: "social", label: "Dampak Sosial dan Ekonomi" },
-]
-
-export function DataFilters({ onFilter }: DataFiltersProps) {
+function DataFiltersComponent({ onFilter }: DataFiltersProps) {
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [province, setProvince] = useState("")
   const [category, setCategory] = useState("")
   const [error, setError] = useState("")
 
+  // Fetch provinces from API
+  const { data: provincesData, isLoading: provincesLoading } = useQuery({
+    queryKey: ["provinces"],
+    queryFn: async () => {
+      const response = await locationsService.getProvinces()
+      return response.data
+    },
+    staleTime: 1000 * 60 * 60,
+  })
+
+  // Fetch categories from API
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const response = await categoriesService.getCategories()
+      return response.data
+    },
+    staleTime: 1000 * 60 * 60,
+  })
+
+  const provinces = provincesData || []
+  const categories = categoriesData || []
+
   // --- SETUP BATAS TANGGAL ---
   const today = new Date().toISOString().split("T")[0] // Hari ini (YYYY-MM-DD)
   const minDate = "2024-01-01" // Batas paling lampau
 
-  // --- LOGIKA INPUT TANGGAL (Anti 11111) ---
-  const handleDateInput = (
-    e: React.ChangeEvent<HTMLInputElement>, 
-    setter: (val: string) => void
-  ) => {
-    const val = e.target.value
-    
-    // Validasi: Jika ada isinya, cek tahun
-    if (val) {
-      const year = val.split("-")[0]
-      // Jika tahun lebih dari 4 digit (misal 11111), JANGAN update state
-      if (year.length > 4) return 
-    }
-    
-    setter(val)
-    // Reset error saat user mengetik ulang agar merahnya hilang
-    if (error) setError("") 
-  }
+  const handleDateInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
+      const val = e.target.value
+      if (val) {
+        const year = val.split("-")[0]
+        if (year.length > 4) return
+      }
+      setter(val)
+      setError("")
+    },
+    []
+  )
 
-  const handleSearch = () => {
-    // 1. Validasi Range (Start tidak boleh lebih besar dari End)
+  const handleStartDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => handleDateInput(e, setStartDate), [handleDateInput])
+  const handleEndDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => handleDateInput(e, setEndDate), [handleDateInput])
+  const handleProvinceChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => setProvince(e.target.value), [])
+  const handleCategoryChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value), [])
+
+  const handleSearch = useCallback(() => {
     if (startDate && endDate && startDate > endDate) {
       setError("Tanggal mulai tidak boleh lebih besar dari tanggal akhir.")
       return
     }
-
-    // 2. Validasi Masa Depan (Backup jika user bypass kalender)
     if ((startDate && startDate > today) || (endDate && endDate > today)) {
-        setError("Tanggal tidak boleh melebihi hari ini.")
-        return
+      setError("Tanggal tidak boleh melebihi hari ini.")
+      return
     }
-
-    setError("") // Reset error jika valid
-    
-    // Kirim data ke parent component
-    onFilter({
-      startDate,
-      endDate,
-      province,
-      category,
-    })
-  }
+    setError("")
+    onFilter({ startDate, endDate, province, category })
+  }, [startDate, endDate, province, category, today, onFilter])
 
   // Helper untuk menentukan apakah input harus merah
   const isDateError = error !== ""
@@ -115,7 +108,7 @@ export function DataFilters({ onFilter }: DataFiltersProps) {
             value={startDate}
             min={minDate}
             max={today}
-            onChange={(e) => handleDateInput(e, setStartDate)}
+            onChange={handleStartDateChange}
             // UBAH: Logic class border merah jika error
             className={`w-full px-3 py-2 bg-general-20 border rounded-lg focus:ring-2 body-sm transition-colors 
                 ${isDateError 
@@ -136,7 +129,7 @@ export function DataFilters({ onFilter }: DataFiltersProps) {
             value={endDate}
             min={startDate || minDate} // Min otomatis menyesuaikan start date
             max={today}
-            onChange={(e) => handleDateInput(e, setEndDate)}
+            onChange={handleEndDateChange}
             className={`w-full px-3 py-2 bg-general-20 border rounded-lg focus:ring-2 body-sm transition-colors 
                 ${isDateError 
                     ? "border-red-100 focus:border-red-100 focus:ring-red-100 text-red-100" 
@@ -154,17 +147,25 @@ export function DataFilters({ onFilter }: DataFiltersProps) {
             <select
               id="province"
               value={province}
-              onChange={(e) => setProvince(e.target.value)}
-              className="w-full px-3 py-2 bg-general-20 border border-general-30 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-100 text-general-100 body-sm transition-colors appearance-none cursor-pointer"
+              onChange={handleProvinceChange}
+              disabled={provincesLoading}
+              className="w-full px-3 py-2 bg-general-20 border border-general-30 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-100 text-general-100 body-sm transition-colors appearance-none cursor-pointer disabled:bg-general-30/30 disabled:cursor-not-allowed"
             >
+              <option value="">
+                {provincesLoading ? "Memuat..." : "Semua Provinsi"}
+              </option>
               {provinces.map((prov) => (
-                <option key={prov.value} value={prov.value}>
-                  {prov.label}
+                <option key={prov.id} value={prov.id}>
+                  {prov.name}
                 </option>
               ))}
             </select>
             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-general-60">
+              {provincesLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
                 <ChevronDown className="w-4 h-4" />
+              )}
             </div>
           </div>
         </div>
@@ -178,9 +179,13 @@ export function DataFilters({ onFilter }: DataFiltersProps) {
             <select
               id="category"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 bg-general-20 border border-general-30 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-100 text-general-100 body-sm transition-colors appearance-none cursor-pointer"
+              onChange={handleCategoryChange}
+              disabled={categoriesLoading}
+              className="w-full px-3 py-2 bg-general-20 border border-general-30 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-100 text-general-100 body-sm transition-colors appearance-none cursor-pointer disabled:bg-general-30/30 disabled:cursor-not-allowed"
             >
+              <option value="">
+                {categoriesLoading ? "Memuat..." : "Semua Kategori"}
+              </option>
               {categories.map((cat) => (
                 <option key={cat.value} value={cat.value}>
                   {cat.label}
@@ -188,7 +193,11 @@ export function DataFilters({ onFilter }: DataFiltersProps) {
               ))}
             </select>
             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-general-60">
+              {categoriesLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
                 <ChevronDown className="w-4 h-4" />
+              )}
             </div>
           </div>
         </div>
@@ -208,3 +217,5 @@ export function DataFilters({ onFilter }: DataFiltersProps) {
     </div>
   )
 }
+
+export const DataFilters = memo(DataFiltersComponent)

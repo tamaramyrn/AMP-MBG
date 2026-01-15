@@ -1,67 +1,52 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, memo } from "react"
 import { Menu, X, User, LogOut, AlertCircle } from "lucide-react"
 
-const navLinks = [
+const NAV_LINKS = [
   { to: "/", label: "Beranda" },
   { to: "/cara-kerja", label: "Cara Kerja" },
   { to: "/lapor", label: "Lapor" },
   { to: "/data-laporan", label: "Data Laporan" },
   { to: "/tentang-kami", label: "Tentang Kami" },
-]
+] as const
 
-export function Navbar() {
+function NavbarComponent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  
-  // TanStack Router Hooks
   const location = useLocation()
   const pathname = location.pathname
   const navigate = useNavigate()
-  
-  // State user
-  const [currentUser, setCurrentUser] = useState<{name: string} | null>(null)
-  
-  // State untuk Pop-up Konfirmasi Logout
+  const [currentUser, setCurrentUser] = useState<{ name: string } | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
-  // Fungsi cek user di localStorage
-  const checkUser = () => {
+  const checkUser = useCallback(() => {
     const userStr = localStorage.getItem("currentUser")
-    if (userStr) {
-      setCurrentUser(JSON.parse(userStr))
-    } else {
-      setCurrentUser(null)
-    }
-  }
-
-  // Effect untuk memantau status login
-  useEffect(() => {
-    checkUser()
-    const handleLoginEvent = () => checkUser()
-    window.addEventListener("user-login", handleLoginEvent)
-    return () => {
-      window.removeEventListener("user-login", handleLoginEvent)
-    }
+    setCurrentUser(userStr ? JSON.parse(userStr) : null)
   }, [])
 
-  // Helper nama depan
-  const getFirstName = (fullName: string) => {
-    return fullName.split(' ')[0]
-  }
+  useEffect(() => {
+    checkUser()
+    window.addEventListener("user-login", checkUser)
+    return () => window.removeEventListener("user-login", checkUser)
+  }, [checkUser])
 
-  // 1. Fungsi saat tombol "Keluar" ditekan (Hanya buka modal)
-  const handleLogoutClick = () => {
-    setMobileMenuOpen(false) 
-    setShowLogoutConfirm(true) 
-  }
+  const getFirstName = useCallback((fullName: string) => fullName.split(" ")[0], [])
 
-  // 2. Fungsi Eksekusi Logout (Dijalankan jika pilih "Ya")
-  const confirmLogout = () => {
+  const toggleMobileMenu = useCallback(() => setMobileMenuOpen((prev) => !prev), [])
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
+
+  const handleLogoutClick = useCallback(() => {
+    setMobileMenuOpen(false)
+    setShowLogoutConfirm(true)
+  }, [])
+
+  const confirmLogout = useCallback(() => {
     localStorage.removeItem("currentUser")
     setCurrentUser(null)
     setShowLogoutConfirm(false)
-    navigate({ to: "/" }) // Redirect menggunakan TanStack Router
-  }
+    navigate({ to: "/" })
+  }, [navigate])
+
+  const cancelLogout = useCallback(() => setShowLogoutConfirm(false), [])
 
   return (
     <>
@@ -74,14 +59,15 @@ export function Navbar() {
               <img
                 src="/images/logo_putih.png"
                 alt="Logo AMP MBG"
-                // UBAH: h-14 menjadi h-10 agar lebih kecil
+                loading="eager"
+                decoding="async"
                 className="h-10 w-auto object-contain"
               />
             </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-8">
-              {navLinks.map((link) => (
+              {NAV_LINKS.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
@@ -131,7 +117,7 @@ export function Navbar() {
             {/* Mobile Menu Button */}
             <button
               className="lg:hidden p-2 text-white"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={toggleMobileMenu}
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -142,14 +128,14 @@ export function Navbar() {
           {mobileMenuOpen && (
             <div className="lg:hidden pb-4 border-t border-white/20">
               <div className="flex flex-col gap-2 pt-4">
-                {navLinks.map((link) => (
+                {NAV_LINKS.map((link) => (
                   <Link
                     key={link.to}
                     to={link.to}
                     className={`body-md font-medium py-2 transition-colors ${
                       pathname === link.to ? "text-white" : "text-white/80 hover:text-white"
                     }`}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={closeMobileMenu}
                   >
                     {link.label}
                   </Link>
@@ -158,10 +144,10 @@ export function Navbar() {
                 <div className="border-t border-white/20 mt-2 pt-2">
                    {currentUser ? (
                       <div className="flex items-center justify-between py-2">
-                         <Link 
-                            to="/profil" 
+                         <Link
+                            to="/profil"
                             className="flex items-center gap-2 text-white hover:text-white/80"
-                            onClick={() => setMobileMenuOpen(false)}
+                            onClick={closeMobileMenu}
                          >
                             <User className="w-5 h-5" />
                             <span className="body-md font-medium">Halo, {getFirstName(currentUser.name)}</span>
@@ -179,7 +165,7 @@ export function Navbar() {
                       <Link
                         to="/auth/register"
                         className="block w-full body-md bg-blue-20 text-blue-100 px-4 py-2 rounded-lg font-medium text-center mt-2 hover:bg-general-20 transition-colors"
-                        onClick={() => setMobileMenuOpen(false)}
+                        onClick={closeMobileMenu}
                       >
                         Masuk/Daftar
                       </Link>
@@ -212,7 +198,7 @@ export function Navbar() {
             {/* Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowLogoutConfirm(false)}
+                onClick={cancelLogout}
                 className="flex-1 py-2.5 border border-general-30 text-general-80 font-medium rounded-lg hover:bg-general-30/50 transition-colors body-sm"
               >
                 Batal
@@ -231,3 +217,5 @@ export function Navbar() {
     </>
   )
 }
+
+export const Navbar = memo(NavbarComponent)

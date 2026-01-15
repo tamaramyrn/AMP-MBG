@@ -40,6 +40,8 @@ function TentangKamiPage() {
             <img
               src="/images/tentang_kami.png"
               alt="Tim AMP MBG"
+              loading="eager"
+              decoding="async"
               className="w-full h-full object-cover object-left"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-blue-70 via-transparent to-transparent opacity-90"></div>

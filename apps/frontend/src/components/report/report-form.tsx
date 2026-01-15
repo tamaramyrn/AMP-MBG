@@ -1,10 +1,12 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, memo } from "react"
+import { useMutation } from "@tanstack/react-query"
 import { StepLocationCategory } from "./step-location-category"
 import { StepChronologyEvidence } from "./step-chronology-evidence"
 import { StepIdentityConfirmation } from "./step-identity-confirmation"
+import { reportsService, type CreateReportRequest, type ReportCategory, type ReporterRelation } from "@/services/reports"
 import { cn } from "@/lib/utils"
 
-const steps = [
+const STEPS = [
   { id: 1, title: "Lokasi & Kategori", subtitle: "Apa dan di mana kejadiannya?" },
   { id: 2, title: "Kronologi & Bukti", subtitle: "Bagaimana kronologi dan bukti kejadian?" },
   { id: 3, title: "Identitas & Konfirmasi", subtitle: "Data pelapor dan konfirmasi" },
@@ -12,10 +14,10 @@ const steps = [
 
 export interface ReportFormData {
   // Step 1
-  title: string     // <-- TAMBAHAN BARU
+  title: string
   category: string
   date: string
-  time: string      // <-- TAMBAHAN BARU
+  time: string
   province: string
   city: string
   district: string
@@ -29,29 +31,63 @@ export interface ReportFormData {
   agreement: boolean
 }
 
-const initialFormData: ReportFormData = {
-  // Step 1 Defaults
-  title: "",        // <-- TAMBAHAN BARU
+const INITIAL_FORM_DATA: ReportFormData = {
+  title: "",
   category: "",
   date: "",
-  time: "",         // <-- TAMBAHAN BARU
+  time: "",
   province: "",
   city: "",
   district: "",
   location: "",
-  // Step 2 Defaults
   description: "",
   files: [],
-  // Step 3 Defaults
   relation: "",
   agreement: false,
 }
 
-export function ReportForm() {
+function ReportFormComponent() {
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<ReportFormData>(initialFormData)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formData, setFormData] = useState<ReportFormData>(INITIAL_FORM_DATA)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // Create report mutation
+  const createReportMutation = useMutation({
+    mutationFn: async () => {
+      // Format incident date with time
+      const incidentDate = `${formData.date}T${formData.time}:00`
+      
+      const reportData: CreateReportRequest = {
+        category: formData.category as ReportCategory,
+        title: formData.title,
+        description: formData.description,
+        location: formData.location,
+        provinceId: formData.province,
+        cityId: formData.city,
+        districtId: formData.district || undefined,
+        incidentDate,
+        relation: formData.relation as ReporterRelation,
+        relationDetail: formData.relationDetail || undefined,
+      }
+
+      const response = await reportsService.createReport(reportData)
+      
+      // Upload files if any
+      if (formData.files.length > 0 && response.data.id) {
+        await reportsService.uploadFiles(response.data.id, formData.files)
+      }
+      
+      return response
+    },
+    onSuccess: () => {
+      setIsSubmitted(true)
+      setSubmitError(null)
+    },
+    onError: (error: Error) => {
+      setSubmitError(error.message || "Terjadi kesalahan saat mengirim laporan")
+    },
+  })
 
   // --- LOGIKA VALIDASI ---
   const isStepValid = useMemo(() => {
@@ -79,25 +115,22 @@ export function ReportForm() {
     return false
   }, [currentStep, formData])
 
-  const updateFormData = (data: Partial<ReportFormData>) => {
+  const updateFormData = useCallback((data: Partial<ReportFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }))
-  }
+  }, [])
 
-  const nextStep = () => {
-    if (currentStep < 3) setCurrentStep(currentStep + 1)
-  }
+  const nextStep = useCallback(() => {
+    setCurrentStep((s) => (s < 3 ? s + 1 : s))
+  }, [])
 
-  const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1)
-  }
+  const prevStep = useCallback(() => {
+    setCurrentStep((s) => (s > 1 ? s - 1 : s))
+  }, [])
 
-  const handleSubmit = async () => {
-    setIsSubmitting(true)
-    // Simulasi API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsSubmitting(false)
-    setIsSubmitted(true)
-  }
+  const handleSubmit = useCallback(() => {
+    setSubmitError(null)
+    createReportMutation.mutate()
+  }, [createReportMutation])
 
   if (isSubmitted) {
     return (
@@ -126,7 +159,7 @@ export function ReportForm() {
       {/* Step Indicators */}
       <div className="bg-general-20 border-b border-general-30 p-4">
         <div className="flex items-center justify-between">
-          {steps.map((step, index) => (
+          {STEPS.map((step, index) => (
             <div key={step.id} className="flex items-center flex-1">
               <div className="flex items-center">
                 <div
@@ -152,7 +185,7 @@ export function ReportForm() {
                   </p>
                 </div>
               </div>
-              {index < steps.length - 1 && (
+              {index < STEPS.length - 1 && (
                 <div className="flex-1 mx-4">
                   <div 
                     className={cn(
@@ -172,13 +205,20 @@ export function ReportForm() {
       <div className="p-6 md:p-8">
         <div className="mb-6">
           <h2 className="h5 text-general-100">
-            Langkah {currentStep} - {steps[currentStep - 1].subtitle}
+            Langkah {currentStep} - {STEPS[currentStep - 1].subtitle}
           </h2>
         </div>
 
         {currentStep === 1 && <StepLocationCategory formData={formData} updateFormData={updateFormData} />}
         {currentStep === 2 && <StepChronologyEvidence formData={formData} updateFormData={updateFormData} />}
         {currentStep === 3 && <StepIdentityConfirmation formData={formData} updateFormData={updateFormData} />}
+
+        {/* Error Message */}
+        {submitError && (
+          <div className="mt-4 p-4 bg-red-20 border border-red-100 rounded-lg">
+            <p className="text-red-100 body-sm">{submitError}</p>
+          </div>
+        )}
 
         {/* Navigation Buttons */}
         <div className="flex justify-between mt-8 pt-6 border-t border-general-30">
@@ -198,7 +238,7 @@ export function ReportForm() {
             <button
               type="button"
               onClick={nextStep}
-              disabled={!isStepValid} // Validasi Tombol Next
+              disabled={!isStepValid}
               className="px-5 py-2.5 bg-blue-100 hover:bg-blue-90 text-general-20 font-medium rounded-lg transition-colors body-sm font-heading disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Selanjutnya
@@ -207,10 +247,10 @@ export function ReportForm() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting || !isStepValid} // Validasi Tombol Submit
+              disabled={createReportMutation.isPending || !isStepValid}
               className="px-8 py-2.5 bg-blue-100 hover:bg-blue-90 text-general-20 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed body-sm font-heading"
             >
-              {isSubmitting ? "Mengirim..." : "Kirim Laporan"}
+              {createReportMutation.isPending ? "Mengirim..." : "Kirim Laporan"}
             </button>
           )}
         </div>
@@ -218,3 +258,5 @@ export function ReportForm() {
     </div>
   )
 }
+
+export const ReportForm = memo(ReportFormComponent)

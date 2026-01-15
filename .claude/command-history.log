@@ -1,0 +1,28 @@
+[2026-01-15 22:39:30] find /home/nathangalung/documents/project/AMP-MBG/apps/backend/src -type f -name "*.ts" -o -name "*.js" -o -name "*.json" | head -50
+[2026-01-15 22:39:30] ls -la /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src/
+[2026-01-15 22:39:30] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -type f -name "*.ts" -o -name "*.tsx" | head -50
+[2026-01-15 22:39:31] tree -L 4 /home/nathangalung/documents/project/AMP-MBG/apps/backend/src 2>/dev/null || find /home/nathangalung/documents/project/AMP-MBG/apps/backend/src -type f -o -type d | sort
+[2026-01-15 22:39:38] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -type d
+[2026-01-15 22:39:45] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -name "*.ts" -o -name "*.tsx" | xargs grep -l "type\|interface" | grep -v node_modules | grep -v ".gen.ts"
+[2026-01-15 22:40:25] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -type f \( -name "*.ts" -o -name "*.tsx" \) | xargs grep -l "export.*interface\|export.*type" | grep -v node_modules | grep -v ".gen.ts" | head -20
+[2026-01-15 22:41:11] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.json" \) | head -100
+[2026-01-15 22:41:11] ls -la /home/nathangalung/documents/project/AMP-MBG/apps/backend/src
+[2026-01-15 22:41:11] find /home/nathangalung/documents/project/AMP-MBG/apps/backend/src -type f -name "*.ts" -o -name "*.js" -o -name "*.json" | head -50
+[2026-01-15 22:41:11] tree /home/nathangalung/documents/project/AMP-MBG/apps/backend/src -L 3 2>/dev/null || find /home/nathangalung/documents/project/AMP-MBG/apps/backend/src -type d | sort
+[2026-01-15 22:41:17] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -type d | sort
+[2026-01-15 22:48:23] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -type f -name "*.ts" -o -name "*.tsx" -o -name "*.json" | head -50
+[2026-01-15 22:48:27] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -type d | sort
+[2026-01-15 22:48:27] ls -la /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src/
+[2026-01-15 22:48:30] ls -la /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src/hooks/
+[2026-01-15 22:48:30] ls -la /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src/lib/
+[2026-01-15 22:48:46] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -name "*context*" -o -name "*store*" -o -name "*api*" -o -name "*service*" 2>/dev/null
+[2026-01-15 22:48:49] grep -r "localStorage\|sessionStorage" /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src --include="*.tsx" --include="*.ts" -l
+[2026-01-15 22:48:53] find /home/nathangalung/documents/project/AMP-MBG/apps/backend/src -type f -name "*.ts" 2>/dev/null | head -30
+[2026-01-15 22:48:53] ls -la /home/nathangalung/documents/project/AMP-MBG/apps/backend/src/
+[2026-01-15 22:49:04] head -30 /home/nathangalung/documents/project/AMP-MBG/apps/backend/src/routes/reports.ts
+[2026-01-15 22:50:01] mkdir -p /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src/services
+[2026-01-16 05:05:12] find /home/nathangalung/documents/project/AMP-MBG/apps/backend -type f -name "*.ts" -o -name "*.json" -o -name "*.env*" | head -50
+[2026-01-16 05:07:12] cat /home/nathangalung/documents/project/AMP-MBG/apps/backend/.env 2>/dev/null || echo "No .env file found"
+[2026-01-16 05:07:26] ls -la /home/nathangalung/documents/project/AMP-MBG/apps/backend/drizzle 2>/dev/null || echo "No drizzle migrations folder"
+[2026-01-16 05:44:34] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -type f -name "*.tsx" -o -name "*.ts" | head -30
+[2026-01-16 05:45:05] find /home/nathangalung/documents/project/AMP-MBG/apps/frontend/src -type f \( -name "*.tsx" -o -name "*.ts" \) | xargs grep -l "useQuery\|useMutation\|useMemo\|useCallback\|React.memo" | head -15

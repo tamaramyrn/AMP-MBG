@@ -1,3 +1,4 @@
+import { memo } from "react"
 import type React from "react"
 import { cn } from "@/lib/utils"
 
@@ -15,7 +16,7 @@ const variantStyles = {
   neutral: "bg-gray-100 text-gray-700 border-gray-200",
 }
 
-export function StatusBadge({ variant, children, className }: StatusBadgeProps) {
+function StatusBadgeComponent({ variant, children, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
@@ -28,3 +29,5 @@ export function StatusBadge({ variant, children, className }: StatusBadgeProps) 
     </span>
   )
 }
+
+export const StatusBadge = memo(StatusBadgeComponent)

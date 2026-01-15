@@ -1,3 +1,5 @@
+import { memo } from "react"
+
 export interface ReportData {
   id: string
   category: string
@@ -13,7 +15,7 @@ interface ReportCardProps {
   report: ReportData
 }
 
-export function ReportCard({ report }: ReportCardProps) {
+function ReportCardComponent({ report }: ReportCardProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-300 p-5 hover:shadow-md transition-shadow">
       <div className="mb-3">
@@ -32,3 +34,5 @@ export function ReportCard({ report }: ReportCardProps) {
     </div>
   )
 }
+
+export const ReportCard = memo(ReportCardComponent)

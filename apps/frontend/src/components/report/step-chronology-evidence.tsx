@@ -1,4 +1,4 @@
-
+import { memo, useCallback, useMemo } from "react"
 import type React from "react"
 import type { ReportFormData } from "./report-form"
 import { Upload, X, ImageIcon } from "lucide-react"
@@ -8,27 +8,33 @@ interface StepChronologyEvidenceProps {
   updateFormData: (data: Partial<ReportFormData>) => void
 }
 
-export function StepChronologyEvidence({ formData, updateFormData }: StepChronologyEvidenceProps) {
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || [])
-    const validFiles = selectedFiles.filter((file) => {
-      const isValidType = file.type.startsWith("image/")
-      const isValidSize = file.size <= 10 * 1024 * 1024 // 10MB
-      return isValidType && isValidSize
-    })
-    updateFormData({ files: [...formData.files, ...validFiles] })
-  }
+const MIN_DESCRIPTION_LENGTH = 50
+const MAX_FILE_SIZE = 10 * 1024 * 1024
 
-  const removeFile = (index: number) => {
-    const newFiles = formData.files.filter((_, i) => i !== index)
-    updateFormData({ files: newFiles })
-  }
+function StepChronologyEvidenceComponent({ formData, updateFormData }: StepChronologyEvidenceProps) {
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFiles = Array.from(e.target.files || [])
+      const validFiles = selectedFiles.filter((file) => file.type.startsWith("image/") && file.size <= MAX_FILE_SIZE)
+      updateFormData({ files: [...formData.files, ...validFiles] })
+    },
+    [formData.files, updateFormData]
+  )
 
-  // --- LOGIKA HITUNG KARAKTER ---
-  const minLength = 50
+  const removeFile = useCallback(
+    (index: number) => {
+      updateFormData({ files: formData.files.filter((_, i) => i !== index) })
+    },
+    [formData.files, updateFormData]
+  )
+
+  const handleDescriptionChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => updateFormData({ description: e.target.value }),
+    [updateFormData]
+  )
+
   const currentLength = formData.description.length
-  // Error jika user sudah mulai mengetik tapi belum sampai 50
-  const isError = currentLength > 0 && currentLength < minLength
+  const isError = useMemo(() => currentLength > 0 && currentLength < MIN_DESCRIPTION_LENGTH, [currentLength])
 
   return (
     <div className="space-y-6">
@@ -40,14 +46,14 @@ export function StepChronologyEvidence({ formData, updateFormData }: StepChronol
             </label>
             {/* INDIKATOR KARAKTER */}
             <span className={`text-xs ${isError ? 'text-red-100 font-bold' : 'text-general-60'}`}>
-                {currentLength}/{minLength} Karakter
+                {currentLength}/{MIN_DESCRIPTION_LENGTH} Karakter
             </span>
         </div>
         
         <textarea
           id="description"
           value={formData.description}
-          onChange={(e) => updateFormData({ description: e.target.value })}
+          onChange={handleDescriptionChange}
           rows={6}
           placeholder="Jelaskan secara detail kronologi kejadian yang Anda laporkan..."
           className={`w-full px-4 py-3 bg-general-20 border rounded-lg text-general-100 placeholder:text-general-40 focus:ring-2 transition-colors resize-none body-sm
@@ -130,3 +136,5 @@ export function StepChronologyEvidence({ formData, updateFormData }: StepChronol
     </div>
   )
 }
+
+export const StepChronologyEvidence = memo(StepChronologyEvidenceComponent)

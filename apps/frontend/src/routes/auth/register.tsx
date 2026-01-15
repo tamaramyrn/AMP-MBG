@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
-import { Eye, EyeOff, CheckCircle2 } from "lucide-react"
+import { Eye, EyeOff, CheckCircle2, Loader2 } from "lucide-react"
+import { authService } from "@/services/auth"
 
 export const Route = createFileRoute("/auth/register")({
   component: RegisterPage,
@@ -11,8 +12,9 @@ function RegisterPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  // State data input
   const [formData, setFormData] = useState({
     name: "",
     nik: "",
@@ -23,9 +25,8 @@ function RegisterPage() {
   })
   const [isAgreed, setIsAgreed] = useState(false)
 
-  // --- LOGIKA VALIDASI ---
   const isNikValid = /^\d{16}$/.test(formData.nik)
-  const isPhoneValid = /^\d{10,13}$/.test(formData.phone)
+  const isPhoneValid = /^\d{9,12}$/.test(formData.phone)
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/
   const isPasswordValid = passwordRegex.test(formData.password)
   const isMatch = formData.password === formData.confirmPassword && formData.confirmPassword !== ""
@@ -34,7 +35,6 @@ function RegisterPage() {
 
   const isValid = isNameValid && isNikValid && isEmailValid && isPhoneValid && isPasswordValid && isMatch && isAgreed
 
-  // --- HANDLER ---
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -47,12 +47,27 @@ function RegisterPage() {
     }
   }
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isValid) {
-      localStorage.setItem("currentUser", JSON.stringify({ name: formData.name }))
-      window.dispatchEvent(new Event("user-login"))
+    if (!isValid) return
+
+    setError("")
+    setIsLoading(true)
+
+    try {
+      await authService.signup({
+        name: formData.name,
+        nik: formData.nik,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        passwordConfirmation: formData.confirmPassword,
+      })
       navigate({ to: "/" })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registrasi gagal")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -64,7 +79,12 @@ function RegisterPage() {
       </div>
 
       <form onSubmit={handleRegister} className="space-y-3">
-        
+        {error && (
+          <div className="bg-red-20 border border-red-100 text-red-100 px-4 py-3 rounded-lg body-sm">
+            {error}
+          </div>
+        )}
+
         {/* Nama Lengkap */}
         <fieldset className="border border-general-30 rounded-lg px-3 pb-2.5 pt-1 focus-within:border-blue-100 focus-within:ring-1 focus-within:ring-blue-100 transition-all">
           <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Nama Lengkap</legend>
@@ -225,15 +245,16 @@ function RegisterPage() {
 
         <button
           type="submit"
-          disabled={!isValid}
+          disabled={!isValid || isLoading}
           className={`w-full py-2.5 font-heading font-semibold rounded-lg transition-all shadow-sm body-sm flex justify-center items-center gap-2 ${
-            isValid 
-              ? "bg-blue-100 hover:bg-blue-90 text-general-20 cursor-pointer" 
+            isValid && !isLoading
+              ? "bg-blue-100 hover:bg-blue-90 text-general-20 cursor-pointer"
               : "bg-general-30 text-general-60 cursor-not-allowed opacity-70"
           }`}
         >
-          Daftar sebagai Masyarakat
-          {isValid && <CheckCircle2 className="w-4 h-4" />}
+          {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+          {isLoading ? "Memproses..." : "Daftar sebagai Masyarakat"}
+          {isValid && !isLoading && <CheckCircle2 className="w-4 h-4" />}
         </button>
       </form>
 

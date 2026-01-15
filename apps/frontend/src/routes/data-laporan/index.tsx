@@ -1,44 +1,68 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { Loader2 } from "lucide-react"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
 import { DataSummaryCards } from "@/components/dashboard/data-summary-cards"
 import { DataFilters, type FilterValues } from "@/components/dashboard/data-filters"
 import { DataTable, type ReportRow } from "@/components/dashboard/data-table"
+import { reportsService, type ReportsQuery, type ReportCategory } from "@/services/reports"
 
 export const Route = createFileRoute("/data-laporan/")({
   component: DataLaporanPage,
 })
 
-const dummyReports: ReportRow[] = [
-  { id: "1", date: "2024-02-10", city: "Jakarta Selatan", province: "jakarta", category: "poisoning", status: "Terverifikasi", description: "10 siswa mengalami sakit perut massal setelah makan siang." },
-  { id: "2", date: "2024-02-12", city: "Bandung", province: "jabar", category: "kitchen", status: "Menunggu", description: "Atap dapur sekolah bocor, mengkontaminasi area masak." },
-  { id: "3", date: "2024-02-15", city: "Surabaya", province: "jatim", category: "quality", status: "Ditolak", description: "Laporan kualitas nasi kurang matang, bukti tidak cukup." },
-  { id: "4", date: "2024-02-18", city: "Tangerang", province: "banten", category: "policy", status: "Terverifikasi", description: "Distribusi makanan terlambat 3 hari berturut-turut." },
-  { id: "5", date: "2024-02-20", city: "Semarang", province: "jateng", category: "implementation", status: "Menunggu", description: "Menu tidak sesuai dengan anggaran yang ditetapkan." },
-  { id: "6", date: "2024-02-22", city: "Jakarta Barat", province: "jakarta", category: "social", status: "Terverifikasi", description: "Vendor lokal tidak dilibatkan dalam pengadaan bahan baku." },
-  { id: "7", date: "2024-02-25", city: "Bekasi", province: "jabar", category: "poisoning", status: "Menunggu", description: "Siswa muntah-muntah, diduga alergi susu." },
-  { id: "8", date: "2024-02-26", city: "Malang", province: "jatim", category: "kitchen", status: "Terverifikasi", description: "Alat masak berkarat ditemukan di dapur umum." },
-]
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Menunggu",
+  verified: "Terverifikasi",
+  in_progress: "Diproses",
+  resolved: "Selesai",
+  rejected: "Ditolak",
+}
+
+const INITIAL_FILTERS: FilterValues = {
+  startDate: "",
+  endDate: "",
+  province: "",
+  category: "",
+}
 
 function DataLaporanPage() {
-  const [filteredData, setFilteredData] = useState<ReportRow[]>(dummyReports)
+  const [filters, setFilters] = useState<FilterValues>(INITIAL_FILTERS)
 
-  const handleFilterChange = (filters: FilterValues) => {
-    const { startDate, endDate, province, category } = filters
+  const query = useMemo<ReportsQuery>(() => ({
+    limit: 50,
+    ...(filters.category && { category: filters.category as ReportCategory }),
+    ...(filters.province && { provinceId: filters.province }),
+    ...(filters.startDate && { startDate: filters.startDate }),
+    ...(filters.endDate && { endDate: filters.endDate }),
+  }), [filters])
 
-    const results = dummyReports.filter((item) => {
-      const itemDate = new Date(item.date)
-      const start = startDate ? new Date(startDate) : null
-      const end = endDate ? new Date(endDate) : null
-      const isDateValid = (!start || itemDate >= start) && (!end || itemDate <= end)
-      const isProvinceValid = province === "" || item.province === province
-      const isCategoryValid = category === "" || item.category === category
-      return isDateValid && isProvinceValid && isCategoryValid
-    })
+  const { data: reportsData, isLoading } = useQuery({
+    queryKey: ["reports", "public", query],
+    queryFn: () => reportsService.getReports(query),
+  })
 
-    setFilteredData(results)
-  }
+  const tableData: ReportRow[] = useMemo(() => {
+    if (!reportsData?.data) return []
+    return reportsData.data.map((report) => ({
+      id: report.id,
+      date: report.incidentDate.split("T")[0],
+      city: report.city,
+      province: report.province,
+      district: report.district,
+      category: report.category,
+      status: STATUS_LABELS[report.status] || report.status,
+      description: report.description.length > 100 
+        ? report.description.substring(0, 100) + "..." 
+        : report.description,
+    }))
+  }, [reportsData])
+
+  const handleFilterChange = useCallback((newFilters: FilterValues) => {
+    setFilters(newFilters)
+  }, [])
 
   return (
     <div className="min-h-screen flex flex-col bg-general-20">
@@ -51,12 +75,21 @@ function DataLaporanPage() {
           </div>
           <DataSummaryCards />
           <DataFilters onFilter={handleFilterChange} />
-          <DataTable data={filteredData} />
-          {filteredData.length === 0 && (
-            <div className="text-center py-12 bg-general-20 border border-general-30 border-dashed rounded-lg mt-4">
-              <p className="text-general-60 body-md font-medium">Tidak ada laporan yang sesuai dengan filter Anda.</p>
-              <p className="text-general-50 text-sm mt-1">Coba atur ulang tanggal atau kategori pencarian.</p>
+          
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-100" />
             </div>
+          ) : (
+            <>
+              <DataTable data={tableData} />
+              {tableData.length === 0 && (
+                <div className="text-center py-12 bg-general-20 border border-general-30 border-dashed rounded-lg mt-4">
+                  <p className="text-general-60 body-md font-medium">Tidak ada laporan yang sesuai dengan filter Anda.</p>
+                  <p className="text-general-50 text-sm mt-1">Coba atur ulang tanggal atau kategori pencarian.</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

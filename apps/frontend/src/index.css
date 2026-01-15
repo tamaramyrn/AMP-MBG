@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Font loading optimization */
+@font-face {
+  font-family: 'Inter';
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Poppins';
+  font-display: swap;
+}
+
 @layer base {
   :root {
     /* ===========================================

@@ -117,15 +117,22 @@ admin.delete("/users/:id", async (c) => {
 })
 
 admin.get("/dashboard", async (c) => {
-  const [usersCount, reportsCount, byStatus, byCategory, byRole, uniqueCities, pendingReports, recentReports] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(schema.users),
-    db.select({ count: sql<number>`count(*)` }).from(schema.reports),
+  // Optimized: Combine counts into single queries
+  const [userAggregates, reportAggregates, byStatus, byCategory, recentReports] = await Promise.all([
+    db.select({
+      total: sql<number>`count(*)`,
+      adminCount: sql<number>`count(*) filter (where ${schema.users.role} = 'admin')`,
+      publicCount: sql<number>`count(*) filter (where ${schema.users.role} = 'public')`,
+    }).from(schema.users),
+    db.select({
+      total: sql<number>`count(*)`,
+      pending: sql<number>`count(*) filter (where ${schema.reports.status} = 'pending')`,
+      uniqueCities: sql<number>`count(distinct ${schema.reports.cityId})`,
+    }).from(schema.reports),
     db.select({ status: schema.reports.status, count: sql<number>`count(*)` }).from(schema.reports).groupBy(schema.reports.status),
     db.select({ category: schema.reports.category, count: sql<number>`count(*)` }).from(schema.reports).groupBy(schema.reports.category),
-    db.select({ role: schema.users.role, count: sql<number>`count(*)` }).from(schema.users).groupBy(schema.users.role),
-    db.select({ count: sql<number>`count(distinct ${schema.reports.cityId})` }).from(schema.reports),
-    db.select({ count: sql<number>`count(*)` }).from(schema.reports).where(eq(schema.reports.status, "pending")),
     db.query.reports.findMany({
+      columns: { id: true, title: true, category: true, status: true, createdAt: true },
       limit: 5,
       orderBy: [desc(schema.reports.createdAt)],
       with: { province: true, city: true, user: { columns: { name: true } } },
@@ -134,13 +141,16 @@ admin.get("/dashboard", async (c) => {
 
   return c.json({
     users: {
-      total: Number(usersCount[0]?.count || 0),
-      byRole: byRole.map((r) => ({ role: r.role, count: Number(r.count) })),
+      total: Number(userAggregates[0]?.total || 0),
+      byRole: [
+        { role: "admin", count: Number(userAggregates[0]?.adminCount || 0) },
+        { role: "public", count: Number(userAggregates[0]?.publicCount || 0) },
+      ],
     },
     reports: {
-      total: Number(reportsCount[0]?.count || 0),
-      pending: Number(pendingReports[0]?.count || 0),
-      uniqueCities: Number(uniqueCities[0]?.count || 0),
+      total: Number(reportAggregates[0]?.total || 0),
+      pending: Number(reportAggregates[0]?.pending || 0),
+      uniqueCities: Number(reportAggregates[0]?.uniqueCities || 0),
       byStatus: byStatus.map((r) => ({ status: r.status, count: Number(r.count) })),
       byCategory: byCategory.map((r) => ({ category: r.category, count: Number(r.count) })),
     },
@@ -348,14 +358,14 @@ admin.patch("/reports/:id/status", zValidator("json", updateReportStatusSchema),
     .where(eq(schema.reports.id, id))
     .returning()
 
-  // Record status change
-  await db.insert(schema.reportStatusHistory).values({
+  // Record status change in parallel (fire and forget)
+  db.insert(schema.reportStatusHistory).values({
     reportId: id,
     fromStatus: previousStatus,
     toStatus: status,
     changedBy: user.id,
     notes: notes || null,
-  })
+  }).catch(() => {})
 
   return c.json({ data: updated, message: "Status laporan berhasil diperbarui" })
 })
@@ -388,12 +398,7 @@ admin.patch("/reports/bulk-status", zValidator("json", bulkUpdateSchema), async 
     updateData.verifiedAt = new Date()
   }
 
-  // Update all reports
-  await db.update(schema.reports)
-    .set(updateData)
-    .where(inArray(schema.reports.id, reportIds))
-
-  // Record status changes
+  // Parallel: Update reports and insert history
   const historyRecords = reports.map((r) => ({
     reportId: r.id,
     fromStatus: r.status,
@@ -402,7 +407,12 @@ admin.patch("/reports/bulk-status", zValidator("json", bulkUpdateSchema), async 
     notes: notes || null,
   }))
 
-  await db.insert(schema.reportStatusHistory).values(historyRecords)
+  await Promise.all([
+    db.update(schema.reports)
+      .set(updateData)
+      .where(inArray(schema.reports.id, reportIds)),
+    db.insert(schema.reportStatusHistory).values(historyRecords),
+  ])
 
   return c.json({
     message: `${reports.length} laporan berhasil diperbarui`,
@@ -428,27 +438,23 @@ admin.get("/analytics", async (c) => {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
+  // Optimized: Combine counts into single queries
   const [
-    totalReports,
-    last30DaysReports,
-    last7DaysReports,
-    totalUsers,
-    activeUsers,
+    reportAggregates,
+    userAggregates,
     reportsByMonth,
     topProvinces,
-    highRiskCount,
   ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(schema.reports),
-    db.select({ count: sql<number>`count(*)` })
-      .from(schema.reports)
-      .where(gte(schema.reports.createdAt, thirtyDaysAgo)),
-    db.select({ count: sql<number>`count(*)` })
-      .from(schema.reports)
-      .where(gte(schema.reports.createdAt, sevenDaysAgo)),
-    db.select({ count: sql<number>`count(*)` }).from(schema.users),
-    db.select({ count: sql<number>`count(*)` })
-      .from(schema.users)
-      .where(eq(schema.users.isActive, true)),
+    db.select({
+      total: sql<number>`count(*)`,
+      last30Days: sql<number>`count(*) filter (where ${schema.reports.createdAt} >= ${thirtyDaysAgo})`,
+      last7Days: sql<number>`count(*) filter (where ${schema.reports.createdAt} >= ${sevenDaysAgo})`,
+      highRisk: sql<number>`count(*) filter (where ${schema.reports.category} = 'poisoning')`,
+    }).from(schema.reports),
+    db.select({
+      total: sql<number>`count(*)`,
+      active: sql<number>`count(*) filter (where ${schema.users.isActive} = true)`,
+    }).from(schema.users),
     db.select({
       month: sql<string>`to_char(${schema.reports.createdAt}, 'YYYY-MM')`,
       count: sql<number>`count(*)`,
@@ -465,9 +471,6 @@ admin.get("/analytics", async (c) => {
       .groupBy(schema.reports.provinceId)
       .orderBy(desc(sql`count(*)`))
       .limit(5),
-    db.select({ count: sql<number>`count(*)` })
-      .from(schema.reports)
-      .where(eq(schema.reports.category, "poisoning")),
   ])
 
   // Get province names
@@ -475,18 +478,19 @@ admin.get("/analytics", async (c) => {
   const provinces = provinceIds.length > 0
     ? await db.query.provinces.findMany({
         where: inArray(schema.provinces.id, provinceIds),
+        columns: { id: true, name: true },
       })
     : []
   const provinceMap = new Map(provinces.map((p) => [p.id, p.name]))
 
   return c.json({
     overview: {
-      totalReports: Number(totalReports[0]?.count || 0),
-      last30Days: Number(last30DaysReports[0]?.count || 0),
-      last7Days: Number(last7DaysReports[0]?.count || 0),
-      totalUsers: Number(totalUsers[0]?.count || 0),
-      activeUsers: Number(activeUsers[0]?.count || 0),
-      highRiskReports: Number(highRiskCount[0]?.count || 0),
+      totalReports: Number(reportAggregates[0]?.total || 0),
+      last30Days: Number(reportAggregates[0]?.last30Days || 0),
+      last7Days: Number(reportAggregates[0]?.last7Days || 0),
+      totalUsers: Number(userAggregates[0]?.total || 0),
+      activeUsers: Number(userAggregates[0]?.active || 0),
+      highRiskReports: Number(reportAggregates[0]?.highRisk || 0),
     },
     trends: {
       reportsByMonth: reportsByMonth.map((r) => ({

@@ -1,33 +1,53 @@
+import { memo, useMemo } from "react"
 import { FileText, MapPin, AlertTriangle, ShieldCheck } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { reportsService } from "@/services/reports"
 
-const summaryData = [
-  {
-    icon: FileText,
-    value: "1,247",
-    label: "Total Laporan",
-    color: "bg-blue-100 text-general-20",
-  },
-  {
-    icon: MapPin,
-    value: "342",
-    label: "Kabupaten/Kota",
-    color: "bg-green-100 text-general-20",
-  },
-  {
-    icon: AlertTriangle,
-    value: "89",
-    label: "Laporan Berisiko Tinggi",
-    color: "bg-red-100 text-general-20",
-  },
-  {
-    icon: ShieldCheck,
-    value: "Keracunan dan Masalah Kesehatan",
-    label: "Kategori Terbanyak",
-    color: "bg-orange-500 text-general-20",
-  },
-]
+const CATEGORY_LABELS: Record<string, string> = {
+  poisoning: "Keracunan dan Masalah Kesehatan",
+  kitchen: "Operasional Dapur",
+  quality: "Kualitas dan Keamanan Dapur",
+  policy: "Kebijakan dan Anggaran",
+  implementation: "Implementasi Program",
+  social: "Dampak Sosial dan Ekonomi",
+}
 
-export function DataSummaryCards() {
+function DataSummaryCardsComponent() {
+  const { data: stats } = useQuery({
+    queryKey: ["reports", "summary"],
+    queryFn: () => reportsService.getSummary(),
+    staleTime: 30000,
+  })
+
+  const summaryData = useMemo(() => {
+    const topCategoryLabel = stats?.topCategory ? CATEGORY_LABELS[stats.topCategory.category] || stats.topCategory.category : "-"
+    return [
+    {
+      icon: FileText,
+      value: stats?.total?.toLocaleString() || "0",
+      label: "Total Laporan",
+      color: "bg-blue-100 text-general-20",
+    },
+    {
+      icon: MapPin,
+      value: stats?.uniqueCities?.toLocaleString() || "0",
+      label: "Kabupaten/Kota",
+      color: "bg-green-100 text-general-20",
+    },
+    {
+      icon: AlertTriangle,
+      value: stats?.highRisk?.toLocaleString() || "0",
+      label: "Laporan Berisiko Tinggi",
+      color: "bg-red-100 text-general-20",
+    },
+    {
+      icon: ShieldCheck,
+      value: topCategoryLabel,
+      label: "Kategori Terbanyak",
+      color: "bg-orange-500 text-general-20",
+    },
+  ]}, [stats])
+
   return (
     // 'items-stretch' adalah default grid, memastikan semua kartu tingginya sama
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 items-stretch">
@@ -62,3 +82,5 @@ export function DataSummaryCards() {
     </div>
   )
 }
+
+export const DataSummaryCards = memo(DataSummaryCardsComponent)

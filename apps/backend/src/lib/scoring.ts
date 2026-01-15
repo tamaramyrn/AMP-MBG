@@ -33,6 +33,98 @@ export interface ScoringResult {
   credibilityLevel: CredibilityLevel
 }
 
+/**
+ * MBG Schedule Time Windows (WIB - Western Indonesia Time):
+ * - 20:00 – 03:00: Tim Prepare (preparation team)
+ * - 23:00 – 08:00: Tim Cooking (cooking team)
+ * - 03:00 – 10:00: Tim Packing/Pemorsian (packing/portioning team)
+ * - 06:30: Tim Pengantaran - Kirim Makanan (delivery - send food)
+ * - 12:00: Tim Pengantaran - Jemput Wadah (delivery - pickup containers)
+ * - 12:00 – 20:00: Tim Cuci/Steward (washing/steward team)
+ * 
+ * Key consumption windows:
+ * - 06:30 – 08:00: Food delivery to schools
+ * - 07:00 – 12:00: Student consumption time (breakfast/snack at school)
+ */
+
+// MBG operation time windows based on actual schedule
+interface TimeWindow {
+  start: number  // Hour in 24h format
+  end: number    // Hour in 24h format
+  crossesMidnight: boolean
+}
+
+const MBG_TIME_WINDOWS: Record<string, TimeWindow> = {
+  // Preparation phase
+  prepare: { start: 20, end: 3, crossesMidnight: true },
+  // Cooking phase  
+  cooking: { start: 23, end: 8, crossesMidnight: true },
+  // Packing phase
+  packing: { start: 3, end: 10, crossesMidnight: false },
+  // Food delivery to schools (with 30min buffer)
+  delivery: { start: 6, end: 8, crossesMidnight: false },
+  // Student consumption time at school
+  consumption: { start: 7, end: 12, crossesMidnight: false },
+  // Container pickup
+  containerPickup: { start: 11, end: 13, crossesMidnight: false },
+  // Washing/steward phase
+  washing: { start: 12, end: 20, crossesMidnight: false },
+}
+
+// Map relations to relevant MBG time windows
+const RELATION_TIME_WINDOWS: Record<ReporterRelation, string[]> = {
+  // Supplier would be involved in prepare, cooking, packing phases
+  supplier: ["prepare", "cooking", "packing", "delivery"],
+  // Students primarily during consumption time
+  student: ["consumption", "delivery"],
+  // Parents when dropping off children or picking up, also consumption reports
+  parent: ["delivery", "consumption", "containerPickup"],
+  // Teachers throughout school hours
+  teacher: ["delivery", "consumption", "containerPickup"],
+  // Principal same as teacher
+  principal: ["delivery", "consumption", "containerPickup"],
+  // Community could observe any phase, but primarily delivery/visible phases
+  community: ["delivery", "consumption", "containerPickup", "washing"],
+  // Other - could be any time
+  other: ["prepare", "cooking", "packing", "delivery", "consumption", "containerPickup", "washing"],
+}
+
+/**
+ * Check if a given hour falls within a time window
+ */
+function isWithinTimeWindow(hour: number, window: TimeWindow): boolean {
+  if (window.crossesMidnight) {
+    // For windows that cross midnight (e.g., 20:00-03:00)
+    return hour >= window.start || hour < window.end
+  }
+  return hour >= window.start && hour < window.end
+}
+
+/**
+ * Check if incident time matches appropriate MBG schedule for the reporter's relation
+ */
+function checkTimeMatchesRelation(hour: number, relation: ReporterRelation): { matches: boolean; relevance: number } {
+  const relevantWindows = RELATION_TIME_WINDOWS[relation]
+  let bestRelevance = 0
+  
+  for (const windowName of relevantWindows) {
+    const window = MBG_TIME_WINDOWS[windowName]
+    if (isWithinTimeWindow(hour, window)) {
+      // Primary window match (first in list) gets higher relevance
+      const relevance = relevantWindows.indexOf(windowName) === 0 ? 1.0 : 0.7
+      bestRelevance = Math.max(bestRelevance, relevance)
+    }
+  }
+  
+  // Also check if time is within any MBG operation window (general match)
+  const isWithinAnyWindow = Object.values(MBG_TIME_WINDOWS).some(w => isWithinTimeWindow(hour, w))
+  if (isWithinAnyWindow && bestRelevance === 0) {
+    bestRelevance = 0.3 // Partial match - within MBG ops but not relation-specific
+  }
+  
+  return { matches: bestRelevance > 0, relevance: bestRelevance }
+}
+
 // Score relation to MBG (0-3)
 function scoreRelation(relation: ReporterRelation, detail?: string | null): number {
   // Score 3: Internal parties (student, parent, teacher, principal, supplier)
@@ -50,16 +142,14 @@ function scoreRelation(relation: ReporterRelation, detail?: string | null): numb
 }
 
 // Score location and time validity (0-3)
-// Score 3: Location + day + time all match MBG schedule
-// Score 2: Location + day match (time unclear)
-// Score 1: Only location or only day matches
-// Score 0: No match or incomplete data
+// Now integrates with MBG schedule and relation-based time validation
 function scoreLocationTime(
   incidentDate: Date,
   provinceId: string,
   cityId: string,
   districtId?: string | null,
-  mbgMatch?: MbgScheduleMatch
+  mbgMatch?: MbgScheduleMatch,
+  relation?: ReporterRelation
 ): number {
   // If we have MBG schedule data, use it for accurate scoring
   if (mbgMatch) {
@@ -75,29 +165,62 @@ function scoreLocationTime(
     return 0 // No MBG program at this location
   }
 
-  // Fallback: Basic validation if no MBG schedule data
+  // Enhanced fallback: Validate against MBG schedule times
   let score = 0
 
-  // Check if location is complete
+  // Check if location is complete (max 1.5 points)
   if (provinceId && cityId && districtId) {
     score += 1.5 // Full location provided
   } else if (provinceId && cityId) {
     score += 1 // Partial location
   }
 
-  // Check time validity (MBG typically runs Mon-Fri, morning)
+  // Check time validity against MBG schedule
   const dayOfWeek = incidentDate.getDay()
-  const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
+  const isSchoolDay = dayOfWeek >= 1 && dayOfWeek <= 5 // Mon-Fri (school days)
+  const isSaturday = dayOfWeek === 6 // Some areas have Saturday school
   const hour = incidentDate.getHours()
-  const isMorning = hour >= 6 && hour <= 14
 
-  if (isWeekday && isMorning) {
-    score += 1.5 // Matches typical MBG time
-  } else if (isWeekday) {
-    score += 1 // At least on school day
+  // MBG operates Mon-Fri typically, some areas on Saturday
+  if (!isSchoolDay && !isSaturday) {
+    // Sunday - MBG doesn't operate
+    return Math.min(1, score) // Cap at 1 for Sunday reports
   }
 
-  return Math.min(3, Math.round(score))
+  // Validate time against relation-specific MBG windows
+  if (relation) {
+    const timeCheck = checkTimeMatchesRelation(hour, relation)
+    if (timeCheck.matches) {
+      // Time matches relation's expected MBG window
+      score += 1.5 * timeCheck.relevance
+    } else {
+      // Time doesn't match - still give partial credit if within general MBG hours
+      const isWithinGeneralMbgHours = 
+        (hour >= 6 && hour <= 14) || // Primary school hours
+        (hour >= 20 || hour < 10)    // Preparation/cooking hours
+      
+      if (isWithinGeneralMbgHours) {
+        score += 0.5
+      }
+    }
+  } else {
+    // No relation provided - use general MBG time validation
+    // Key times: 06:30-08:00 delivery, 07:00-12:00 consumption
+    const isConsumptionTime = hour >= 7 && hour <= 12
+    const isDeliveryTime = hour >= 6 && hour < 9
+    const isPreparationTime = hour >= 20 || hour < 4
+    const isCookingTime = hour >= 23 || hour < 8
+
+    if (isDeliveryTime || isConsumptionTime) {
+      score += 1.5 // Primary incident report times
+    } else if (isPreparationTime || isCookingTime) {
+      score += 1.0 // Supplier/internal report times
+    } else {
+      score += 0.5 // Within general work hours
+    }
+  }
+
+  return Math.min(3, Math.round(score * 10) / 10)
 }
 
 // Score supporting evidence (0-3)
@@ -208,7 +331,8 @@ export function calculateReportScore(input: ScoringInput): ScoringResult {
       input.provinceId,
       input.cityId,
       input.districtId,
-      input.mbgScheduleMatch
+      input.mbgScheduleMatch,
+      input.relation // Pass relation for time-based validation
     ),
     scoreEvidence: scoreEvidence(input.description, input.filesCount),
     scoreNarrative: scoreNarrative(input.description),

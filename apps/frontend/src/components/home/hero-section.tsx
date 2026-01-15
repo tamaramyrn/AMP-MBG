@@ -1,6 +1,7 @@
+import { memo } from "react"
 import { Link } from "@tanstack/react-router"
 
-export function HeroSection() {
+function HeroSectionComponent() {
   return (
     <section className="relative bg-blue-70 w-full overflow-hidden">
       
@@ -9,6 +10,9 @@ export function HeroSection() {
         <img
           src="/images/siswa_makan_mbg_1.png"
           alt="Siswa menikmati makan bergizi gratis"
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           className="w-full h-full object-cover object-top"
         />
         {/* Gradient Overlay agar transisi warna halus dari biru ke gambar */}
@@ -64,3 +68,5 @@ export function HeroSection() {
     </section>
   )
 }
+
+export const HeroSection = memo(HeroSectionComponent)

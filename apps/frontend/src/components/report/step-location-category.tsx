@@ -1,123 +1,127 @@
-import { ChevronDown, AlertCircle, Clock } from "lucide-react"
+import { memo, useCallback, useMemo } from "react"
+import { ChevronDown, AlertCircle, Clock, Loader2 } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
 import type { ReportFormData } from "./report-form"
+import { categoriesService } from "@/services/categories"
+import { locationsService } from "@/services/locations"
 
 interface StepLocationCategoryProps {
   formData: ReportFormData
   updateFormData: (data: Partial<ReportFormData>) => void
 }
 
-// ... (DATA DUMMY WILAYAH TETAP SAMA) ...
-const categories = [
-  { value: "poisoning", label: "Keracunan dan Masalah Kesehatan" },
-  { value: "kitchen", label: "Operasional Dapur" },
-  { value: "quality", label: "Kualitas dan Keamanan Dapur" },
-  { value: "policy", label: "Kebijakan dan Anggaran" },
-  { value: "implementation", label: "Implementasi Program" },
-  { value: "social", label: "Dampak Sosial dan Ekonomi" },
-]
+function StepLocationCategoryComponent({ formData, updateFormData }: StepLocationCategoryProps) {
+  // Fetch categories from API
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const response = await categoriesService.getCategories()
+      return response.data
+    },
+    staleTime: 1000 * 60 * 60,
+  })
 
-const provinces = [
-  { value: "jakarta", label: "DKI Jakarta" },
-  { value: "jabar", label: "Jawa Barat" },
-  { value: "jatim", label: "Jawa Timur" },
-]
+  // Fetch provinces from API
+  const { data: provincesData, isLoading: provincesLoading } = useQuery({
+    queryKey: ["provinces"],
+    queryFn: async () => {
+      const response = await locationsService.getProvinces()
+      return response.data
+    },
+    staleTime: 1000 * 60 * 60,
+  })
 
-const cities: Record<string, { value: string; label: string }[]> = {
-  jakarta: [
-    { value: "jaksel", label: "Jakarta Selatan" },
-    { value: "jakbar", label: "Jakarta Barat" },
-    { value: "jaktim", label: "Jakarta Timur" },
-  ],
-  jabar: [
-    { value: "bandung", label: "Kota Bandung" },
-    { value: "bogor", label: "Kab. Bogor" },
-  ],
-  jatim: [
-    { value: "surabaya", label: "Kota Surabaya" },
-    { value: "malang", label: "Kota Malang" },
-  ],
-}
+  // Fetch cities based on selected province
+  const { data: citiesData, isLoading: citiesLoading } = useQuery({
+    queryKey: ["cities", formData.province],
+    queryFn: async () => {
+      if (!formData.province) return []
+      const response = await locationsService.getCities(formData.province)
+      return response.data
+    },
+    enabled: !!formData.province,
+    staleTime: 1000 * 60 * 30,
+  })
 
-const districts: Record<string, { value: string; label: string }[]> = {
-  jaksel: [
-    { value: "kebayoran_baru", label: "Kebayoran Baru" },
-    { value: "kebayoran_lama", label: "Kebayoran Lama" },
-    { value: "cilandak", label: "Cilandak" },
-    { value: "pesanggrahan", label: "Pesanggrahan" },
-    { value: "setiabudi", label: "Setiabudi" },
-    { value: "tebet", label: "Tebet" },
-  ],
-  jakbar: [
-    { value: "cengkareng", label: "Cengkareng" },
-    { value: "grogol", label: "Grogol Petamburan" },
-    { value: "kalideres", label: "Kalideres" },
-  ],
-  bandung: [
-    { value: "cicendo", label: "Cicendo" },
-    { value: "andir", label: "Andir" },
-    { value: "sukajadi", label: "Sukajadi" },
-  ],
-  other: [],
-}
-// ... (AKHIR DATA DUMMY) ...
+  // Fetch districts based on selected city
+  const { data: districtsData, isLoading: districtsLoading } = useQuery({
+    queryKey: ["districts", formData.city],
+    queryFn: async () => {
+      if (!formData.city) return []
+      const response = await locationsService.getDistricts(formData.city)
+      return response.data
+    },
+    enabled: !!formData.city,
+    staleTime: 1000 * 60 * 30,
+  })
 
-export function StepLocationCategory({ formData, updateFormData }: StepLocationCategoryProps) {
-  const availableCities = formData.province ? cities[formData.province] || [] : []
-  const availableDistricts = formData.city ? districts[formData.city] || [] : []
+  const categories = categoriesData || []
+  const provinces = provincesData || []
+  const availableCities = citiesData || []
+  const availableDistricts = districtsData || []
 
-  // --- LOGIKA HITUNG KATA JUDUL (BARU) ---
-  const maxTitleWords = 10
-  
-  // Hitung jumlah kata saat ini (split berdasarkan spasi, filter string kosong)
-  const currentTitleWords = formData.title 
-    ? formData.title.trim().split(/\s+/).filter(Boolean).length 
-    : 0
+  const MAX_TITLE_WORDS = 10
+  const MAX_LOCATION_LENGTH = 100
+  const MIN_DATE = "2024-01-01"
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value
-    // Hitung kata input baru
-    const wordCount = inputValue.trim().split(/\s+/).filter(Boolean).length
-    
-    // Update HANYA JIKA jumlah kata <= 10 ATAU user sedang menghapus (backspace)
-    if (wordCount <= maxTitleWords) {
-      updateFormData({ title: inputValue })
-    } else {
-        // Edge case: mencegah ketikan kata ke-11, tapi tetap mengizinkan spasi di akhir kata ke-10
-        // (Logic ini membiarkan input "masuk" hanya jika tidak menambah kata baru melebihi batas)
-        const isTrailingSpace = inputValue.endsWith(" ")
-        if (wordCount === maxTitleWords + 1 && !isTrailingSpace) {
-            // Mencegah input kata ke-11
-            return 
-        }
-        // Fallback update (biasanya tidak terpanggil jika logic di atas benar)
-        updateFormData({ title: inputValue }) 
-    }
-  }
+  const currentTitleWords = useMemo(
+    () => (formData.title ? formData.title.trim().split(/\s+/).filter(Boolean).length : 0),
+    [formData.title]
+  )
 
-  // --- LOGIKA HITUNG KARAKTER LOKASI ---
-  const maxLength = 100
   const currentLength = formData.location.length
 
-  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value
-    if (inputValue.length <= maxLength) {
-      updateFormData({ location: inputValue })
+  const { today, currentTimeString } = useMemo(() => {
+    const now = new Date()
+    return {
+      today: now.toISOString().split("T")[0],
+      currentTimeString: now.toTimeString().slice(0, 5),
     }
-  }
+  }, [])
 
-  // --- LOGIKA TANGGAL & WAKTU ---
-  const today = new Date().toISOString().split("T")[0]
-  const now = new Date()
-  const currentTimeString = now.toTimeString().slice(0, 5)
-  const minDate = "2024-01-01"
+  const { isDateError, isDateFuture, isYearInvalid } = useMemo(() => {
+    const isFuture = formData.date > today
+    const isTooOld = formData.date < MIN_DATE && formData.date !== ""
+    const isYearInv = formData.date.split("-")[0].length > 4
+    return {
+      isDateFuture: isFuture,
+      isYearInvalid: isYearInv,
+      isDateError: isFuture || isTooOld || isYearInv,
+    }
+  }, [formData.date, today])
 
-  const isDateFuture = formData.date > today
-  const isDateTooOld = formData.date < minDate && formData.date !== ""
-  const isYearInvalid = formData.date.split("-")[0].length > 4
-  const isDateError = isDateFuture || isDateTooOld || isYearInvalid
+  const isTimeError = formData.date === today && formData.time > currentTimeString
 
-  const isTimeFuture = formData.date === today && formData.time > currentTimeString
-  const isTimeError = isTimeFuture
+  const handleTitleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value
+      const wordCount = inputValue.trim().split(/\s+/).filter(Boolean).length
+      if (wordCount <= MAX_TITLE_WORDS) {
+        updateFormData({ title: inputValue })
+      } else {
+        const isTrailingSpace = inputValue.endsWith(" ")
+        if (wordCount === MAX_TITLE_WORDS + 1 && !isTrailingSpace) return
+        updateFormData({ title: inputValue })
+      }
+    },
+    [updateFormData]
+  )
+
+  const handleLocationChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.value.length <= MAX_LOCATION_LENGTH) {
+        updateFormData({ location: e.target.value })
+      }
+    },
+    [updateFormData]
+  )
+
+  const handleCategoryChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => updateFormData({ category: e.target.value }), [updateFormData])
+  const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => updateFormData({ date: e.target.value }), [updateFormData])
+  const handleTimeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => updateFormData({ time: e.target.value }), [updateFormData])
+  const handleProvinceChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => updateFormData({ province: e.target.value, city: "", district: "" }), [updateFormData])
+  const handleCityChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => updateFormData({ city: e.target.value, district: "" }), [updateFormData])
+  const handleDistrictChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => updateFormData({ district: e.target.value }), [updateFormData])
 
   return (
     <div className="space-y-6">
@@ -128,8 +132,8 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
           <label htmlFor="title" className="block body-sm font-medium text-general-80">
             Judul Laporan <span className="text-red-100">*</span>
           </label>
-          <span className={`text-xs ${currentTitleWords === maxTitleWords ? 'text-red-100 font-bold' : 'text-general-60'}`}>
-            {currentTitleWords}/{maxTitleWords} Kata
+          <span className={`text-xs ${currentTitleWords === MAX_TITLE_WORDS ? 'text-red-100 font-bold' : 'text-general-60'}`}>
+            {currentTitleWords}/{MAX_TITLE_WORDS} Kata
           </span>
         </div>
         
@@ -139,13 +143,13 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
           value={formData.title || ""}
           onChange={handleTitleChange}
           placeholder="Contoh: Keracunan Makanan Siswa SD Harapan Bangsa"
-          className={`w-full px-4 py-3 bg-general-20 border rounded-lg text-general-100 focus:ring-2 transition-colors placeholder:text-general-40 
-            ${currentTitleWords > maxTitleWords // Visual cue jika somehow lewat (defensive)
-              ? 'border-red-100 focus:ring-red-100 focus:border-red-100' 
+          className={`w-full px-4 py-3 bg-general-20 border rounded-lg text-general-100 focus:ring-2 transition-colors placeholder:text-general-40
+            ${currentTitleWords > MAX_TITLE_WORDS
+              ? 'border-red-100 focus:ring-red-100 focus:border-red-100'
               : 'border-general-30 focus:ring-green-100 focus:border-green-100'
             }`}
         />
-        {currentTitleWords >= maxTitleWords && (
+        {currentTitleWords >= MAX_TITLE_WORDS && (
            <p className="text-xs text-general-50 mt-1">Maksimal 10 kata.</p>
         )}
       </div>
@@ -159,10 +163,13 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
           <select
             id="category"
             value={formData.category}
-            onChange={(e) => updateFormData({ category: e.target.value })}
-            className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg text-general-100 focus:ring-2 focus:ring-green-100 focus:border-green-100 transition-colors appearance-none cursor-pointer"
+            onChange={handleCategoryChange}
+            disabled={categoriesLoading}
+            className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg text-general-100 focus:ring-2 focus:ring-green-100 focus:border-green-100 transition-colors appearance-none cursor-pointer disabled:bg-general-30/30 disabled:cursor-not-allowed"
           >
-            <option value="">Pilih kategori laporan</option>
+            <option value="">
+              {categoriesLoading ? "Memuat kategori..." : "Pilih kategori laporan"}
+            </option>
             {categories.map((cat) => (
               <option key={cat.value} value={cat.value}>
                 {cat.label}
@@ -170,7 +177,11 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
             ))}
           </select>
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-general-60">
-            <ChevronDown className="w-5 h-5" />
+            {categoriesLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <ChevronDown className="w-5 h-5" />
+            )}
           </div>
         </div>
       </div>
@@ -187,9 +198,9 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
                 id="date"
                 lang="id-ID"
                 value={formData.date}
-                min={minDate}
+                min={MIN_DATE}
                 max={today}
-                onChange={(e) => updateFormData({ date: e.target.value })}
+                onChange={handleDateChange}
                 className={`w-full px-4 py-3 bg-general-20 border rounded-lg text-general-100 focus:ring-2 transition-colors appearance-none relative z-10 
                 ${isDateError 
                     ? 'border-red-100 focus:border-red-100 focus:ring-red-100' 
@@ -219,7 +230,7 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
                     type="time"
                     id="time"
                     value={formData.time}
-                    onChange={(e) => updateFormData({ time: e.target.value })}
+                    onChange={handleTimeChange}
                     className={`w-full px-4 py-3 bg-general-20 border rounded-lg text-general-100 focus:ring-2 transition-colors appearance-none relative z-10
                     ${isTimeError 
                         ? 'border-red-100 focus:border-red-100 focus:ring-red-100' 
@@ -252,18 +263,25 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
             <select
               id="province"
               value={formData.province}
-              onChange={(e) => updateFormData({ province: e.target.value, city: "", district: "" })}
-              className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg text-general-100 focus:ring-2 focus:ring-green-100 focus:border-green-100 transition-colors appearance-none cursor-pointer"
+              onChange={handleProvinceChange}
+              disabled={provincesLoading}
+              className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg text-general-100 focus:ring-2 focus:ring-green-100 focus:border-green-100 transition-colors appearance-none cursor-pointer disabled:bg-general-30/30 disabled:cursor-not-allowed"
             >
-              <option value="">Pilih provinsi</option>
+              <option value="">
+                {provincesLoading ? "Memuat provinsi..." : "Pilih provinsi"}
+              </option>
               {provinces.map((prov) => (
-                <option key={prov.value} value={prov.value}>
-                  {prov.label}
+                <option key={prov.id} value={prov.id}>
+                  {prov.name}
                 </option>
               ))}
             </select>
             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-general-60">
-              <ChevronDown className="w-5 h-5" />
+              {provincesLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <ChevronDown className="w-5 h-5" />
+              )}
             </div>
           </div>
         </div>
@@ -276,19 +294,25 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
             <select
               id="city"
               value={formData.city}
-              onChange={(e) => updateFormData({ city: e.target.value, district: "" })}
-              disabled={!formData.province}
+              onChange={handleCityChange}
+              disabled={!formData.province || citiesLoading}
               className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg text-general-100 focus:ring-2 focus:ring-green-100 focus:border-green-100 transition-colors appearance-none cursor-pointer disabled:bg-general-30/30 disabled:cursor-not-allowed disabled:text-general-60"
             >
-              <option value="">Pilih kota/kab</option>
+              <option value="">
+                {citiesLoading ? "Memuat kota..." : "Pilih kota/kab"}
+              </option>
               {availableCities.map((city) => (
-                <option key={city.value} value={city.value}>
-                  {city.label}
+                <option key={city.id} value={city.id}>
+                  {city.name}
                 </option>
               ))}
             </select>
             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-general-60">
-              <ChevronDown className="w-5 h-5" />
+              {citiesLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <ChevronDown className="w-5 h-5" />
+              )}
             </div>
           </div>
         </div>
@@ -301,23 +325,31 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
             <select
               id="district"
               value={formData.district || ""} 
-              onChange={(e) => updateFormData({ district: e.target.value })}
-              disabled={!formData.city}
+              onChange={handleDistrictChange}
+              disabled={!formData.city || districtsLoading}
               className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg text-general-100 focus:ring-2 focus:ring-green-100 focus:border-green-100 transition-colors appearance-none cursor-pointer disabled:bg-general-30/30 disabled:cursor-not-allowed disabled:text-general-60"
             >
-              <option value="">Pilih kecamatan</option>
+              <option value="">
+                {districtsLoading ? "Memuat kecamatan..." : "Pilih kecamatan"}
+              </option>
               {availableDistricts.length > 0 ? (
                 availableDistricts.map((dist) => (
-                  <option key={dist.value} value={dist.value}>
-                    {dist.label}
+                  <option key={dist.id} value={dist.id}>
+                    {dist.name}
                   </option>
                 ))
               ) : (
-                <option value="" disabled>Data tidak tersedia</option>
+                !districtsLoading && formData.city && (
+                  <option value="" disabled>Data tidak tersedia</option>
+                )
               )}
             </select>
             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-general-60">
-              <ChevronDown className="w-5 h-5" />
+              {districtsLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <ChevronDown className="w-5 h-5" />
+              )}
             </div>
           </div>
         </div>
@@ -329,8 +361,8 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
           <label htmlFor="location" className="block body-sm font-medium text-general-80">
             Lokasi Spesifik <span className="text-red-100">*</span>
           </label>
-          <span className={`text-xs ${currentLength === maxLength ? 'text-red-100 font-bold' : 'text-general-60'}`}>
-            {currentLength}/{maxLength} Karakter
+          <span className={`text-xs ${currentLength === MAX_LOCATION_LENGTH ? 'text-red-100 font-bold' : 'text-general-60'}`}>
+            {currentLength}/{MAX_LOCATION_LENGTH} Karakter
           </span>
         </div>
         
@@ -340,13 +372,13 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
           value={formData.location}
           onChange={handleLocationChange}
           placeholder="Contoh: SDN Contoh 01, Jl. Merdeka No. 45"
-          className={`w-full px-4 py-3 bg-general-20 border rounded-lg text-general-100 focus:ring-2 transition-colors placeholder:text-general-40 
-            ${currentLength === maxLength 
-              ? 'border-red-100 focus:ring-red-100 focus:border-red-100' 
+          className={`w-full px-4 py-3 bg-general-20 border rounded-lg text-general-100 focus:ring-2 transition-colors placeholder:text-general-40
+            ${currentLength === MAX_LOCATION_LENGTH
+              ? 'border-red-100 focus:ring-red-100 focus:border-red-100'
               : 'border-general-30 focus:ring-green-100 focus:border-green-100'
             }`}
         />
-        {currentLength === maxLength && (
+        {currentLength === MAX_LOCATION_LENGTH && (
           <p className="text-xs text-red-100 mt-1">
             Batas maksimal karakter tercapai.
           </p>
@@ -355,3 +387,5 @@ export function StepLocationCategory({ formData, updateFormData }: StepLocationC
     </div>
   )
 }
+
+export const StepLocationCategory = memo(StepLocationCategoryComponent)

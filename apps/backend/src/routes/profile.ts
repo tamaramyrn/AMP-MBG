@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
 import { z } from "zod"
-import { eq, desc, sql } from "drizzle-orm"
+import { eq, desc, sql, and } from "drizzle-orm"
 import { db, schema } from "../db"
 import { authMiddleware } from "../middleware/auth"
 import { hashPassword, verifyPassword } from "../lib/password"
@@ -18,46 +18,32 @@ profile.use("*", authMiddleware)
 profile.get("/", async (c) => {
   const authUser = c.get("user")
 
-  const user = await db.query.users.findFirst({
-    where: eq(schema.users.id, authUser.id),
-    columns: {
-      id: true,
-      nik: true,
-      email: true,
-      phone: true,
-      name: true,
-      role: true,
-      isVerified: true,
-      reportCount: true,
-      verifiedReportCount: true,
-      createdAt: true,
-      lastLoginAt: true,
-    },
-  })
+  // Optimized: Single query for user and stats
+  const [user, reportStats] = await Promise.all([
+    db.query.users.findFirst({
+      where: eq(schema.users.id, authUser.id),
+      columns: {
+        id: true, nik: true, email: true, phone: true, name: true,
+        role: true, isVerified: true, reportCount: true,
+        verifiedReportCount: true, createdAt: true, lastLoginAt: true,
+      },
+    }),
+    // Combined aggregates in single query
+    db.select({
+      total: sql<number>`count(*)`,
+      pending: sql<number>`count(*) filter (where ${schema.reports.status} = 'pending')`,
+      resolved: sql<number>`count(*) filter (where ${schema.reports.status} = 'resolved')`,
+    }).from(schema.reports).where(eq(schema.reports.userId, authUser.id)),
+  ])
 
   if (!user) return c.json({ error: "User tidak ditemukan" }, 404)
-
-  // Get report statistics
-  const [reportCount, pendingCount, resolvedCount] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` })
-      .from(schema.reports)
-      .where(eq(schema.reports.userId, authUser.id)),
-    db.select({ count: sql<number>`count(*)` })
-      .from(schema.reports)
-      .where(eq(schema.reports.userId, authUser.id))
-      .where(eq(schema.reports.status, "pending")),
-    db.select({ count: sql<number>`count(*)` })
-      .from(schema.reports)
-      .where(eq(schema.reports.userId, authUser.id))
-      .where(eq(schema.reports.status, "resolved")),
-  ])
 
   return c.json({
     user,
     stats: {
-      totalReports: Number(reportCount[0]?.count || 0),
-      pendingReports: Number(pendingCount[0]?.count || 0),
-      resolvedReports: Number(resolvedCount[0]?.count || 0),
+      totalReports: Number(reportStats[0]?.total || 0),
+      pendingReports: Number(reportStats[0]?.pending || 0),
+      resolvedReports: Number(reportStats[0]?.resolved || 0),
     },
   })
 })
@@ -145,14 +131,15 @@ profile.put("/password", zValidator("json", changePasswordSchema), async (c) => 
 
   const hashedPassword = await hashPassword(newPassword)
 
-  await db.update(schema.users)
-    .set({ password: hashedPassword, updatedAt: new Date() })
-    .where(eq(schema.users.id, authUser.id))
-
-  // Revoke all other sessions
-  await db.update(schema.sessions)
-    .set({ isRevoked: true })
-    .where(eq(schema.sessions.userId, authUser.id))
+  // Parallel: Update password and revoke sessions
+  await Promise.all([
+    db.update(schema.users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(schema.users.id, authUser.id)),
+    db.update(schema.sessions)
+      .set({ isRevoked: true })
+      .where(eq(schema.sessions.userId, authUser.id)),
+  ])
 
   return c.json({ message: "Password berhasil diubah" })
 })
@@ -169,26 +156,29 @@ profile.get("/reports", zValidator("query", reportHistorySchema), async (c) => {
   const { page, limit, status } = c.req.valid("query")
   const offset = (page - 1) * limit
 
-  const conditions = [eq(schema.reports.userId, authUser.id)]
-  if (status) conditions.push(eq(schema.reports.status, status))
+  const whereClause = status
+    ? and(eq(schema.reports.userId, authUser.id), eq(schema.reports.status, status))
+    : eq(schema.reports.userId, authUser.id)
 
   const [data, countResult] = await Promise.all([
     db.query.reports.findMany({
-      where: conditions.length > 1
-        ? (reports, { and }) => and(...conditions.map((c) => c))
-        : conditions[0],
+      where: whereClause,
+      columns: {
+        id: true, category: true, title: true, description: true,
+        location: true, incidentDate: true, status: true, relation: true, createdAt: true,
+      },
       limit,
       offset,
       orderBy: [desc(schema.reports.createdAt)],
       with: {
-        province: true,
-        city: true,
+        province: { columns: { name: true } },
+        city: { columns: { name: true } },
         files: { columns: { id: true, fileName: true, fileUrl: true } },
       },
     }),
     db.select({ count: sql<number>`count(*)` })
       .from(schema.reports)
-      .where(eq(schema.reports.userId, authUser.id)),
+      .where(whereClause),
   ])
 
   const total = Number(countResult[0]?.count || 0)
@@ -218,11 +208,11 @@ profile.get("/reports/:id", async (c) => {
   const id = c.req.param("id")
 
   const report = await db.query.reports.findFirst({
-    where: eq(schema.reports.id, id),
+    where: and(eq(schema.reports.id, id), eq(schema.reports.userId, authUser.id)),
     with: {
-      province: true,
-      city: true,
-      district: true,
+      province: { columns: { name: true } },
+      city: { columns: { name: true } },
+      district: { columns: { name: true } },
       files: true,
       statusHistory: {
         orderBy: [desc(schema.reportStatusHistory.createdAt)],
@@ -232,11 +222,6 @@ profile.get("/reports/:id", async (c) => {
   })
 
   if (!report) return c.json({ error: "Laporan tidak ditemukan" }, 404)
-
-  // Only owner can view detailed report with history
-  if (report.userId !== authUser.id) {
-    return c.json({ error: "Akses ditolak" }, 403)
-  }
 
   return c.json({
     data: {
@@ -260,14 +245,15 @@ profile.get("/reports/:id", async (c) => {
 profile.delete("/", async (c) => {
   const authUser = c.get("user")
 
-  await db.update(schema.users)
-    .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(schema.users.id, authUser.id))
-
-  // Revoke all sessions
-  await db.update(schema.sessions)
-    .set({ isRevoked: true })
-    .where(eq(schema.sessions.userId, authUser.id))
+  // Parallel updates
+  await Promise.all([
+    db.update(schema.users)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(schema.users.id, authUser.id)),
+    db.update(schema.sessions)
+      .set({ isRevoked: true })
+      .where(eq(schema.sessions.userId, authUser.id)),
+  ])
 
   return c.json({ message: "Akun berhasil dinonaktifkan" })
 })

@@ -14,7 +14,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       <div className="hidden lg:flex lg:w-[40%] h-full relative">
         <img 
           src="/images/siswa_makan_mbg_2.png" 
-          alt="Program MBG" 
+          alt="Program MBG"
+          loading="eager"
+          decoding="async"
           className="w-full h-full object-cover object-center" 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-blue-100/70 to-blue-60/70 mix-blend-multiply" />
@@ -22,7 +24,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           <div className="flex flex-col items-center gap-4 w-full px-8">
              <img 
                src="/images/logo_putih_besar.png" 
-               alt="Logo AMP MBG" 
+               alt="Logo AMP MBG"
+               loading="eager"
+               decoding="async"
                className="w-[70%] h-auto object-contain drop-shadow-xl"
              />
           </div>
@@ -39,7 +43,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
                 <div className="bg-blue-100 rounded-full w-40 h-40 flex items-center justify-center p-6 shadow-xl">
                     <img 
                     src="/images/logo_putih_besar.png" 
-                    alt="Logo AMP MBG" 
+                    alt="Logo AMP MBG"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-contain" 
                     />
                 </div>

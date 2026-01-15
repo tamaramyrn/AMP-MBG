@@ -1,54 +1,34 @@
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback, memo } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { StatusBadge } from "@/components/ui/status-badge" 
+import { StatusBadge } from "@/components/ui/status-badge"
 
-// Definisi tipe data laporan
 export interface ReportRow {
   id: string
-  date: string 
+  date: string
   city: string
   province: string
+  district?: string
   category: string
   description: string
-  status: string 
+  status: string
 }
 
 interface DataTableProps {
   data: ReportRow[]
 }
 
-// UBAH: Helper ini sekarang hanya mengembalikan Label Lengkap
-// Warnanya nanti di-hardcode jadi Merah di komponen
-const getCategoryLabel = (key: string) => {
-  const map: Record<string, string> = {
-    poisoning: "Keracunan dan Masalah Kesehatan",
-    kitchen: "Operasional Dapur",
-    quality: "Kualitas dan Keamanan Dapur",
-    policy: "Kebijakan dan Anggaran",
-    implementation: "Implementasi Program",
-    social: "Dampak Sosial dan Ekonomi",
-  }
-  return map[key] || key
+const CATEGORY_MAP: Record<string, string> = {
+  poisoning: "Keracunan dan Masalah Kesehatan",
+  kitchen: "Operasional Dapur",
+  quality: "Kualitas dan Keamanan Dapur",
+  policy: "Kebijakan dan Anggaran",
+  implementation: "Implementasi Program",
+  social: "Dampak Sosial dan Ekonomi",
 }
 
-const formatDate = (dateString: string) => {
-  const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' }
-  return new Date(dateString).toLocaleDateString('id-ID', options)
-}
+const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }
 
-const formatProvince = (key: string) => {
-  const map: Record<string, string> = {
-    jakarta: "DKI Jakarta",
-    jabar: "Jawa Barat",
-    jatim: "Jawa Timur",
-    jateng: "Jawa Tengah",
-    banten: "Banten"
-  }
-  return map[key] || key
-}
-
-export function DataTable({ data }: DataTableProps) {
+function DataTableComponent({ data }: DataTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
 
@@ -56,13 +36,27 @@ export function DataTable({ data }: DataTableProps) {
     setCurrentPage(1)
   }, [data])
 
-  const totalPages = Math.ceil(data.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentData = data.slice(startIndex, endIndex)
+  const { totalPages, startIndex, endIndex, currentData } = useMemo(() => {
+    const total = Math.ceil(data.length / itemsPerPage)
+    const start = (currentPage - 1) * itemsPerPage
+    const end = start + itemsPerPage
+    return {
+      totalPages: total,
+      startIndex: start,
+      endIndex: end,
+      currentData: data.slice(start, end),
+    }
+  }, [data, currentPage])
+
+  const getCategoryLabel = useCallback((key: string) => CATEGORY_MAP[key] || key, [])
+  const formatDate = useCallback((dateString: string) => new Date(dateString).toLocaleDateString("id-ID", DATE_OPTIONS), [])
+
+  const handlePrevPage = useCallback(() => setCurrentPage((p) => Math.max(1, p - 1)), [])
+  const handleNextPage = useCallback(() => setCurrentPage((p) => Math.min(totalPages, p + 1)), [totalPages])
+  const handlePageClick = useCallback((page: number) => setCurrentPage(page), [])
 
   if (data.length === 0) {
-    return null 
+    return null
   }
 
   return (
@@ -105,8 +99,9 @@ export function DataTable({ data }: DataTableProps) {
                   </td>
                   <td className="px-4 py-4 body-sm text-general-70">
                     <div>
-                      <p className="font-medium text-general-100">{row.city}</p>
-                      <p className="text-general-60 text-xs">{formatProvince(row.province)}</p>
+                      {row.district && <p className="font-medium text-general-100">{row.district}</p>}
+                      <p className={row.district ? "text-general-60 text-xs" : "font-medium text-general-100"}>{row.city}</p>
+                      <p className="text-general-60 text-xs">{row.province}</p>
                     </div>
                   </td>
                   <td className="px-4 py-4">
@@ -134,31 +129,30 @@ export function DataTable({ data }: DataTableProps) {
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              onClick={handlePrevPage}
               disabled={currentPage === 1}
               className="p-2 border border-general-30 rounded-lg hover:bg-general-30 disabled:opacity-50 disabled:cursor-not-allowed text-general-70"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-               (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) && (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
-                    currentPage === page 
-                      ? "bg-blue-100 text-general-20" 
-                      : "border border-general-30 hover:bg-general-30 text-general-70"
-                  }`}
-                >
-                  {page}
-                </button>
-               )
-            ))}
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+              (page) =>
+                (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) && (
+                  <button
+                    key={page}
+                    onClick={() => handlePageClick(page)}
+                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === page ? "bg-blue-100 text-general-20" : "border border-general-30 hover:bg-general-30 text-general-70"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+            )}
 
             <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={handleNextPage}
               disabled={currentPage === totalPages}
               className="p-2 border border-general-30 rounded-lg hover:bg-general-30 disabled:opacity-50 disabled:cursor-not-allowed text-general-70"
             >
@@ -170,3 +164,5 @@ export function DataTable({ data }: DataTableProps) {
     </div>
   )
 }
+
+export const DataTable = memo(DataTableComponent)

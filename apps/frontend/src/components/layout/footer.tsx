@@ -1,18 +1,19 @@
+import { memo } from "react"
 import { Link } from "@tanstack/react-router"
 import { Phone, Mail } from "lucide-react"
 
-const leftLinks = [
+const LEFT_LINKS = [
   { to: "/", label: "Beranda" },
   { to: "/cara-kerja", label: "Cara Kerja" },
   { to: "/lapor", label: "Lapor" },
-]
+] as const
 
-const rightLinks = [
+const RIGHT_LINKS = [
   { to: "/data-laporan", label: "Data Laporan" },
   { to: "/tentang-kami", label: "Tentang Kami" },
-]
+] as const
 
-export function Footer() {
+function FooterComponent() {
   return (
     <footer className="bg-blue-100 text-general-20 border-t border-blue-90">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -21,13 +22,15 @@ export function Footer() {
             <img
               src="/images/logo_putih.png"
               alt="Logo AMP MBG"
+              loading="lazy"
+              decoding="async"
               className="h-24 w-auto object-contain"
             />
           </div>
 
           <div className="flex gap-12 justify-start md:justify-center w-full">
             <div className="flex flex-col gap-2">
-              {leftLinks.map((link) => (
+              {LEFT_LINKS.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
@@ -39,7 +42,7 @@ export function Footer() {
             </div>
 
             <div className="flex flex-col gap-2">
-              {rightLinks.map((link) => (
+              {RIGHT_LINKS.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
@@ -79,3 +82,5 @@ export function Footer() {
     </footer>
   )
 }
+
+export const Footer = memo(FooterComponent)

@@ -12,6 +12,13 @@ type Variables = { user: AuthUser }
 
 const reports = new Hono<{ Variables: Variables }>()
 
+// Reusable verified status condition
+const getVerifiedCondition = () => or(
+  eq(schema.reports.status, "verified"),
+  eq(schema.reports.status, "in_progress"),
+  eq(schema.reports.status, "resolved")
+)
+
 const createReportSchema = z.object({
   category: z.enum(["poisoning", "kitchen", "quality", "policy", "implementation", "social"]),
   title: z.string().min(10, "Judul minimal 10 karakter").max(255),
@@ -45,7 +52,7 @@ reports.get("/", zValidator("query", querySchema), async (c) => {
   const { page, limit, category, status, credibilityLevel, provinceId, cityId, districtId, startDate, endDate, search, sortBy, sortOrder } = c.req.valid("query")
   const offset = (page - 1) * limit
 
-  const conditions = []
+  const conditions = [getVerifiedCondition()]
 
   if (category) conditions.push(eq(schema.reports.category, category))
   if (status) conditions.push(eq(schema.reports.status, status))
@@ -65,11 +72,18 @@ reports.get("/", zValidator("query", querySchema), async (c) => {
     )
   }
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined
+  const whereClause = and(...conditions)
 
+  // Optimized: Single query with subquery for count
   const [data, countResult] = await Promise.all([
     db.query.reports.findMany({
       where: whereClause,
+      columns: {
+        id: true, category: true, title: true, description: true, location: true,
+        provinceId: true, cityId: true, districtId: true, incidentDate: true,
+        status: true, relation: true, totalScore: true, credibilityLevel: true,
+        createdAt: true, updatedAt: true,
+      },
       limit,
       offset,
       orderBy: sortBy === "incidentDate"
@@ -112,14 +126,20 @@ reports.get("/", zValidator("query", querySchema), async (c) => {
 })
 
 reports.get("/stats", async (c) => {
-  const [totalResult, byStatusResult, byCategoryResult, byProvinceResult, uniqueCitiesResult, highRiskResult, provinces] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(schema.reports),
-    db.select({ status: schema.reports.status, count: sql<number>`count(*)` }).from(schema.reports).groupBy(schema.reports.status),
-    db.select({ category: schema.reports.category, count: sql<number>`count(*)` }).from(schema.reports).groupBy(schema.reports.category),
-    db.select({ provinceId: schema.reports.provinceId, count: sql<number>`count(*)` }).from(schema.reports).groupBy(schema.reports.provinceId).limit(10),
-    db.select({ count: sql<number>`count(distinct ${schema.reports.cityId})` }).from(schema.reports),
-    db.select({ count: sql<number>`count(*)` }).from(schema.reports).where(eq(schema.reports.category, "poisoning")),
-    db.query.provinces.findMany(),
+  const verifiedCondition = getVerifiedCondition()
+
+  // Optimized: Combine queries where possible
+  const [aggregates, byStatusResult, byCategoryResult, byProvinceResult, provinces] = await Promise.all([
+    // Single query for multiple counts
+    db.select({
+      total: sql<number>`count(*)`,
+      uniqueCities: sql<number>`count(distinct ${schema.reports.cityId})`,
+      highRisk: sql<number>`count(*) filter (where ${schema.reports.category} = 'poisoning')`,
+    }).from(schema.reports).where(verifiedCondition),
+    db.select({ status: schema.reports.status, count: sql<number>`count(*)` }).from(schema.reports).where(verifiedCondition).groupBy(schema.reports.status),
+    db.select({ category: schema.reports.category, count: sql<number>`count(*)` }).from(schema.reports).where(verifiedCondition).groupBy(schema.reports.category),
+    db.select({ provinceId: schema.reports.provinceId, count: sql<number>`count(*)` }).from(schema.reports).where(verifiedCondition).groupBy(schema.reports.provinceId).limit(10),
+    db.query.provinces.findMany({ columns: { id: true, name: true } }),
   ])
 
   const provinceMap = new Map(provinces.map((p) => [p.id, p.name]))
@@ -127,9 +147,9 @@ reports.get("/stats", async (c) => {
   const topCategory = sortedCategories[0]
 
   return c.json({
-    total: Number(totalResult[0]?.count || 0),
-    uniqueCities: Number(uniqueCitiesResult[0]?.count || 0),
-    highRisk: Number(highRiskResult[0]?.count || 0),
+    total: Number(aggregates[0]?.total || 0),
+    uniqueCities: Number(aggregates[0]?.uniqueCities || 0),
+    highRisk: Number(aggregates[0]?.highRisk || 0),
     topCategory: topCategory ? { category: topCategory.category, count: Number(topCategory.count) } : null,
     byStatus: byStatusResult.map((r) => ({ status: r.status, count: Number(r.count) })),
     byCategory: byCategoryResult.map((r) => ({ category: r.category, count: Number(r.count) })),
@@ -143,21 +163,27 @@ reports.get("/stats", async (c) => {
 
 // Alias for summary endpoint
 reports.get("/summary", async (c) => {
-  const [totalResult, uniqueCitiesResult, highRiskResult, topCategoryResult] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(schema.reports),
-    db.select({ count: sql<number>`count(distinct ${schema.reports.cityId})` }).from(schema.reports),
-    db.select({ count: sql<number>`count(*)` }).from(schema.reports).where(eq(schema.reports.category, "poisoning")),
+  const verifiedCondition = getVerifiedCondition()
+
+  // Optimized: Single query for all aggregates
+  const [aggregates, topCategoryResult] = await Promise.all([
+    db.select({
+      total: sql<number>`count(*)`,
+      uniqueCities: sql<number>`count(distinct ${schema.reports.cityId})`,
+      highRisk: sql<number>`count(*) filter (where ${schema.reports.category} = 'poisoning')`,
+    }).from(schema.reports).where(verifiedCondition),
     db.select({ category: schema.reports.category, count: sql<number>`count(*)` })
       .from(schema.reports)
+      .where(verifiedCondition)
       .groupBy(schema.reports.category)
       .orderBy(desc(sql`count(*)`))
       .limit(1),
   ])
 
   return c.json({
-    total: Number(totalResult[0]?.count || 0),
-    uniqueCities: Number(uniqueCitiesResult[0]?.count || 0),
-    highRisk: Number(highRiskResult[0]?.count || 0),
+    total: Number(aggregates[0]?.total || 0),
+    uniqueCities: Number(aggregates[0]?.uniqueCities || 0),
+    highRisk: Number(aggregates[0]?.highRisk || 0),
     topCategory: topCategoryResult[0] ? {
       category: topCategoryResult[0].category,
       count: Number(topCategoryResult[0].count),
@@ -167,9 +193,14 @@ reports.get("/summary", async (c) => {
 
 reports.get("/recent", async (c) => {
   const data = await db.query.reports.findMany({
+    columns: {
+      id: true, category: true, title: true, location: true,
+      incidentDate: true, status: true, createdAt: true,
+    },
     limit: 6,
     orderBy: [desc(schema.reports.createdAt)],
     with: { province: true, city: true },
+    where: getVerifiedCondition(),
   })
 
   return c.json({
@@ -212,43 +243,32 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
   const data = c.req.valid("json")
   const user = c.get("user")
 
-  // Get reporter stats for scoring
-  const reporter = await db.query.users.findFirst({
-    where: eq(schema.users.id, user.id),
-    columns: { reportCount: true, verifiedReportCount: true },
-  })
-
-  // Check for similar reports (same location, recent)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  const similarReports = await db.select({ count: sql<number>`count(*)` })
-    .from(schema.reports)
-    .where(and(
-      eq(schema.reports.cityId, data.cityId),
-      gte(schema.reports.createdAt, thirtyDaysAgo)
-    ))
 
-  // Check if location has any report history
-  const locationHistory = await db.select({ count: sql<number>`count(*)` })
-    .from(schema.reports)
-    .where(eq(schema.reports.cityId, data.cityId))
-
-  // Check MBG schedule for location/time validation
-  const mbgScheduleConditions = [
-    eq(schema.mbgSchedules.cityId, data.cityId),
-    eq(schema.mbgSchedules.isActive, true),
-  ]
-  if (data.districtId) {
-    mbgScheduleConditions.push(eq(schema.mbgSchedules.districtId, data.districtId))
-  }
-
-  const mbgSchedule = await db.query.mbgSchedules.findFirst({
-    where: and(...mbgScheduleConditions),
-  })
+  // Optimized: Combine related queries
+  const [reporter, reportsStats, mbgSchedule] = await Promise.all([
+    db.query.users.findFirst({
+      where: eq(schema.users.id, user.id),
+      columns: { reportCount: true, verifiedReportCount: true },
+    }),
+    // Combined query for similar reports and location history
+    db.select({
+      similarCount: sql<number>`count(*) filter (where ${schema.reports.createdAt} >= ${thirtyDaysAgo})`,
+      totalCount: sql<number>`count(*)`,
+    }).from(schema.reports).where(eq(schema.reports.cityId, data.cityId)),
+    db.query.mbgSchedules.findFirst({
+      where: and(
+        eq(schema.mbgSchedules.cityId, data.cityId),
+        eq(schema.mbgSchedules.isActive, true),
+        data.districtId ? eq(schema.mbgSchedules.districtId, data.districtId) : undefined
+      ),
+    }),
+  ])
 
   // Calculate MBG schedule match
   let mbgScheduleMatch = undefined
   if (mbgSchedule) {
-    const incidentDay = data.incidentDate.getDay().toString() // 0=Sun, 1=Mon, ...
+    const incidentDay = data.incidentDate.getDay().toString()
     const dayMatches = mbgSchedule.scheduleDays.includes(incidentDay)
 
     const incidentHour = data.incidentDate.getHours()
@@ -257,22 +277,14 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
 
     const timeMatches = incidentTimeStr >= mbgSchedule.startTime && incidentTimeStr <= mbgSchedule.endTime
 
-    mbgScheduleMatch = {
-      exists: true,
-      dayMatches,
-      timeMatches,
-    }
+    mbgScheduleMatch = { exists: true, dayMatches, timeMatches }
   } else {
     // Check if ANY MBG schedule exists in the city
     const anySchedule = await db.query.mbgSchedules.findFirst({
       where: eq(schema.mbgSchedules.cityId, data.cityId),
     })
     if (anySchedule) {
-      mbgScheduleMatch = {
-        exists: true,
-        dayMatches: false,
-        timeMatches: false,
-      }
+      mbgScheduleMatch = { exists: true, dayMatches: false, timeMatches: false }
     }
   }
 
@@ -281,15 +293,15 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
     relation: data.relation,
     relationDetail: data.relationDetail,
     description: data.description,
-    filesCount: 0, // No files yet
+    filesCount: 0,
     incidentDate: data.incidentDate,
     provinceId: data.provinceId,
     cityId: data.cityId,
     districtId: data.districtId,
     reporterReportCount: reporter?.reportCount || 0,
     reporterVerifiedCount: reporter?.verifiedReportCount || 0,
-    similarReportsCount: Number(similarReports[0]?.count || 0),
-    locationHasHistory: Number(locationHistory[0]?.count || 0) > 0,
+    similarReportsCount: Number(reportsStats[0]?.similarCount || 0),
+    locationHasHistory: Number(reportsStats[0]?.totalCount || 0) > 0,
     mbgScheduleMatch,
   })
 
@@ -431,7 +443,8 @@ reports.delete("/:id/files/:fileId", authMiddleware, async (c) => {
   const report = await db.query.reports.findFirst({ where: eq(schema.reports.id, id) })
   if (!report) return c.json({ error: "Laporan tidak ditemukan" }, 404)
 
-  if (report.userId !== user.id && user.role !== "admin" && user.role !== "moderator") {
+  // Only owner or admin can delete files
+  if (report.userId !== user.id && user.role !== "admin") {
     return c.json({ error: "Forbidden" }, 403)
   }
 

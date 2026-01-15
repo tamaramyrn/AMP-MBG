@@ -1,30 +1,39 @@
+import { memo, useMemo } from "react"
 import { FileText, MapPin, AlertTriangle } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { reportsService } from "@/services/reports"
 
-const stats = [
-  {
-    icon: FileText,
-    value: "0",
-    label: "Partisipasi Masyarakat",
-  },
-  {
-    icon: MapPin,
-    value: "0",
-    label: "Lokasi Laporan",
-  },
-  {
-    icon: AlertTriangle,
-    value: "0",
-    label: "Risiko Terindikasi",
-  },
-]
+function QuickStatsComponent() {
+  const { data: stats } = useQuery({
+    queryKey: ["reports", "summary"],
+    queryFn: () => reportsService.getSummary(),
+    staleTime: 30000,
+  })
 
-export function QuickStats() {
+  const statsItems = useMemo(() => [
+    {
+      icon: FileText,
+      value: stats?.total?.toLocaleString() || "0",
+      label: "Partisipasi Masyarakat",
+    },
+    {
+      icon: MapPin,
+      value: stats?.uniqueCities?.toLocaleString() || "0",
+      label: "Lokasi Laporan",
+    },
+    {
+      icon: AlertTriangle,
+      value: stats?.highRisk?.toLocaleString() || "0",
+      label: "Risiko Terindikasi",
+    },
+  ], [stats])
+
   return (
     <section className="bg-blue-100 py-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-          {stats.map((stat, index) => (
+          {statsItems.map((stat, index) => (
             <div 
               key={index} 
               className="flex flex-row items-center justify-start md:justify-center gap-4 pl-4 md:pl-0"
@@ -47,3 +56,5 @@ export function QuickStats() {
     </section>
   )
 }
+
+export const QuickStats = memo(QuickStatsComponent)
