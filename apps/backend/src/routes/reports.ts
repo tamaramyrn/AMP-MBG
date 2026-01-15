@@ -1,10 +1,11 @@
 import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
 import { z } from "zod"
-import { eq, desc, and, like, sql, gte, lte } from "drizzle-orm"
+import { eq, desc, and, like, sql, gte, lte, or } from "drizzle-orm"
 import { db, schema } from "../db"
-import { authMiddleware, optionalAuthMiddleware, adminMiddleware } from "../middleware/auth"
+import { authMiddleware, adminMiddleware, reporterMiddleware } from "../middleware/auth"
 import { uploadFile, validateFile, deleteFile } from "../lib/storage"
+import { calculateReportScore, recalculateEvidenceScore, updateTotalScore } from "../lib/scoring"
 import type { AuthUser } from "../types"
 
 type Variables = { user: AuthUser }
@@ -15,17 +16,13 @@ const createReportSchema = z.object({
   category: z.enum(["poisoning", "kitchen", "quality", "policy", "implementation", "social"]),
   title: z.string().min(10, "Judul minimal 10 karakter").max(255),
   description: z.string().min(50, "Deskripsi minimal 50 karakter"),
-  location: z.string().min(5, "Lokasi wajib diisi"),
+  location: z.string().min(5, "Lokasi wajib diisi").max(255),
   provinceId: z.string().length(2, "Provinsi wajib dipilih"),
-  cityId: z.string().length(5, "Kota/Kabupaten wajib dipilih"),
-  districtId: z.string().length(8).optional(),
+  cityId: z.string().min(4).max(5, "Kota/Kabupaten wajib dipilih"),
+  districtId: z.string().min(7).max(8).optional(),
   incidentDate: z.string().transform((val) => new Date(val)),
-  relation: z.string().optional(),
-  relationDetail: z.string().optional(),
-  reporterName: z.string().optional(),
-  reporterPhone: z.string().optional(),
-  reporterEmail: z.string().email().optional().or(z.literal("")),
-  isAnonymous: z.boolean().default(false),
+  relation: z.enum(["parent", "teacher", "principal", "supplier", "student", "community", "other"]),
+  relationDetail: z.string().max(255).optional(),
 })
 
 const querySchema = z.object({
@@ -33,26 +30,40 @@ const querySchema = z.object({
   limit: z.string().optional().transform((val) => parseInt(val || "10")),
   category: z.enum(["poisoning", "kitchen", "quality", "policy", "implementation", "social"]).optional(),
   status: z.enum(["pending", "verified", "in_progress", "resolved", "rejected"]).optional(),
+  credibilityLevel: z.enum(["high", "medium", "low"]).optional(),
   provinceId: z.string().optional(),
   cityId: z.string().optional(),
+  districtId: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   search: z.string().optional(),
+  sortBy: z.enum(["createdAt", "incidentDate", "status", "totalScore"]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
 })
 
 reports.get("/", zValidator("query", querySchema), async (c) => {
-  const { page, limit, category, status, provinceId, cityId, startDate, endDate, search } = c.req.valid("query")
+  const { page, limit, category, status, credibilityLevel, provinceId, cityId, districtId, startDate, endDate, search, sortBy, sortOrder } = c.req.valid("query")
   const offset = (page - 1) * limit
 
   const conditions = []
 
   if (category) conditions.push(eq(schema.reports.category, category))
   if (status) conditions.push(eq(schema.reports.status, status))
+  if (credibilityLevel) conditions.push(eq(schema.reports.credibilityLevel, credibilityLevel))
   if (provinceId) conditions.push(eq(schema.reports.provinceId, provinceId))
   if (cityId) conditions.push(eq(schema.reports.cityId, cityId))
+  if (districtId) conditions.push(eq(schema.reports.districtId, districtId))
   if (startDate) conditions.push(gte(schema.reports.incidentDate, new Date(startDate)))
   if (endDate) conditions.push(lte(schema.reports.incidentDate, new Date(endDate + "T23:59:59")))
-  if (search) conditions.push(like(schema.reports.title, `%${search}%`))
+  if (search) {
+    conditions.push(
+      or(
+        like(schema.reports.title, `%${search}%`),
+        like(schema.reports.description, `%${search}%`),
+        like(schema.reports.location, `%${search}%`)
+      )
+    )
+  }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
@@ -61,7 +72,13 @@ reports.get("/", zValidator("query", querySchema), async (c) => {
       where: whereClause,
       limit,
       offset,
-      orderBy: [desc(schema.reports.createdAt)],
+      orderBy: sortBy === "incidentDate"
+        ? (sortOrder === "asc" ? (r, { asc }) => [asc(r.incidentDate)] : [desc(schema.reports.incidentDate)])
+        : sortBy === "status"
+        ? (sortOrder === "asc" ? (r, { asc }) => [asc(r.status)] : [desc(schema.reports.status)])
+        : sortBy === "totalScore"
+        ? (sortOrder === "asc" ? (r, { asc }) => [asc(r.totalScore)] : [desc(schema.reports.totalScore)])
+        : (sortOrder === "asc" ? (r, { asc }) => [asc(r.createdAt)] : [desc(schema.reports.createdAt)]),
       with: { province: true, city: true, district: true },
     }),
     db.select({ count: sql<number>`count(*)` }).from(schema.reports).where(whereClause),
@@ -76,30 +93,75 @@ reports.get("/", zValidator("query", querySchema), async (c) => {
       title: r.title,
       description: r.description,
       location: r.location,
+      provinceId: r.provinceId,
       province: r.province?.name || "",
+      cityId: r.cityId,
       city: r.city?.name || "",
+      districtId: r.districtId,
       district: r.district?.name || "",
       incidentDate: r.incidentDate,
       status: r.status,
+      relation: r.relation,
+      totalScore: r.totalScore,
+      credibilityLevel: r.credibilityLevel,
       createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
     })),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   })
 })
 
 reports.get("/stats", async (c) => {
-  const [totalResult, byStatusResult, byCategoryResult, byProvinceResult] = await Promise.all([
+  const [totalResult, byStatusResult, byCategoryResult, byProvinceResult, uniqueCitiesResult, highRiskResult, provinces] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(schema.reports),
     db.select({ status: schema.reports.status, count: sql<number>`count(*)` }).from(schema.reports).groupBy(schema.reports.status),
     db.select({ category: schema.reports.category, count: sql<number>`count(*)` }).from(schema.reports).groupBy(schema.reports.category),
     db.select({ provinceId: schema.reports.provinceId, count: sql<number>`count(*)` }).from(schema.reports).groupBy(schema.reports.provinceId).limit(10),
+    db.select({ count: sql<number>`count(distinct ${schema.reports.cityId})` }).from(schema.reports),
+    db.select({ count: sql<number>`count(*)` }).from(schema.reports).where(eq(schema.reports.category, "poisoning")),
+    db.query.provinces.findMany(),
+  ])
+
+  const provinceMap = new Map(provinces.map((p) => [p.id, p.name]))
+  const sortedCategories = byCategoryResult.sort((a, b) => Number(b.count) - Number(a.count))
+  const topCategory = sortedCategories[0]
+
+  return c.json({
+    total: Number(totalResult[0]?.count || 0),
+    uniqueCities: Number(uniqueCitiesResult[0]?.count || 0),
+    highRisk: Number(highRiskResult[0]?.count || 0),
+    topCategory: topCategory ? { category: topCategory.category, count: Number(topCategory.count) } : null,
+    byStatus: byStatusResult.map((r) => ({ status: r.status, count: Number(r.count) })),
+    byCategory: byCategoryResult.map((r) => ({ category: r.category, count: Number(r.count) })),
+    byProvince: byProvinceResult.map((r) => ({
+      provinceId: r.provinceId,
+      province: provinceMap.get(r.provinceId || "") || "",
+      count: Number(r.count),
+    })),
+  })
+})
+
+// Alias for summary endpoint
+reports.get("/summary", async (c) => {
+  const [totalResult, uniqueCitiesResult, highRiskResult, topCategoryResult] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(schema.reports),
+    db.select({ count: sql<number>`count(distinct ${schema.reports.cityId})` }).from(schema.reports),
+    db.select({ count: sql<number>`count(*)` }).from(schema.reports).where(eq(schema.reports.category, "poisoning")),
+    db.select({ category: schema.reports.category, count: sql<number>`count(*)` })
+      .from(schema.reports)
+      .groupBy(schema.reports.category)
+      .orderBy(desc(sql`count(*)`))
+      .limit(1),
   ])
 
   return c.json({
     total: Number(totalResult[0]?.count || 0),
-    byStatus: byStatusResult.map((r) => ({ status: r.status, count: Number(r.count) })),
-    byCategory: byCategoryResult.map((r) => ({ category: r.category, count: Number(r.count) })),
-    byProvince: byProvinceResult.map((r) => ({ provinceId: r.provinceId, count: Number(r.count) })),
+    uniqueCities: Number(uniqueCitiesResult[0]?.count || 0),
+    highRisk: Number(highRiskResult[0]?.count || 0),
+    topCategory: topCategoryResult[0] ? {
+      category: topCategoryResult[0].category,
+      count: Number(topCategoryResult[0].count),
+    } : null,
   })
 })
 
@@ -145,18 +207,116 @@ reports.get("/:id", async (c) => {
   })
 })
 
-reports.post("/", optionalAuthMiddleware, zValidator("json", createReportSchema), async (c) => {
+// Only logged-in public users can submit reports
+reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), async (c) => {
   const data = c.req.valid("json")
   const user = c.get("user")
 
+  // Get reporter stats for scoring
+  const reporter = await db.query.users.findFirst({
+    where: eq(schema.users.id, user.id),
+    columns: { reportCount: true, verifiedReportCount: true },
+  })
+
+  // Check for similar reports (same location, recent)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const similarReports = await db.select({ count: sql<number>`count(*)` })
+    .from(schema.reports)
+    .where(and(
+      eq(schema.reports.cityId, data.cityId),
+      gte(schema.reports.createdAt, thirtyDaysAgo)
+    ))
+
+  // Check if location has any report history
+  const locationHistory = await db.select({ count: sql<number>`count(*)` })
+    .from(schema.reports)
+    .where(eq(schema.reports.cityId, data.cityId))
+
+  // Check MBG schedule for location/time validation
+  const mbgScheduleConditions = [
+    eq(schema.mbgSchedules.cityId, data.cityId),
+    eq(schema.mbgSchedules.isActive, true),
+  ]
+  if (data.districtId) {
+    mbgScheduleConditions.push(eq(schema.mbgSchedules.districtId, data.districtId))
+  }
+
+  const mbgSchedule = await db.query.mbgSchedules.findFirst({
+    where: and(...mbgScheduleConditions),
+  })
+
+  // Calculate MBG schedule match
+  let mbgScheduleMatch = undefined
+  if (mbgSchedule) {
+    const incidentDay = data.incidentDate.getDay().toString() // 0=Sun, 1=Mon, ...
+    const dayMatches = mbgSchedule.scheduleDays.includes(incidentDay)
+
+    const incidentHour = data.incidentDate.getHours()
+    const incidentMinute = data.incidentDate.getMinutes()
+    const incidentTimeStr = `${incidentHour.toString().padStart(2, "0")}:${incidentMinute.toString().padStart(2, "0")}`
+
+    const timeMatches = incidentTimeStr >= mbgSchedule.startTime && incidentTimeStr <= mbgSchedule.endTime
+
+    mbgScheduleMatch = {
+      exists: true,
+      dayMatches,
+      timeMatches,
+    }
+  } else {
+    // Check if ANY MBG schedule exists in the city
+    const anySchedule = await db.query.mbgSchedules.findFirst({
+      where: eq(schema.mbgSchedules.cityId, data.cityId),
+    })
+    if (anySchedule) {
+      mbgScheduleMatch = {
+        exists: true,
+        dayMatches: false,
+        timeMatches: false,
+      }
+    }
+  }
+
+  // Calculate scores
+  const scoringResult = calculateReportScore({
+    relation: data.relation,
+    relationDetail: data.relationDetail,
+    description: data.description,
+    filesCount: 0, // No files yet
+    incidentDate: data.incidentDate,
+    provinceId: data.provinceId,
+    cityId: data.cityId,
+    districtId: data.districtId,
+    reporterReportCount: reporter?.reportCount || 0,
+    reporterVerifiedCount: reporter?.verifiedReportCount || 0,
+    similarReportsCount: Number(similarReports[0]?.count || 0),
+    locationHasHistory: Number(locationHistory[0]?.count || 0) > 0,
+    mbgScheduleMatch,
+  })
+
+  // Insert report with scores
   const [report] = await db.insert(schema.reports).values({
     ...data,
-    userId: user?.id || null,
-    reporterEmail: data.reporterEmail || null,
+    userId: user.id,
     districtId: data.districtId || null,
+    relationDetail: data.relationDetail || null,
+    ...scoringResult,
   }).returning()
 
-  return c.json({ data: report, message: "Laporan berhasil dikirim" }, 201)
+  // Update reporter's report count
+  await db.update(schema.users)
+    .set({
+      reportCount: sql`${schema.users.reportCount} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.users.id, user.id))
+
+  return c.json({
+    data: {
+      ...report,
+      scoring: scoringResult,
+    },
+    message: "Laporan berhasil dikirim",
+  }, 201)
 })
 
 reports.get("/my/reports", authMiddleware, zValidator("query", z.object({
@@ -197,11 +357,21 @@ reports.get("/my/reports", authMiddleware, zValidator("query", z.object({
   })
 })
 
-reports.post("/:id/files", optionalAuthMiddleware, async (c) => {
+// Only report owner can upload files
+reports.post("/:id/files", authMiddleware, async (c) => {
   const id = c.req.param("id")
-  const report = await db.query.reports.findFirst({ where: eq(schema.reports.id, id) })
+  const user = c.get("user")
+  const report = await db.query.reports.findFirst({
+    where: eq(schema.reports.id, id),
+    with: { files: true },
+  })
 
   if (!report) return c.json({ error: "Laporan tidak ditemukan" }, 404)
+
+  // Only owner or admin can upload files
+  if (report.userId !== user.id && user.role !== "admin") {
+    return c.json({ error: "Akses ditolak" }, 403)
+  }
 
   const formData = await c.req.formData()
   const files = formData.getAll("files") as File[]
@@ -225,6 +395,30 @@ reports.post("/:id/files", optionalAuthMiddleware, async (c) => {
     }).returning()
 
     uploadedFiles.push(inserted)
+  }
+
+  // Recalculate evidence score based on new file count
+  const newFileCount = (report.files?.length || 0) + uploadedFiles.length
+  const newEvidenceScore = recalculateEvidenceScore(report.description, newFileCount)
+
+  // Update score if changed
+  if (newEvidenceScore !== report.scoreEvidence) {
+    const updatedScores = updateTotalScore({
+      scoreRelation: report.scoreRelation,
+      scoreLocationTime: report.scoreLocationTime,
+      scoreEvidence: newEvidenceScore,
+      scoreNarrative: report.scoreNarrative,
+      scoreReporterHistory: report.scoreReporterHistory,
+      scoreSimilarity: report.scoreSimilarity,
+    })
+
+    await db.update(schema.reports)
+      .set({
+        scoreEvidence: newEvidenceScore,
+        ...updatedScores,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.reports.id, id))
   }
 
   return c.json({ data: uploadedFiles, message: "File berhasil diunggah" }, 201)
@@ -256,17 +450,40 @@ const updateStatusSchema = z.object({
   notes: z.string().optional(),
 })
 
+// Admin only - update report status with history tracking
 reports.patch("/:id/status", adminMiddleware, zValidator("json", updateStatusSchema), async (c) => {
   const id = c.req.param("id")
-  const { status } = c.req.valid("json")
+  const { status, notes } = c.req.valid("json")
+  const user = c.get("user")
 
   const report = await db.query.reports.findFirst({ where: eq(schema.reports.id, id) })
   if (!report) return c.json({ error: "Laporan tidak ditemukan" }, 404)
 
+  const previousStatus = report.status
+
+  // Update report status
+  const updateData: Record<string, unknown> = { status, updatedAt: new Date() }
+  if (notes) updateData.adminNotes = notes
+
+  // Set verifier if status is verified
+  if (status === "verified" && previousStatus !== "verified") {
+    updateData.verifiedBy = user.id
+    updateData.verifiedAt = new Date()
+  }
+
   const [updated] = await db.update(schema.reports)
-    .set({ status, updatedAt: new Date() })
+    .set(updateData)
     .where(eq(schema.reports.id, id))
     .returning()
+
+  // Record status change in history
+  await db.insert(schema.reportStatusHistory).values({
+    reportId: id,
+    fromStatus: previousStatus,
+    toStatus: status,
+    changedBy: user.id,
+    notes: notes || null,
+  })
 
   return c.json({ data: updated, message: "Status laporan berhasil diperbarui" })
 })

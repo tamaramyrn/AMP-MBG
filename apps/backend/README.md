@@ -1,62 +1,61 @@
 # AMP MBG Backend
 
-Hono API server with PostgreSQL database.
+Hono API server with PostgreSQL 17.
 
-## Setup
-
-```sh
-bun install
-cp .env.example .env
-# Edit .env with your Supabase DATABASE_URL
-```
-
-## Database
+## Quick Start
 
 ```sh
-bun run db:push    # Push schema to database
-bun run db:seed    # Seed provinces, cities, districts
-bun run db:studio  # Open Drizzle Studio
+# From project root
+make setup-dev    # Setup development environment
+make dev          # Run frontend + backend
 ```
 
-## Development
+## Environments
+
+| Environment | Database | Storage |
+|------------|----------|---------|
+| Development | Docker PostgreSQL 17 | Local filesystem |
+| Staging | Supabase (free) | Supabase Storage |
+| Production | VPS PostgreSQL | Cloudflare R2 |
+
+## Commands
 
 ```sh
-bun run dev
+make db-up        # Start PostgreSQL
+make db-push      # Apply schema
+make db-seed      # Seed data
+make db-studio    # Open Drizzle Studio
 ```
-
-Server runs at http://localhost:3000
 
 ## API Endpoints
 
 ### Auth
-- `POST /api/auth/signup` - Register user (NIK, email, name, password)
-- `POST /api/auth/signup-member` - Register member (+ organization)
-- `POST /api/auth/login` - Login (email/phone + password)
-- `GET /api/auth/me` - Get current user
-- `PUT /api/auth/profile` - Update profile
-- `PUT /api/auth/change-password` - Change password
+- `POST /api/auth/signup` - Register
+- `POST /api/auth/login` - Login (email/NIK/phone)
+- `GET /api/auth/me` - Current user
+- `POST /api/auth/forgot-password` - Request reset
+- `POST /api/auth/reset-password` - Reset password
 
 ### Reports
-- `GET /api/reports` - List reports (pagination, filters)
-- `GET /api/reports/stats` - Report statistics
-- `GET /api/reports/recent` - Recent 6 reports
-- `GET /api/reports/:id` - Single report
+- `GET /api/reports` - List (pagination, filters)
+- `GET /api/reports/stats` - Statistics
 - `POST /api/reports` - Create report
-- `GET /api/reports/my/reports` - User's reports
+- `POST /api/reports/:id/files` - Upload files
+- `PATCH /api/reports/:id/status` - Update status (admin)
+
+### Admin
+- `GET /api/admin/dashboard` - Dashboard stats
+- `GET /api/admin/users` - User management
+- `GET /api/admin/reports` - Report management
+- `GET /api/admin/mbg-schedules` - MBG schedules
 
 ### Locations
-- `GET /api/locations/provinces` - All provinces
-- `GET /api/locations/provinces/:id/cities` - Cities by province
-- `GET /api/locations/cities/:id/districts` - Districts by city
-- `GET /api/locations/search?q=` - Search locations
+- `GET /api/locations/provinces` - Provinces
+- `GET /api/locations/provinces/:id/cities` - Cities
+- `GET /api/locations/cities/:id/districts` - Districts
 
-### Categories
-- `GET /api/categories` - Report categories
-- `GET /api/categories/organizations` - Organization types
-- `GET /api/categories/relations` - Reporter relations
+## Default Users
 
-## Build
-
-```sh
-bun run build
-```
+After `make db-seed`:
+- Admin: `admin@ampmbg.id` / `Admin@123!`
+- Public: `test@ampmbg.id` / `Test@123!`

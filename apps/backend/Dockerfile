@@ -1,4 +1,6 @@
-FROM oven/bun:1 AS base
+# AMP MBG Backend Dockerfile
+
+FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
 FROM base AS install
@@ -8,9 +10,10 @@ RUN bun install --frozen-lockfile --production
 FROM base AS release
 COPY --from=install /app/node_modules ./node_modules
 COPY src ./src
-COPY package.json ./
+COPY package.json drizzle.config.ts ./
 
 USER bun
 EXPOSE 3000/tcp
 ENV NODE_ENV=production
+
 CMD ["bun", "run", "src/index.ts"]
