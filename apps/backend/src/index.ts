@@ -2,6 +2,7 @@ import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 import { prettyJSON } from "hono/pretty-json"
+import { serveStatic } from "hono/bun"
 import routes from "./routes"
 
 const app = new Hono()
@@ -15,6 +16,11 @@ app.use(
     credentials: true,
   })
 )
+
+// Serve local uploads in development
+if (process.env.STORAGE_TYPE === "local") {
+  app.use("/uploads/*", serveStatic({ root: "./" }))
+}
 
 app.get("/", (c) => {
   return c.json({
@@ -50,3 +56,4 @@ export default {
 }
 
 console.log(`Server running on http://localhost:${port}`)
+

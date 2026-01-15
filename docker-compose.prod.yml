@@ -1,0 +1,49 @@
+# Production Docker Compose for DigitalOcean VPS
+# Usage: make docker-up
+
+services:
+  postgres:
+    image: postgres:18.1-bookworm
+    container_name: ampmbg-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ampmbg
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ampmbg_prod
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ampmbg -d ampmbg_prod"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build: ./apps/backend
+    container_name: ampmbg-backend-prod
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://ampmbg:${DB_PASSWORD}@postgres:5432/ampmbg_prod
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 7d
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      STORAGE_TYPE: r2
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_REGION: auto
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_prod_data:
+    name: ampmbg-postgres-prod-data

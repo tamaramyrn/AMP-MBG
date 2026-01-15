@@ -1,19 +1,27 @@
 {
   "name": "amp-mbg",
-  "module": "index.ts",
+  "version": "1.0.0",
   "type": "module",
   "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently -n fe,be -c blue,green \"bun run dev:fe\" \"bun run dev:be\"",
+    "dev:fe": "bun --cwd apps/frontend dev",
+    "dev:be": "bun --cwd apps/backend dev",
+    "build": "bun run build:fe && bun run build:be",
+    "build:fe": "bun --cwd apps/frontend build",
+    "build:be": "bun --cwd apps/backend build",
+    "db:push": "bun --cwd apps/backend db:push",
+    "db:seed": "bun --cwd apps/backend db:seed",
+    "db:studio": "bun --cwd apps/backend db:studio",
+    "lint": "bun --filter '*' lint",
+    "clean": "rm -rf node_modules apps/*/node_modules apps/*/dist"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "concurrently": "^8.2.2"
   },
   "peerDependencies": {
     "typescript": "^5"
-  },
-  "workspaces": [
-    "apps/*"
-  ],
-  "scripts": {
-    "dev": "bun --filter '*' dev",
-    "build": "bun --filter '*' build"
   }
 }
