@@ -18,7 +18,7 @@ function RegisterAnggotaPage() {
     nik: "",
     email: "",
     role: "", 
-    phone: "",
+    phone: "", // Hanya menyimpan angka setelah +62
     password: "",
     confirmPassword: "",
   })
@@ -27,7 +27,9 @@ function RegisterAnggotaPage() {
   // --- LOGIKA VALIDASI ---
   
   const isNikValid = /^\d{16}$/.test(formData.nik)
-  const isPhoneValid = /^\d{10,13}$/.test(formData.phone)
+  // Validasi HP: 9-12 digit (karena +62 sudah ada, jadi total 11-14 digit)
+  const isPhoneValid = /^\d{9,12}$/.test(formData.phone)
+  
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/
   const isPasswordValid = passwordRegex.test(formData.password)
   const isMatch = formData.password === formData.confirmPassword && formData.confirmPassword !== ""
@@ -65,7 +67,8 @@ function RegisterAnggotaPage() {
     if (isValid) {
       localStorage.setItem("currentUser", JSON.stringify({ 
         name: formData.name,
-        role: formData.role 
+        role: formData.role,
+        phone: `62${formData.phone}` // Simpan dengan format 62xxx
       }))
       
       window.dispatchEvent(new Event("user-login"))
@@ -156,27 +159,37 @@ function RegisterAnggotaPage() {
           </div>
         </fieldset>
 
-        {/* Nomor Telepon */}
+        {/* Nomor Telepon (Updated with +62) */}
         <div className="flex flex-col gap-1">
-          <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all ${
+          <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all flex flex-col ${
               formData.phone.length > 0 && !isPhoneValid 
                 ? "border-red-100 focus-within:ring-red-100" 
                 : "border-general-30 focus-within:border-blue-100 focus-within:ring-blue-100"
             }`}>
             <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Nomor Telepon</legend>
-            <input
-              name="phone"
-              value={formData.phone}
-              onChange={handleNumberInput}
-              type="tel"
-              maxLength={13}
-              placeholder="08xxxxxxxxxx"
-              className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
-            />
+            
+            <div className="flex items-center gap-2">
+                <span className="text-general-100 font-medium body-sm bg-general-30/30 px-2 py-0.5 rounded text-sm select-none">
+                    +62
+                </span>
+                <input
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleNumberInput}
+                  type="tel"
+                  maxLength={12} // Max 12 digit input user
+                  placeholder="8xxxxxxxxxx"
+                  className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
+                />
+            </div>
           </fieldset>
-          {formData.phone.length > 0 && !isPhoneValid && (
-             <p className="text-[10px] text-red-100 px-1">Min. 10 digit, Maks. 13 digit</p>
-          )}
+          
+          <div className="flex justify-between items-start px-1">
+             <p className="text-[10px] text-general-50">Tanpa angka 0 di awal (Contoh: 81234567890)</p>
+             {formData.phone.length > 0 && !isPhoneValid && (
+                <p className="text-[10px] text-red-100 font-medium">9-12 Angka</p>
+             )}
+          </div>
         </div>
 
         {/* Password & Confirm Password */}
