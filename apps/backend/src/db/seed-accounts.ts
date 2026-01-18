@@ -20,7 +20,7 @@ const associateAccounts = [
 async function seedAccounts() {
   console.log("Seeding accounts...")
 
-  const defaultPassword = await Bun.password.hash("password123", { algorithm: "bcrypt", cost: 10 })
+  const defaultPassword = await Bun.password.hash("Admin@123!", { algorithm: "bcrypt", cost: 10 })
 
   // Seed admins
   for (const admin of adminAccounts) {

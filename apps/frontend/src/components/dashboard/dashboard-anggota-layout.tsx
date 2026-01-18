@@ -21,11 +21,16 @@ export function DashboardAnggotaLayout({ children }: DashboardAnggotaLayoutProps
   const [currentUser, setCurrentUser] = useState<{name: string, role: string} | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
-  // 1. Cek User (Auth Guard)
+  // 1. Cek User (Auth Guard) - Only admin and associate can access
   useEffect(() => {
     const userStr = localStorage.getItem("currentUser")
     if (userStr) {
-      setCurrentUser(JSON.parse(userStr))
+      const user = JSON.parse(userStr)
+      if (user.role === "admin" || user.role === "associate") {
+        setCurrentUser(user)
+      } else {
+        navigate({ to: "/" })
+      }
     } else {
       navigate({ to: "/auth/login-anggota" })
     }

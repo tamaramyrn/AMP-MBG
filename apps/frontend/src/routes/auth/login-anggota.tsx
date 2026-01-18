@@ -23,15 +23,15 @@ function LoginAnggotaPage() {
 
     try {
       const response = await authService.login({ identifier, password })
-      // 1. Cek Role
-      if (response.user.role === "public") {
+      // 1. Cek Role - Only admin and associate can access dashboard
+      if (response.user.role !== "admin" && response.user.role !== "associate") {
         setError("Akun ini terdaftar sebagai masyarakat umum. Silakan login di halaman masyarakat.")
         await authService.logout()
         return
       }
 
-      // 2. Cek Status Verifikasi 
-      if (response.user.role !== "admin" && !response.user.isVerified) {
+      // 2. Cek Status Verifikasi (only for associate)
+      if (response.user.role === "associate" && !response.user.isVerified) {
         setError("Akun Anda sedang dalam proses verifikasi oleh Admin. Mohon tunggu persetujuan.")
         await authService.logout()
         return

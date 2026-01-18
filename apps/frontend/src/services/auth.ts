@@ -1,6 +1,6 @@
 import { api, setToken, removeToken } from "@/lib/api"
 
-export type UserRole = "admin" | "public"
+export type UserRole = "admin" | "associate" | "public"
 
 export interface User {
   id: string
@@ -98,5 +98,15 @@ export const authService = {
   isAdmin(): boolean {
     const user = this.getCurrentUser()
     return user?.role === "admin"
+  },
+
+  isAssociate(): boolean {
+    const user = this.getCurrentUser()
+    return user?.role === "associate"
+  },
+
+  canAccessDashboard(): boolean {
+    const user = this.getCurrentUser()
+    return user?.role === "admin" || user?.role === "associate"
   },
 }

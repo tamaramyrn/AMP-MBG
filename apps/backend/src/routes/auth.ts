@@ -152,7 +152,7 @@ auth.post("/login", zValidator("json", loginSchema), async (c) => {
 
   return c.json({
     message: "Login berhasil",
-    user: { id: user.id, nik: user.nik, email: user.email, phone: user.phone, name: user.name, role: user.role },
+    user: { id: user.id, nik: user.nik, email: user.email, phone: user.phone, name: user.name, role: user.role, isVerified: user.isVerified },
     token,
   })
 })
