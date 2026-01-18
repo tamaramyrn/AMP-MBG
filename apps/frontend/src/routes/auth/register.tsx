@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
-import { Eye, EyeOff, CheckCircle2, Loader2 } from "lucide-react"
+import { Eye, EyeOff, CheckCircle2, Loader2, ArrowLeft } from "lucide-react" // Tambah ArrowLeft
 import { authService } from "@/services/auth"
 
 export const Route = createFileRoute("/auth/register")({
@@ -19,7 +19,7 @@ function RegisterPage() {
     name: "",
     nik: "",
     email: "",
-    phone: "", // Disini hanya menyimpan angka setelah +62 (tanpa 0 di depan)
+    phone: "", // Disini hanya menyimpan angka setelah +62
     password: "",
     confirmPassword: "",
   })
@@ -27,10 +27,7 @@ function RegisterPage() {
 
   // Validasi
   const isNikValid = /^\d{16}$/.test(formData.nik)
-  // Validasi HP: 9-12 digit (karena +62 sudah ada, jadi totalnya 11-14 digit format internasional)
-  // Contoh: 8123456789 (10 digit) -> +628123456789 (valid)
   const isPhoneValid = /^\d{9,12}$/.test(formData.phone) 
-  
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/
   const isPasswordValid = passwordRegex.test(formData.password)
   const isMatch = formData.password === formData.confirmPassword && formData.confirmPassword !== ""
@@ -46,7 +43,6 @@ function RegisterPage() {
 
   const handleNumberInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    // Hanya angka yang boleh masuk
     if (/^\d*$/.test(value)) {
       setFormData((prev) => ({ ...prev, [name]: value }))
     }
@@ -64,7 +60,7 @@ function RegisterPage() {
         name: formData.name,
         nik: formData.nik,
         email: formData.email,
-        phone: `62${formData.phone}`, // Gabungkan dengan kode negara saat kirim ke API
+        phone: `62${formData.phone}`,
         password: formData.password,
         passwordConfirmation: formData.confirmPassword,
       })
@@ -149,7 +145,6 @@ function RegisterPage() {
             }`}>
             <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Nomor Telepon</legend>
             
-            {/* Input Wrapper dengan Prefix */}
             <div className="flex items-center gap-2">
                 <span className="text-general-100 font-medium body-sm bg-general-30/30 px-2 py-0.5 rounded text-sm select-none">
                     +62
@@ -159,14 +154,13 @@ function RegisterPage() {
                     value={formData.phone}
                     onChange={handleNumberInput}
                     type="tel"
-                    maxLength={12} // Batasi input user max 12 digit (total jadi 14 digit format inter)
+                    maxLength={12} 
                     placeholder="8xxxxxxxxxx"
                     className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
                 />
             </div>
           </fieldset>
           
-          {/* Helper Text / Error Message */}
           <div className="flex justify-between items-start px-1">
              <p className="text-[10px] text-general-50">Tanpa angka 0 di awal (Contoh: 81234567890)</p>
              {formData.phone.length > 0 && !isPhoneValid && (
@@ -259,6 +253,7 @@ function RegisterPage() {
           </label>
         </div>
 
+        {/* Submit Button */}
         <button
           type="submit"
           disabled={!isValid || isLoading}
@@ -281,6 +276,7 @@ function RegisterPage() {
         </Link>
       </p>
 
+      {/* Divider */}
       <div className="flex items-center gap-4 my-4">
         <div className="flex-1 border-t border-general-30"></div>
         <span className="text-general-50 body-xs">atau</span>
@@ -293,6 +289,17 @@ function RegisterPage() {
       >
         Daftar sebagai Anggota AMP MBG
       </Link>
+
+      {/* TOMBOL KEMBALI KE BERANDA */}
+      <div className="mt-6 text-center">
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-general-60 hover:text-blue-100 transition-colors body-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Kembali ke Beranda
+        </Link>
+      </div>
     </AuthLayout>
   )
 }

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react" // Tambah ArrowLeft
 import { authService } from "@/services/auth"
 
 export const Route = createFileRoute("/auth/login")({
@@ -122,6 +122,17 @@ function LoginPage() {
           className="block w-full py-3 border border-blue-100 text-blue-100 font-heading font-medium rounded-lg text-center hover:bg-blue-100 hover:text-general-20 transition-all body-sm"
         >
           Daftar sebagai Anggota AMP MBG
+        </Link>
+      </div>
+
+      {/* TOMBOL KEMBALI KE BERANDA */}
+      <div className="mt-6 text-center">
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-general-60 hover:text-blue-100 transition-colors body-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Kembali ke Beranda
         </Link>
       </div>
     </AuthLayout>

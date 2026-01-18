@@ -53,7 +53,7 @@ export function DashboardAnggotaLayout({ children }: DashboardAnggotaLayoutProps
       exact: false // Supaya tetap aktif saat membuka detail laporan
     },
     { 
-      to: "/dashboard/akun", // Mengarah ke halaman akun
+      to: "/dashboard/akun-anggota", // Mengarah ke halaman akun
       label: "Akun Anggota", 
       icon: User,
       exact: true

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react" // Tambah ArrowLeft
 import { authService } from "@/services/auth"
 
 export const Route = createFileRoute("/auth/login-anggota")({
@@ -23,8 +23,16 @@ function LoginAnggotaPage() {
 
     try {
       const response = await authService.login({ identifier, password })
-      if (response.user.role !== "admin") {
-        setError("Akun ini bukan akun admin/anggota")
+      // 1. Cek Role
+      if (response.user.role === "public") {
+        setError("Akun ini terdaftar sebagai masyarakat umum. Silakan login di halaman masyarakat.")
+        await authService.logout()
+        return
+      }
+
+      // 2. Cek Status Verifikasi 
+      if (response.user.role !== "admin" && !response.user.isVerified) {
+        setError("Akun Anda sedang dalam proses verifikasi oleh Admin. Mohon tunggu persetujuan.")
         await authService.logout()
         return
       }
@@ -127,6 +135,17 @@ function LoginAnggotaPage() {
           className="block w-full py-3 border border-blue-100 text-blue-100 font-heading font-medium rounded-lg text-center hover:bg-blue-100 hover:text-general-20 transition-all body-sm"
         >
           Masuk sebagai Masyarakat
+        </Link>
+      </div>
+
+      {/* TOMBOL KEMBALI KE BERANDA */}
+      <div className="mt-6 text-center">
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-general-60 hover:text-blue-100 transition-colors body-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Kembali ke Beranda
         </Link>
       </div>
     </AuthLayout>

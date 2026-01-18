@@ -1,7 +1,8 @@
+// register-anggota.tsx
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
-import { Eye, EyeOff, CheckCircle2, ChevronDown } from "lucide-react"
+import { Eye, EyeOff, CheckCircle2, ChevronDown, ArrowLeft } from "lucide-react" // Tambah ArrowLeft
 
 export const Route = createFileRoute("/auth/register-anggota")({
   component: RegisterAnggotaPage,
@@ -18,18 +19,15 @@ function RegisterAnggotaPage() {
     nik: "",
     email: "",
     role: "", 
-    phone: "", // Hanya menyimpan angka setelah +62
+    phone: "",
     password: "",
     confirmPassword: "",
   })
   const [isAgreed, setIsAgreed] = useState(false)
 
   // --- LOGIKA VALIDASI ---
-  
   const isNikValid = /^\d{16}$/.test(formData.nik)
-  // Validasi HP: 9-12 digit (karena +62 sudah ada, jadi total 11-14 digit)
   const isPhoneValid = /^\d{9,12}$/.test(formData.phone)
-  
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/
   const isPasswordValid = passwordRegex.test(formData.password)
   const isMatch = formData.password === formData.confirmPassword && formData.confirmPassword !== ""
@@ -48,7 +46,6 @@ function RegisterAnggotaPage() {
     isAgreed
 
   // --- HANDLER ---
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -68,7 +65,7 @@ function RegisterAnggotaPage() {
       localStorage.setItem("currentUser", JSON.stringify({ 
         name: formData.name,
         role: formData.role,
-        phone: `62${formData.phone}` // Simpan dengan format 62xxx
+        phone: `62${formData.phone}`
       }))
       
       window.dispatchEvent(new Event("user-login"))
@@ -100,7 +97,6 @@ function RegisterAnggotaPage() {
 
         {/* NIK and Email side by side */}
         <div className="grid grid-cols-2 gap-3">
-          {/* NIK Field */}
           <div className="flex flex-col gap-1">
             <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all ${
               formData.nik.length > 0 && !isNikValid 
@@ -123,7 +119,6 @@ function RegisterAnggotaPage() {
             )}
           </div>
 
-          {/* Email Field */}
           <fieldset className="border border-general-30 rounded-lg px-3 pb-2.5 pt-1 focus-within:border-blue-100 focus-within:ring-1 focus-within:ring-blue-100 transition-all h-fit">
             <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Surel</legend>
             <input
@@ -159,7 +154,7 @@ function RegisterAnggotaPage() {
           </div>
         </fieldset>
 
-        {/* Nomor Telepon (Updated with +62) */}
+        {/* Nomor Telepon */}
         <div className="flex flex-col gap-1">
           <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all flex flex-col ${
               formData.phone.length > 0 && !isPhoneValid 
@@ -177,7 +172,7 @@ function RegisterAnggotaPage() {
                   value={formData.phone}
                   onChange={handleNumberInput}
                   type="tel"
-                  maxLength={12} // Max 12 digit input user
+                  maxLength={12}
                   placeholder="8xxxxxxxxxx"
                   className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
                 />
@@ -192,9 +187,8 @@ function RegisterAnggotaPage() {
           </div>
         </div>
 
-        {/* Password & Confirm Password */}
+        {/* Password Fields */}
         <div className="grid grid-cols-2 gap-3 items-start">
-          
           <div className="flex flex-col gap-1">
             <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all ${
               formData.password.length > 0 && !isPasswordValid
@@ -250,7 +244,7 @@ function RegisterAnggotaPage() {
           </div>
         </div>
 
-        {/* Indikator Kekuatan Password - COMPACT GRID STYLE */}
+        {/* Password Strength Indicator */}
         {formData.password.length > 0 && !isPasswordValid && (
           <div className="bg-red-50 border border-red-200 p-2.5 rounded-lg">
              <p className="text-[10px] font-semibold text-red-600 mb-1.5">Kata Sandi Wajib Memiliki:</p>
@@ -312,6 +306,18 @@ function RegisterAnggotaPage() {
       >
         Daftar sebagai Masyarakat
       </Link>
+
+      {/* TOMBOL KEMBALI KE BERANDA (BARU) */}
+      <div className="mt-6 text-center">
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-general-60 hover:text-blue-100 transition-colors body-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Kembali ke Beranda
+        </Link>
+      </div>
+
     </AuthLayout>
   )
 }
