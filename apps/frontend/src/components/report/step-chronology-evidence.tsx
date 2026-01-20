@@ -102,7 +102,7 @@ function StepChronologyEvidenceComponent({ formData, updateFormData }: StepChron
           </label>
         </div>
 
-        {/* File Preview List */}
+        {/* File Preview List (UPDATED: Shows Image Thumbnail) */}
         {formData.files.length > 0 && (
           <div className="mt-4 space-y-3">
             {formData.files.map((file, index) => (
@@ -111,9 +111,21 @@ function StepChronologyEvidenceComponent({ formData, updateFormData }: StepChron
                 className="flex items-center justify-between bg-general-20 rounded-lg p-3 border border-general-30 hover:border-blue-30 transition-colors shadow-sm"
               >
                 <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-10 h-10 bg-blue-20 rounded-lg flex-shrink-0 flex items-center justify-center">
-                    <ImageIcon className="w-5 h-5 text-blue-100" />
+                  
+                  {/* --- BAGIAN INI DIPERBARUI UNTUK MENAMPILKAN GAMBAR --- */}
+                  <div className="w-16 h-16 bg-general-30 rounded-lg flex-shrink-0 overflow-hidden border border-general-30 relative group/img">
+                    <img 
+                      src={URL.createObjectURL(file)} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Overlay Icon saat hover (opsional aesthetic) */}
+                    <div className="absolute inset-0 bg-black/10 hidden group-hover/img:flex items-center justify-center">
+                        <ImageIcon className="w-4 h-4 text-white drop-shadow-md" />
+                    </div>
                   </div>
+                  {/* ----------------------------------------------------- */}
+
                   <div className="min-w-0">
                     <p className="body-sm font-medium text-general-100 truncate">{file.name}</p>
                     <p className="text-xs text-general-60">{(file.size / 1024 / 1024).toFixed(2)} MB</p>

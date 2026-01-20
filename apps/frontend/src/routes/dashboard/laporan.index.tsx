@@ -82,13 +82,14 @@ function LaporanPage() {
     return { label: statusInfo.label, className: variantStyles[statusInfo.variant] || variantStyles.gray }
   }
 
+  // UPDATED: Mengubah style text biasa menjadi style background/border seperti Status
   const getRiskStyle = (level: string) => {
     const styles: Record<string, string> = {
-      high: "text-red-100 font-semibold",
-      medium: "text-yellow-600 font-medium",
-      low: "text-green-100 font-medium",
+      high: "bg-red-20 text-red-100 border-red-30",      // Merah untuk Tinggi
+      medium: "bg-yellow-50 text-yellow-700 border-yellow-200", // Kuning untuk Sedang
+      low: "bg-green-20 text-green-100 border-green-30", // Hijau untuk Rendah
     }
-    return styles[level] || "text-general-70"
+    return styles[level] || "bg-general-30 text-general-70 border-general-40"
   }
 
   const { data: reportsData, isLoading } = useQuery({
@@ -171,7 +172,6 @@ function LaporanPage() {
                 <tr className="bg-general-20 border-b border-general-30 text-general-100 body-sm font-heading font-semibold">
                   <th className="p-4 w-12 text-center border-r border-general-30">No</th>
                   <th className="p-4 w-28 text-center border-r border-general-30">Tanggal</th>
-                  {/* KOLOM LOKASI SEKARANG LANGSUNG SETELAH TANGGAL (Pelapor dihapus) */}
                   <th className="p-4 border-r border-general-30 min-w-[200px]">Lokasi</th>
                   <th className="p-4 border-r border-general-30">Kategori</th>
                   <th className="p-4 w-40 text-center border-r border-general-30">Status</th>
@@ -185,49 +185,59 @@ function LaporanPage() {
                     const statusStyle = getStatusStyle(item.status)
                     const riskData = item.credibilityLevel || item.credibility_level;
                     const riskLabel = riskData ? (CREDIBILITY_LABELS[riskData] || riskData) : null;
+                    const riskClassName = getRiskStyle(riskData); // Ambil class style baru
 
                     return (
                     <tr key={item.id} className="border-b border-general-30 hover:bg-general-30/20 transition-colors">
                       <td className="p-4 text-center text-general-100 body-sm border-r border-general-30 align-top">{indexOfFirstItem + idx + 1}</td>
                       <td className="p-4 text-center text-general-100 body-sm border-r border-general-30 align-top">{formatDate(item.createdAt)}</td>
                       
-                      {/* --- KOLOM LOKASI (TANPA ICON, TANPA KOLOM PELAPOR SEBELUMNYA) --- */}
                       <td className="p-4 border-r border-general-30 align-top">
                         <div className="flex flex-col gap-0.5 body-sm">
-                          {/* Kecamatan (Bold, tanpa icon) */}
                           <span className="font-bold text-general-100">
                             {item.district || "Kec. Tidak Diketahui"}
                           </span>
-                          
-                          {/* Kota/Kabupaten */}
                           <span className="text-general-80 text-xs">
                             {item.city || "Kota Tidak Diketahui"}
                           </span>
-
-                          {/* Provinsi */}
                           <span className="text-general-60 text-xs">
                             {item.province || "Provinsi Tidak Diketahui"}
                           </span>
                         </div>
                       </td>
-                      {/* ------------------------------- */}
 
                       <td className="p-4 text-general-100 body-sm border-r border-general-30 align-top">{CATEGORY_LABELS[item.category] || item.category}</td>
+                      
+                      {/* Kolom Status (Tampilan Pill) */}
                       <td className="p-4 text-center border-r border-general-30 align-top">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${statusStyle.className}`}>
                           {statusStyle.label}
                         </span>
                       </td>
                       
-                      <td className={`p-4 text-center border-r border-general-30 body-sm align-top ${getRiskStyle(riskData)}`}>
-                        {riskLabel || ""}
+                      {/* Kolom Tingkat Masalah (UPDATED: Menggunakan Tampilan Pill yang sama dengan Status) */}
+                      <td className="p-4 text-center border-r border-general-30 align-top">
+                        {riskLabel ? (
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${riskClassName}`}>
+                            {riskLabel}
+                          </span>
+                        ) : (
+                          <span className="text-general-60">-</span>
+                        )}
                       </td>
 
                       <td className="p-4 text-center align-top">
                         <Link 
                           to="/dashboard/laporan/$id" 
                           params={{ id: item.id }}
-                          className="text-blue-100 hover:text-blue-90 hover:underline body-sm font-medium transition-colors"
+                          className="
+                            text-blue-100 
+                            font-bold 
+                            underline underline-offset-4 decoration-blue-100/30
+                            hover:text-blue-80 hover:decoration-blue-80 hover:decoration-2 hover:underline-offset-2
+                            transition-all duration-200 
+                            body-sm
+                          "
                         >
                           Detail
                         </Link>

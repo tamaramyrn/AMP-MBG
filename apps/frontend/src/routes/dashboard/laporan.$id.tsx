@@ -10,8 +10,8 @@ import {
   Loader2,
   Clock,
   Save,
-  Mail,
-  History
+  History,
+  ExternalLink
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -64,9 +64,8 @@ const RISK_OPTIONS = [
 
 const getStatusStyle = (status: string) => {
   const statusInfo = STATUS_LABELS[status] || { label: status, variant: "gray" }
-  // Mapping variant ke class tailwind sesuai design system
   const variantStyles: Record<string, string> = {
-    orange: "bg-orange-50 text-orange-700 border-orange-200", // Fallback standard tailwind jika var tidak ada
+    orange: "bg-orange-50 text-orange-700 border-orange-200", 
     green: "bg-green-20 text-green-100 border-green-30",
     red: "bg-red-20 text-red-100 border-red-30",
     yellow: "bg-yellow-50 text-yellow-700 border-yellow-200",
@@ -85,7 +84,7 @@ const getRiskStyle = (level: string) => {
   return styles[level] || "text-general-70"
 }
 
-// --- MODAL RIWAYAT USER (Styling Updated) ---
+// --- MODAL RIWAYAT USER ---
 function UserHistoryModal({ 
   user, 
   onClose 
@@ -109,8 +108,6 @@ function UserHistoryModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-general-20 w-full max-w-4xl max-h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-general-30">
-        
-        {/* Header Modal */}
         <div className="p-6 border-b border-general-30 flex justify-between items-center bg-general-30/30">
           <div>
             <h3 className="h6 text-general-100 flex items-center gap-2">
@@ -119,6 +116,7 @@ function UserHistoryModal({
             </h3>
             <div className="flex flex-col mt-1">
               <span className="body-sm font-bold text-general-100">{user.name}</span>
+              {/* Email disembunyikan di modal juga jika mau konsisten, tapi biasanya berguna buat admin */}
               <span className="body-xs text-general-60">{user.email}</span>
             </div>
           </div>
@@ -127,7 +125,6 @@ function UserHistoryModal({
           </button>
         </div>
 
-        {/* Content Table */}
         <div className="flex-1 overflow-y-auto p-0 scrollbar-thin scrollbar-thumb-general-40 scrollbar-track-transparent">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -190,7 +187,6 @@ function UserHistoryModal({
           )}
         </div>
         
-        {/* Footer Modal */}
         <div className="p-4 border-t border-general-30 bg-general-20 flex justify-end">
             <button 
                 onClick={onClose}
@@ -304,6 +300,13 @@ function LaporanLamaDetail() {
     })
   }
 
+  // --- DUMMY IMAGES FOR DEMO ---
+  const DUMMY_IMAGES = [
+    "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=300&h=300",
+    "https://images.unsplash.com/photo-1606787366850-de6330128bfc?auto=format&fit=crop&q=80&w=300&h=300",
+    "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=300&h=300"
+  ]
+
   return (
     <DashboardAnggotaLayout>
       <div className="p-8 max-w-4xl mx-auto font-sans relative">
@@ -330,36 +333,29 @@ function LaporanLamaDetail() {
             </div>
 
             <div className="space-y-6">
-                {/* --- DATA PELAPOR --- */}
+                {/* --- DATA PELAPOR (MODIFIED: NAME + HISTORY BUTTON ONLY) --- */}
                 {report.reporter && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block body-sm font-heading font-bold text-general-100 mb-2">Nama Pelapor</label>
-                      <div className="w-full px-4 py-3 bg-general-30/50 border border-general-30 rounded-lg text-general-80 body-sm flex items-center gap-2">
-                        <User className="w-4 h-4 text-general-60" />
-                        {report.reporter.name}
+                  <div>
+                      <label className="block body-sm font-heading font-bold text-general-100 mb-2">Pelapor</label>
+                      <div className="flex items-center gap-3">
+                          <div className="flex-1 px-4 py-3 bg-general-30/50 border border-general-30 rounded-lg text-general-80 body-sm flex items-center gap-2">
+                              <User className="w-4 h-4 text-general-60" />
+                              {report.reporter.name}
+                          </div>
+                          
+                          {/* Tombol Riwayat di Sebelah Kanan Nama */}
+                          <button 
+                            onClick={() => setViewingUserHistory({ 
+                              name: report.reporter!.name, 
+                              email: report.reporter!.email 
+                            })}
+                            className="px-4 py-3 bg-blue-100/5 border border-blue-20 hover:bg-blue-100/10 hover:border-blue-40 rounded-lg text-blue-100 body-sm font-medium flex items-center gap-2 transition-all whitespace-nowrap"
+                            title="Lihat riwayat laporan pengguna ini"
+                          >
+                            <History className="w-4 h-4" />
+                            Riwayat Laporan
+                          </button>
                       </div>
-                    </div>
-                    <div>
-                      <label className="block body-sm font-heading font-bold text-general-100 mb-2">Email Pelapor</label>
-                      <button 
-                        onClick={() => setViewingUserHistory({ 
-                          name: report.reporter!.name, 
-                          email: report.reporter!.email 
-                        })}
-                        className="w-full px-4 py-3 bg-blue-100/5 border border-blue-20 rounded-lg text-blue-100 body-sm flex items-center justify-between group hover:bg-blue-100/10 hover:border-blue-40 transition-all text-left"
-                        title="Klik untuk melihat riwayat laporan pengguna ini"
-                      >
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <Mail className="w-4 h-4 shrink-0" />
-                          <span className="truncate underline decoration-blue-100/30 group-hover:decoration-blue-100">{report.reporter.email}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs bg-blue-100 text-general-20 px-2 py-0.5 rounded-full shrink-0 font-medium">
-                          <History className="w-3 h-3" />
-                          Riwayat
-                        </div>
-                      </button>
-                    </div>
                   </div>
                 )}
 
@@ -377,22 +373,33 @@ function LaporanLamaDetail() {
                     </div>
                 </div>
 
-                {report.files && report.files.length > 0 && (
-                  <div>
-                      <label className="block body-sm font-heading font-bold text-general-100 mb-2">Bukti Foto ({report.files.length})</label>
-                      <div className="space-y-3">
-                          {report.files.map((file: any) => (
-                              <div key={file.id} className="flex items-center justify-between px-4 py-3 bg-general-30/50 border border-general-30 rounded-lg group hover:border-blue-40 transition-colors">
-                                  <div className="flex items-center gap-3 overflow-hidden">
-                                      <div className="p-2 bg-general-20 rounded-md text-general-60 border border-general-30 shrink-0"><ImageIcon className="w-5 h-5" /></div>
-                                      <span className="body-sm font-medium text-general-80 truncate">{file.fileName}</span>
-                                  </div>
-                                  <button onClick={() => setSelectedImage(file.fileUrl)} className="text-xs font-bold text-blue-100 hover:text-blue-90 hover:underline px-3 shrink-0 transition-colors">Lihat</button>
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-                )}
+                {/* --- BUKTI FOTO (DUMMY) --- */}
+                <div>
+                    <label className="block body-sm font-heading font-bold text-general-100 mb-2">Bukti Foto</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {(report.files && report.files.length > 0 ? report.files : DUMMY_IMAGES).map((file: any, idx: number) => {
+                            const imageUrl = typeof file === 'string' ? file : file.fileUrl
+                            return (
+                                <div 
+                                  key={idx} 
+                                  className="group relative aspect-square bg-general-30 rounded-xl overflow-hidden border border-general-30 cursor-pointer hover:shadow-md transition-all"
+                                  onClick={() => setSelectedImage(imageUrl)}
+                                >
+                                    <img 
+                                      src={imageUrl} 
+                                      alt="Bukti Laporan" 
+                                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <div className="bg-general-20/20 backdrop-blur-sm p-2 rounded-full text-general-20">
+                                            <ExternalLink className="w-5 h-5" />
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
 
                 {/* Scoring */}
                 {scoring && (

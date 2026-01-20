@@ -137,21 +137,18 @@ function DashboardAnggota() {
                     <div className="absolute right-0 top-0 p-4 opacity-10"><AlertTriangle className="w-16 h-16 text-red-100" /></div>
                     <p className="body-sm font-bold text-red-100 uppercase tracking-wider mb-1">Risiko Tinggi</p>
                     <p className="h2 text-red-100">{riskCounts.high}</p>
-                    <p className="text-xs text-red-80 mt-2">Keracunan, Higiene Buruk</p>
                 </div>
 
                 <div className="bg-yellow-20 border border-yellow-30 rounded-xl p-5 shadow-sm relative overflow-hidden">
                     <div className="absolute right-0 top-0 p-4 opacity-10"><AlertTriangle className="w-16 h-16 text-yellow-600" /></div>
                     <p className="body-sm font-bold text-yellow-600 uppercase tracking-wider mb-1">Risiko Sedang</p>
                     <p className="h2 text-yellow-600">{riskCounts.medium}</p>
-                    <p className="text-xs text-yellow-700 mt-2">Keterlambatan, Porsi Kurang</p>
                 </div>
 
                 <div className="bg-green-20 border border-green-30 rounded-xl p-5 shadow-sm relative overflow-hidden">
                     <div className="absolute right-0 top-0 p-4 opacity-10"><AlertTriangle className="w-16 h-16 text-green-100" /></div>
                     <p className="body-sm font-bold text-green-100 uppercase tracking-wider mb-1">Risiko Rendah</p>
                     <p className="h2 text-green-100">{riskCounts.low}</p>
-                    <p className="text-xs text-green-80 mt-2">Saran, Pertanyaan Umum</p>
                 </div>
             </div>
 
