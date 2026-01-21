@@ -1,27 +1,14 @@
-import { useState, useMemo, useCallback, memo } from "react"
+import { useMemo, memo } from "react"
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { ReportCard, type ReportData } from "@/components/ui/report-card"
-import { cn } from "@/lib/utils"
-import { ArrowRight, Loader2 } from "lucide-react"
+import { ArrowRight, Loader2, AlertCircle } from "lucide-react"
 import { reportsService } from "@/services/reports"
 import { CATEGORY_LABELS, CATEGORY_VARIANTS, RELATION_LABELS } from "@/hooks/use-categories"
-
-const CATEGORIES = [
-  { id: "all", label: "Semua" },
-  { id: "poisoning", label: CATEGORY_LABELS.poisoning },
-  { id: "kitchen", label: CATEGORY_LABELS.kitchen },
-  { id: "quality", label: CATEGORY_LABELS.quality },
-  { id: "policy", label: CATEGORY_LABELS.policy },
-  { id: "implementation", label: CATEGORY_LABELS.implementation },
-  { id: "social", label: CATEGORY_LABELS.social },
-] as const
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = { day: "2-digit", month: "long", year: "numeric" }
 
 function ReportFeedComponent() {
-  const [activeCategory, setActiveCategory] = useState("all")
-
   const { data: reportsData, isLoading } = useQuery({
     queryKey: ["reports", "recent"],
     queryFn: () => reportsService.getRecent(),
@@ -30,111 +17,81 @@ function ReportFeedComponent() {
 
   const reports: ReportData[] = useMemo(() => {
     if (!reportsData?.data) return []
-    return reportsData.data.map((r) => ({
-      id: r.id,
-      category: CATEGORY_LABELS[r.category] || r.category,
-      categoryVariant: CATEGORY_VARIANTS[r.category] || "info",
-      title: r.title,
-      location: r.location,
-      date: new Date(r.incidentDate).toLocaleDateString("id-ID", DATE_FORMAT_OPTIONS),
-      reporter: RELATION_LABELS[r.relation] || "Pelapor",
-    }))
+    
+    return reportsData.data
+      .slice(0, 3)
+      .map((r) => ({
+        id: r.id,
+        category: CATEGORY_LABELS[r.category] || r.category,
+        categoryVariant: CATEGORY_VARIANTS[r.category] || "info",
+        title: r.title,
+        location: r.location,
+        date: new Date(r.incidentDate).toLocaleDateString("id-ID", DATE_FORMAT_OPTIONS),
+        reporter: RELATION_LABELS[r.relation] || "Pelapor",
+      }))
   }, [reportsData])
 
-  const filteredReports = useMemo(() => {
-    if (activeCategory === "all") return reports
-    const currentCategoryLabel = CATEGORIES.find((c) => c.id === activeCategory)?.label
-    return reports.filter((report) => report.category === currentCategoryLabel)
-  }, [reports, activeCategory])
-
-  const handleCategoryClick = useCallback((categoryId: string) => {
-    setActiveCategory(categoryId)
-  }, [])
-
   return (
-    <section className="py-20 bg-general-20 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-12 md:py-20 bg-white">
+      
+      {/* CONTAINER UTAMA */}
+      <div className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24">
         
         {/* Header Section */}
-        <div className="text-center mb-8 md:mb-12">
-          <h2 className="h2 text-general-100 mb-4">
-            Kategori Temuan
-          </h2>
-          <p className="body-lg text-general-70 max-w-2xl mx-auto">
-            Jelajahi laporan terkini berdasarkan kategori untuk memahami isu-isu yang terjadi di lapangan.
-          </p>
-        </div>
-
-        {/* --- TOMBOL KATEGORI --- */}
-        <div className="flex flex-nowrap overflow-x-auto pb-4 gap-3 mb-8 md:mb-12 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:justify-center md:pb-0 scrollbar-hide">
-          {CATEGORIES.map((category) => {
-            const isActive = activeCategory === category.id
-            return (
-              <button
-                key={category.id}
-                onClick={() => handleCategoryClick(category.id)}
-                className={cn(
-                  "body-sm px-5 py-2.5 rounded-full font-medium transition-all duration-300 border shadow-sm whitespace-nowrap shrink-0",
-                  isActive
-                    ? "bg-blue-100 text-general-20 border-blue-100 shadow-md transform scale-105"
-                    : "bg-general-20 text-general-70 border-general-30 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 hover:shadow-md"
-                )}
-              >
-                {category.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* --- REPORT CARDS --- */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-100" />
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 md:mb-10">
+          <div className="max-w-2xl">
+            <h2 className="text-2xl md:text-3xl font-bold text-general-100 mb-2">
+              Laporan Terkini
+            </h2>
+            <p className="text-general-70 body-sm md:body-md">
+              Pantau laporan yang baru saja masuk dan terverifikasi dari berbagai wilayah.
+            </p>
           </div>
-        ) : (
-        <div className="
-          /* MOBILE: Flex Row + Scroll Samping */
-          flex flex-nowrap overflow-x-auto gap-4 py-4 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide items-stretch
           
-          /* DESKTOP: Grid 3 Kolom */
-          md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-8 md:overflow-visible md:p-0 md:m-0
-        ">
-          {filteredReports.length > 0 ? (
-            filteredReports.map((report) => (
-              <div 
-                key={report.id}
-                /* PERBAIKAN TINGGI SERAGAM:
-                   - 'h-full flex flex-col': Membuat wrapper menjadi wadah flex vertikal penuh.
-                */
-                className="min-w-[85vw] sm:min-w-[400px] snap-center md:min-w-0 md:w-auto h-full flex flex-col"
-              >
-                {/* - 'flex-1': Mengisi ruang kosong vertikal.
-                   - '[&>*]:h-full': Memaksa komponen ReportCard (anaknya) jadi tinggi 100%.
-                */}
-                <div className="flex-1 h-full [&>*]:h-full">
-                  <ReportCard report={report} />
-                </div>
-              </div>
-            ))
-          ) : (
-            // Pesan Kosong
-            <div className="col-span-full w-full text-center py-12 text-general-60 body-md">
-              Belum ada laporan untuk kategori ini.
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* Bottom Link */}
-        <div className="text-center mt-12 md:mt-16">
           <Link
             to="/data-laporan"
-            className="group inline-flex items-center gap-2 font-semibold transition-all px-8 py-4 rounded-full bg-blue-20 text-blue-100 hover:bg-blue-30 hover:shadow-md body-sm"
+            className="hidden md:inline-flex items-center gap-2 px-6 py-3 bg-orange-100 text-white font-semibold rounded-lg hover:bg-orange-90 transition-all shadow-sm hover:shadow-md whitespace-nowrap"
           >
-            Lihat Seluruh Laporan
-            <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+            Lihat Semua Laporan
+            <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
+
+        {/* --- REPORT CARDS GRID --- */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20 bg-general-20/50 rounded-xl border border-dashed border-general-30">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-100" />
+          </div>
+        ) : reports.length > 0 ? (
+        
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            {reports.map((report) => (
+              <div key={report.id} className="h-full flex flex-col">
+                 <div className="flex-1 h-full [&>*]:h-full">
+                    <ReportCard report={report} />
+                 </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 bg-general-20 rounded-xl text-center border border-general-30/50">
+            <div className="w-12 h-12 bg-general-30 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-6 h-6 text-general-60" />
+            </div>
+            <p className="text-general-80 font-medium">Belum ada laporan masuk saat ini.</p>
+          </div>
+        )}
+
+        {/* Mobile Button */}
+        <div className="mt-8 md:hidden">
+          <Link
+            to="/data-laporan"
+            className="flex items-center justify-center w-full px-6 py-3 bg-orange-100 text-white font-bold rounded-lg hover:bg-orange-90 transition-colors shadow-sm"
+          >
+            Lihat Semua Laporan
+          </Link>
+        </div>
+
       </div>
     </section>
   )

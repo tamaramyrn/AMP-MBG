@@ -20,6 +20,35 @@ interface DataTableProps {
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }
 
+// 1. UPDATE: Konfigurasi Status sesuai Referensi Dashboard Laporan
+const STATUS_LABELS: Record<string, { label: string; variant: string }> = {
+  pending: { label: "Menunggu Verifikasi", variant: "orange" },
+  verified: { label: "Terverifikasi", variant: "green" },
+  in_progress: { label: "Sedang Ditindaklanjuti", variant: "yellow" },
+  resolved: { label: "Selesai", variant: "blue" }, // Perhatikan key di DB mungkin 'resolved' atau 'completed'
+  completed: { label: "Selesai", variant: "blue" }, // Handle kedua kemungkinan key
+  rejected: { label: "Ditolak", variant: "red" },
+}
+
+// 2. UPDATE: Helper Function untuk Style Status (Background & Border khusus)
+const getStatusStyle = (status: string) => {
+  const statusInfo = STATUS_LABELS[status] || { label: status, variant: "gray" }
+  
+  const variantStyles: Record<string, string> = {
+    orange: "bg-orange-50 text-orange-700 border-orange-200",
+    green: "bg-green-20 text-green-100 border-green-30",
+    red: "bg-red-20 text-red-100 border-red-30",
+    yellow: "bg-yellow-50 text-yellow-700 border-yellow-200",
+    blue: "bg-blue-20 text-blue-100 border-blue-30",
+    gray: "bg-general-30 text-general-70 border-general-40",
+  }
+
+  return { 
+    label: statusInfo.label, 
+    className: variantStyles[statusInfo.variant] || variantStyles.gray 
+  }
+}
+
 function DataTableComponent({ data }: DataTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
@@ -70,7 +99,9 @@ function DataTableComponent({ data }: DataTableProps) {
               <th className="px-4 py-3 text-left text-xs font-semibold text-general-60 uppercase tracking-wider font-heading w-48">
                 Lokasi
               </th>
-              {/* Kolom Kategori diperlebar agar muat teks panjang */}
+              <th className="px-4 py-3 text-left text-xs font-semibold text-general-60 uppercase tracking-wider font-heading w-40">
+                Status
+              </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-general-60 uppercase tracking-wider font-heading w-1/4">
                 Kategori
               </th>
@@ -81,6 +112,9 @@ function DataTableComponent({ data }: DataTableProps) {
           </thead>
           <tbody className="divide-y divide-general-30">
             {currentData.map((row, index) => {
+              // 3. APPLY: Menggunakan helper function baru untuk mendapatkan class dan label
+              const statusStyle = getStatusStyle(row.status)
+
               return (
                 <tr key={row.id} className="hover:bg-blue-20/30 transition-colors">
                   <td className="px-4 py-4 body-sm text-general-70">
@@ -96,8 +130,16 @@ function DataTableComponent({ data }: DataTableProps) {
                       <p className="text-general-60 text-xs">{row.province}</p>
                     </div>
                   </td>
+                  
+                  {/* 4. RENDER: Menggunakan span dengan class dinamis (Pill Style) */}
                   <td className="px-4 py-4">
-                    {/* UBAH: Semua variant dipaksa jadi 'danger' (Merah) */}
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${statusStyle.className}`}>
+                      {statusStyle.label}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-4">
+                    {/* Kategori tetap menggunakan StatusBadge merah sesuai kode sebelumnya */}
                     <StatusBadge variant="danger">
                       {getCategoryLabel(row.category)}
                     </StatusBadge>

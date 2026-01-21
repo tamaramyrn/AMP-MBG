@@ -1,8 +1,7 @@
 import { memo, useMemo } from "react"
-import { FileText, Map, Users, UserCheck, Loader2 } from "lucide-react"
+import { FileText, Users, UserCheck, Loader2 } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { reportsService } from "@/services/reports"
-import { locationsService } from "@/services/locations"
 
 function QuickStatsComponent() {
   // 1. Query Data Laporan & User Summary
@@ -12,21 +11,7 @@ function QuickStatsComponent() {
     staleTime: 30000,
   })
 
-  // 2. Query Data Provinsi (Untuk menghitung jangkauan wilayah)
-  const { data: provinces, isLoading: provincesLoading } = useQuery({
-    queryKey: ["provinces"],
-    queryFn: async () => {
-      const response = await locationsService.getProvinces()
-      return response.data
-    },
-    staleTime: 1000 * 60 * 60, // Cache 1 jam karena data wilayah jarang berubah
-  })
-
   const statsItems = useMemo(() => {
-    // Menghitung jumlah provinsi dari panjang list dropdown
-    const provinceCount = provinces?.length || 0
-    const coverageText = `${provinceCount}` 
-
     return [
       {
         icon: Users,
@@ -39,46 +24,57 @@ function QuickStatsComponent() {
         label: "Anggota AMP MBG",
       },
       {
-        icon: Map,
-        value: coverageText,
-        label: "Provinsi yang akan Dijangkau",
-      },
-      {
         icon: FileText,
         value: stats?.total?.toLocaleString() || "0",
         label: "Laporan Masuk",
       },
     ]
-  }, [stats, provinces])
+  }, [stats])
 
   return (
-    <section className="bg-blue-100 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    // Responsive Vertical Padding (py-10 di mobile, py-16 di desktop)
+    <section className="bg-blue-100 py-10 md:py-16">
+      
+      {/* CONTAINER FLUID:
+          - Mobile: px-5
+          - Tablet: px-8
+          - Laptop: px-16
+          - Monitor Besar: px-24
+      */}
+      <div className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24">
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* GRID SYSTEM:
+            - grid-cols-1: Mobile (HP) -> Susun ke bawah
+            - md:grid-cols-3: Tablet & Desktop -> Langsung 3 kolom sejajar
+              (Menghindari grid-cols-2 agar tidak ada item gantung sendirian)
+        */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
           {statsItems.map((stat, index) => (
             <div 
               key={index} 
-              className="flex flex-row items-center justify-start lg:justify-center gap-4 pl-4 lg:pl-0"
+              // Alignment:
+              // Mobile: justify-start (Rata kiri biar rapih kayak list) + pl-4 (padding kiri)
+              // Tablet/Desktop: justify-center (Rata tengah) + pl-0 (reset padding)
+              className="flex flex-row items-center justify-start md:justify-center gap-4 pl-4 md:pl-0"
             >
               
-              <div className="w-14 h-14 bg-white/10 border border-white/20 rounded-full flex items-center justify-center shadow-sm shrink-0 backdrop-blur-sm">
-                {(statsLoading || provincesLoading) ? (
-                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+              {/* Icon Container: Responsive Size (w-12 mobile, w-14 desktop) */}
+              <div className="w-12 h-12 md:w-14 md:h-14 bg-white/10 border border-white/20 rounded-full flex items-center justify-center shadow-sm shrink-0 backdrop-blur-sm transition-transform hover:scale-105">
+                {statsLoading ? (
+                    <Loader2 className="w-5 h-5 md:w-6 md:h-6 text-white animate-spin" />
                 ) : (
-                    <stat.icon className="w-7 h-7 text-white" />
+                    <stat.icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
                 )}
               </div>
               
               <div className="text-left">
-                <p className="h3 text-white mb-0 leading-none">
+                {/* Text Value: Responsive Font Size */}
+                <p className="h3 text-white mb-0 leading-none text-2xl md:text-3xl">
                     {stat.value}
                 </p>
-                {/* PERUBAHAN DI SINI: Added 'whitespace-nowrap' */}
                 <p className="body-sm text-white/90 font-bold mt-1 whitespace-nowrap">
                     {stat.label}
                 </p>
-                {/* Sublabel dihapus karena tidak ada data di object statsItems */}
               </div>
             </div>
           ))}

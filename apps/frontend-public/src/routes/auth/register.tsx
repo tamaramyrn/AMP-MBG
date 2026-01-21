@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
-import { Eye, EyeOff, CheckCircle2, Loader2, ArrowLeft } from "lucide-react" // Tambah ArrowLeft
+import { Eye, EyeOff, CheckCircle2, Loader2, ArrowLeft } from "lucide-react"
 import { authService } from "@/services/auth"
 
 export const Route = createFileRoute("/auth/register")({
@@ -17,16 +17,15 @@ function RegisterPage() {
 
   const [formData, setFormData] = useState({
     name: "",
-    nik: "",
+    // nik: "", // Dihapus
     email: "",
-    phone: "", // Disini hanya menyimpan angka setelah +62
+    phone: "", // Hanya menyimpan angka setelah +62
     password: "",
     confirmPassword: "",
   })
   const [isAgreed, setIsAgreed] = useState(false)
 
   // Validasi
-  const isNikValid = /^\d{16}$/.test(formData.nik)
   const isPhoneValid = /^\d{9,12}$/.test(formData.phone) 
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/
   const isPasswordValid = passwordRegex.test(formData.password)
@@ -34,7 +33,7 @@ function RegisterPage() {
   const isNameValid = formData.name.trim().length > 0
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
 
-  const isValid = isNameValid && isNikValid && isEmailValid && isPhoneValid && isPasswordValid && isMatch && isAgreed
+  const isValid = isNameValid && isEmailValid && isPhoneValid && isPasswordValid && isMatch && isAgreed
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -58,7 +57,7 @@ function RegisterPage() {
     try {
       await authService.signup({
         name: formData.name,
-        nik: formData.nik,
+        // nik: formData.nik, // Dihapus dari payload
         email: formData.email,
         phone: `62${formData.phone}`,
         password: formData.password,
@@ -99,53 +98,29 @@ function RegisterPage() {
           />
         </fieldset>
 
-        {/* NIK & Surel */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1">
-            <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all ${
-              formData.nik.length > 0 && !isNikValid 
-                ? "border-red-100 focus-within:ring-red-100" 
-                : "border-general-30 focus-within:border-blue-100 focus-within:ring-blue-100"
-            }`}>
-              <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">NIK</legend>
-              <input
-                name="nik"
-                value={formData.nik}
-                onChange={handleNumberInput}
-                type="text"
-                placeholder="16 Digit Angka"
-                maxLength={16}
-                className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
-              />
-            </fieldset>
-            {formData.nik.length > 0 && !isNikValid && (
-               <p className="text-[10px] text-red-100 px-1">Harus 16 angka ({formData.nik.length}/16)</p>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all h-fit ${
-              formData.email.length > 0 && !isEmailValid
-                ? "border-red-100 focus-within:ring-red-100"
-                : "border-general-30 focus-within:border-blue-100 focus-within:ring-blue-100"
-            }`}>
-              <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Surel</legend>
-              <input
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                type="email"
-                placeholder="Contoh: a@b.com"
-                className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
-              />
-            </fieldset>
-            {formData.email.length > 0 && !isEmailValid && (
-              <p className="text-[10px] text-red-100 px-1">Format: nama@domain.com</p>
-            )}
-          </div>
+        {/* Surel (Email) - Sekarang Full Width */}
+        <div className="flex flex-col gap-1">
+          <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all h-fit ${
+            formData.email.length > 0 && !isEmailValid
+              ? "border-red-100 focus-within:ring-red-100"
+              : "border-general-30 focus-within:border-blue-100 focus-within:ring-blue-100"
+          }`}>
+            <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Surel</legend>
+            <input
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              type="email"
+              placeholder="Contoh: a@b.com"
+              className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
+            />
+          </fieldset>
+          {formData.email.length > 0 && !isEmailValid && (
+            <p className="text-[10px] text-red-100 px-1">Format email tidak valid</p>
+          )}
         </div>
 
-        {/* Nomor Telepon (Updated with +62) */}
+        {/* Nomor Telepon */}
         <div className="flex flex-col gap-1">
           <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all flex flex-col ${
               formData.phone.length > 0 && !isPhoneValid 
@@ -287,6 +262,20 @@ function RegisterPage() {
           Masuk
         </Link>
       </p>
+
+      {/* Divider */}
+      <div className="flex items-center gap-4 my-4">
+        <div className="flex-1 border-t border-general-30"></div>
+        <span className="text-general-50 body-xs">atau</span>
+        <div className="flex-1 border-t border-general-30"></div>
+      </div>
+
+      <Link
+        to="/auth/register-anggota"
+        className="block w-full py-2.5 border-2 border-blue-100 text-blue-100 font-heading font-medium rounded-lg text-center hover:bg-blue-100 hover:text-general-20 transition-all body-sm"
+      >
+        Daftar sebagai Anggota AMP MBG
+      </Link>
 
       {/* TOMBOL KEMBALI KE BERANDA */}
       <div className="mt-6 text-center">

@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback, memo } from "react"
 import { Menu, X, User, LogOut, AlertCircle } from "lucide-react"
 
 // Konfigurasi Link Navigasi
-// protected: true artinya link ini hanya bisa diakses jika sudah login
 const NAV_LINKS = [
   { to: "/", label: "Beranda", protected: false },
   { to: "/cara-kerja", label: "Cara Kerja", protected: false },
@@ -31,26 +30,22 @@ function NavbarComponent() {
   // Effect untuk memantau perubahan login secara realtime
   useEffect(() => {
     checkUser()
-    // Event listener custom "user-login" dipicu saat register/login berhasil
     window.addEventListener("user-login", checkUser)
     return () => window.removeEventListener("user-login", checkUser)
   }, [checkUser])
 
-  // --- 2. LOGIKA PROTEKSI LINK (PENTING) ---
+  // --- 2. LOGIKA PROTEKSI LINK ---
   const handleProtectedNavigation = (e: React.MouseEvent, _to: string, isProtected: boolean) => {
-    // Jika link dilindungi DAN user belum login
     if (isProtected && !currentUser) {
-      e.preventDefault() // Batalkan navigasi asli
-      setMobileMenuOpen(false) // Tutup menu mobile jika sedang terbuka
-      navigate({ to: "/auth/login" }) // Paksa pindah ke halaman Login
+      e.preventDefault() 
+      setMobileMenuOpen(false) 
+      navigate({ to: "/auth/login" }) 
     } else {
-      // Jika aman, tutup menu mobile (untuk UX yang baik) dan biarkan navigasi terjadi
       setMobileMenuOpen(false) 
     }
   }
 
   // --- UTILS ---
-  // Mengambil nama depan saja agar tidak kepanjangan di navbar
   const getFirstName = useCallback((fullName: string) => fullName.split(" ")[0], [])
   
   const toggleMobileMenu = useCallback(() => setMobileMenuOpen((prev) => !prev), [])
@@ -58,14 +53,14 @@ function NavbarComponent() {
   // --- 3. LOGIKA LOGOUT ---
   const handleLogoutClick = useCallback(() => {
     setMobileMenuOpen(false)
-    setShowLogoutConfirm(true) // Tampilkan modal konfirmasi
+    setShowLogoutConfirm(true) 
   }, [])
 
   const confirmLogout = useCallback(() => {
-    localStorage.removeItem("currentUser") // Hapus sesi
-    setCurrentUser(null) // Reset state lokal
-    setShowLogoutConfirm(false) // Tutup modal
-    navigate({ to: "/" }) // Kembali ke beranda
+    localStorage.removeItem("currentUser") 
+    setCurrentUser(null) 
+    setShowLogoutConfirm(false) 
+    navigate({ to: "/" }) 
   }, [navigate])
 
   const cancelLogout = useCallback(() => setShowLogoutConfirm(false), [])
@@ -73,7 +68,11 @@ function NavbarComponent() {
   return (
     <>
       <header className="bg-blue-100 text-white sticky top-0 z-50 shadow-sm">
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* UPDATE: 
+            Mengganti 'max-w-7xl' dengan 'w-full' dan menyesuaikan padding 
+            agar konsisten dengan halaman Cara Kerja & Footer (px-5 -> px-24).
+        */}
+        <nav className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24">
           <div className="flex items-center justify-between h-16">
             
             {/* Logo */}
@@ -95,7 +94,6 @@ function NavbarComponent() {
                 <Link
                   key={link.to}
                   to={link.to}
-                  // Pasang handler proteksi di sini
                   onClick={(e) => handleProtectedNavigation(e, link.to, link.protected)}
                   className={`body-sm font-medium transition-colors ${
                     pathname === link.to ? "text-white border-b-2 border-white pb-1" : "text-white/80 hover:text-white"
@@ -158,7 +156,6 @@ function NavbarComponent() {
                   <Link
                     key={link.to}
                     to={link.to}
-                    // Pasang handler proteksi juga di menu mobile
                     onClick={(e) => handleProtectedNavigation(e, link.to, link.protected)}
                     className={`body-md font-medium py-2 transition-colors ${
                       pathname === link.to ? "text-white" : "text-white/80 hover:text-white"
@@ -205,14 +202,11 @@ function NavbarComponent() {
         </nav>
       </header>
 
-      {/* ======================================= */}
       {/* MODAL KONFIRMASI LOGOUT */}
-      {/* ======================================= */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-general-20 rounded-xl shadow-xl w-full max-w-sm p-6 transform transition-all scale-100">
             
-            {/* Header Modal */}
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-4">
                 <AlertCircle className="w-6 h-6 text-red-600" />
@@ -223,7 +217,6 @@ function NavbarComponent() {
               </p>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex gap-3">
               <button
                 onClick={cancelLogout}

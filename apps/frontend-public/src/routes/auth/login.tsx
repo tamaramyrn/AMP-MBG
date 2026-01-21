@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
-import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react" // Tambah ArrowLeft
+import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react"
 import { authService } from "@/services/auth"
 
 export const Route = createFileRoute("/auth/login")({
@@ -16,14 +16,20 @@ function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
+  // --- VALIDASI HANYA EMAIL ---
   const isEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)
-  const isNikFormat = /^\d{16}$/.test(identifier)
-  const isIdentifierValid = identifier.length === 0 || isEmailFormat || isNikFormat
+  const isIdentifierValid = identifier.length === 0 || isEmailFormat
   const isPasswordFilled = password.length > 0
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    
+    if (!isEmailFormat) {
+      setError("Mohon masukkan format email yang valid")
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -50,25 +56,25 @@ function LoginPage() {
           </div>
         )}
 
-        {/* Email / NIK Field */}
+        {/* Email Field (Hanya Email) */}
         <div className="flex flex-col gap-1">
           <fieldset className={`border rounded-lg px-3 pb-3 pt-1 transition-all ${
             identifier.length > 0 && !isIdentifierValid
               ? "border-red-100 focus-within:ring-red-100"
               : "border-general-30 focus-within:border-blue-100 focus-within:ring-blue-100"
           }`}>
-            <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Surel / NIK</legend>
+            <legend className="body-xs text-general-60 px-2 font-medium bg-general-20">Surel</legend>
             <input
-              type="text"
+              type="email"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="Masukkan surel atau NIK Anda"
+              placeholder="Masukkan surel Anda"
               className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
               disabled={isLoading}
             />
           </fieldset>
           {identifier.length > 0 && !isIdentifierValid && (
-            <p className="text-[10px] text-red-100 px-1">Format: nama@domain.com atau 16 digit NIK</p>
+            <p className="text-[10px] text-red-100 px-1">Format email tidak valid (contoh: nama@domain.com)</p>
           )}
         </div>
 

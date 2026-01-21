@@ -68,7 +68,7 @@ function DataLaporanPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-10 md:mb-12">
             <h1 className="h3 text-general-100 mb-4">Data dan Statistik Laporan MBG</h1>
-            <p className="body-md text-general-70">Pantau perkembangan laporan masyarakat secara transparan</p>
+            <p className="body-md text-general-70">Pantau perkembangan laporan masyarakat secara transparan.</p>
           </div>
           <DataSummaryCards />
           <DataFilters onFilter={handleFilterChange} />
