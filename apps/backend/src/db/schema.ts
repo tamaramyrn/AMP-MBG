@@ -62,7 +62,7 @@ export const users = pgTable("users", {
   nik: varchar("nik", { length: 16 }).unique(),
   email: varchar("email", { length: 255 }).unique().notNull(),
   phone: varchar("phone", { length: 15 }).unique(),
-  password: text("password").notNull(),
+  password: text("password"),
   name: varchar("name", { length: 255 }).notNull(),
   role: roleEnum("role").default("public").notNull(),
   memberType: memberTypeEnum("member_type"),

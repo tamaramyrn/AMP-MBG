@@ -1,5 +1,6 @@
 import { db, schema } from "./index"
 import { eq, sql } from "drizzle-orm"
+import { hashPassword } from "../lib/password"
 
 const adminAccounts = [
   { name: "Budi Santoso", email: "budi.santoso@ampmbg.id", phone: "+6281100000001", adminRole: "Director" },
@@ -85,7 +86,7 @@ const memberAccounts = [
 async function seedAccounts() {
   console.log("Seeding accounts...")
 
-  const defaultPassword = await Bun.password.hash("Admin@123!", { algorithm: "bcrypt", cost: 10 })
+  const defaultPassword = await hashPassword("Admin@123!")
 
   // Clear existing member and admin accounts (except main admin)
   console.log("Clearing existing member accounts...")
@@ -112,7 +113,7 @@ async function seedAccounts() {
     }
   }
 
-  // Seed members with complete organization data
+  // Seed members with complete organization data (no password - members don't login)
   const now = new Date()
   for (const member of memberAccounts) {
     await db.insert(schema.users).values({
@@ -120,7 +121,6 @@ async function seedAccounts() {
       name: member.name,
       email: member.email,
       phone: member.phone,
-      password: defaultPassword,
       role: "member",
       memberType: member.memberType,
       organizationName: member.organizationName,

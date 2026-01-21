@@ -141,6 +141,9 @@ auth.post("/login", zValidator("json", loginSchema), async (c) => {
 
   if (!user.isActive) return c.json({ error: "Akun Anda telah dinonaktifkan" }, 403)
 
+  // Members don't have passwords and cannot login
+  if (!user.password) return c.json({ error: "Akun ini tidak dapat melakukan login" }, 403)
+
   const isValid = await verifyPassword(password, user.password)
   if (!isValid) return c.json({ error: "Email/NIK/telepon atau password salah" }, 401)
 
