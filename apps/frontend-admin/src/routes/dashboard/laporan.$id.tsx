@@ -15,11 +15,6 @@ import {
   FileText,
   BarChart3,
   Calendar,
-  Phone,
-  Mail,
-  CreditCard,
-  Building2,
-  AlertTriangle,
   CheckCircle2
 } from "lucide-react"
 import { useState, useEffect } from "react"
@@ -424,9 +419,9 @@ function LaporanDetail() {
               <div className="space-y-3">
                 {Object.entries(SCORING_LABELS).map(([key, label]) => {
                   const scoreData = scoring[key as keyof typeof scoring]
-                  const value = typeof scoreData === 'object' ? scoreData.value : scoreData
+                  const value = typeof scoreData === 'object' ? scoreData.value : (typeof scoreData === 'number' ? scoreData : 0)
                   const max = typeof scoreData === 'object' ? scoreData.max : 3
-                  const percentage = (value / max) * 100
+                  const percentage = (Number(value) / Number(max)) * 100
                   return (
                     <div key={key} className="flex items-center gap-4">
                       <div className="w-40 text-xs text-general-60">{label}</div>
