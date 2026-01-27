@@ -12,7 +12,7 @@ interface StatCardProps {
 const variantStyles = {
   default: "bg-white border-gray-200",
   danger: "bg-red-50 border-red-200",
-  warning: "bg-yellow-50 border-yellow-200",
+  warning: "bg-yellow-50 border-yellow-1000",
 }
 
 export function StatCard({ icon: Icon, value, label, variant = "default", className }: StatCardProps) {

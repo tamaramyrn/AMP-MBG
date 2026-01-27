@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { to: "/", label: "Beranda", protected: false },
   { to: "/cara-kerja", label: "Cara Kerja", protected: false },
   { to: "/lapor", label: "Lapor", protected: true }, 
+  { to: "/kebutuhan-dapur", label: "Kebutuhan Dapur", protected: false }, // <-- MENU BARU DITAMBAHKAN DI SINI
   { to: "/data-laporan", label: "Data Laporan", protected: false },
   { to: "/tentang-kami", label: "Tentang Kami", protected: false },
 ] as const

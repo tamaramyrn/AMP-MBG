@@ -8,7 +8,7 @@ import {
   Plus,
   X,
   Trash2,
-  Eye,
+  Eye, // Icon Mata
   EyeOff,
   ChevronDown,
   CheckCircle2,
@@ -33,6 +33,7 @@ const MEMBER_TYPE_OPTIONS = [
   { value: "caterer", label: "Katering" },
   { value: "school", label: "Pihak Sekolah" },
   { value: "government", label: "Pemerintah Daerah" },
+  { value: "foundation", label: "Yayasan" },
   { value: "ngo", label: "LSM/NGO" },
   { value: "farmer", label: "Petani" },
   { value: "other", label: "Lainnya" },
@@ -46,7 +47,7 @@ const STATUS_OPTIONS = [
 
 const getStatusInfo = (isVerified: boolean, isActive: boolean) => {
   if (!isActive) return { key: "rejected", label: "Ditolak", style: "bg-red-20 text-red-100 border-red-30" }
-  if (!isVerified) return { key: "pending", label: "Pending", style: "bg-orange-50 text-orange-700 border-orange-200" }
+  if (!isVerified) return { key: "pending", label: "Pending", style: "bg-orange-20 text-orange-100 border-orange-30" }
   return { key: "active", label: "Aktif", style: "bg-green-20 text-green-100 border-green-30" }
 }
 
@@ -223,9 +224,6 @@ function AkunAnggotaPage() {
 
                         <td className="p-4 border-r border-general-30">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-20 rounded-lg flex items-center justify-center shrink-0">
-                              <Building2 className="w-5 h-5 text-blue-100" />
-                            </div>
                             <span className="font-bold text-general-100 body-sm">{orgName}</span>
                           </div>
                         </td>
@@ -258,13 +256,14 @@ function AkunAnggotaPage() {
                           </span>
                         </td>
 
+                        {/* --- TOMBOL AKSI DIPERBARUI --- */}
                         <td className="p-4 align-middle text-center">
                           <div className="flex justify-center gap-2">
                             <button
                               onClick={() => setDetailMember(member)}
-                              className="text-blue-100 font-bold underline underline-offset-4 decoration-blue-100/30 hover:text-blue-80 hover:decoration-blue-80 hover:decoration-2 hover:underline-offset-2 transition-all duration-200 body-sm"
+                              className="text-blue-100 font-bold text-xs bg-blue-20 hover:bg-blue-30 px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow active:scale-95 flex items-center gap-1"
                             >
-                              Detail
+                              <Eye className="w-3 h-3" /> Detail
                             </button>
                           </div>
                         </td>

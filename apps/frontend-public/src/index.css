@@ -55,7 +55,7 @@
     --blue-30: 198 36% 64%;
     --blue-20: 197 48% 80%;
 
-    /* Orange */
+    /* Orange Scale */
     --orange-100: 26 49% 50%;
     --orange-90: 26 55% 56%;
     --orange-80: 26 60% 61%;
@@ -65,6 +65,17 @@
     --orange-40: 26 80% 83%;
     --orange-30: 26 85% 89%;
     --orange-20: 26 90% 95%;
+
+    /* Yellow Scale (BARU) */
+--yellow-100: 38 100% 12%; /* Hampir hitam kecoklatan */
+    --yellow-90: 38 100% 18%;
+    --yellow-80: 38 100% 25%;
+    --yellow-70: 38 100% 32%;
+    --yellow-60: 38 100% 40%; /* Warna Utama (Gelap Pekat) */
+    --yellow-50: 38 100% 50%;
+    --yellow-40: 38 100% 65%;
+    --yellow-50: 38 100% 80%;
+    --yellow-50: 38 100% 92%; /* Background tetap terang */
     
     /* Warning */
     --warning: 38 92% 50%;
@@ -81,7 +92,7 @@
     --primary: var(--green-100);
     --primary-foreground: var(--general-20);
   
-    /* Primary variants - Custom mappings for specific needs */
+    /* Primary variants */
     --primary-dark: 118 38% 26%;  /* #2a5d28 */
     --primary-light: var(--green-20);
   

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
+import { Route as DashboardPermintaanKebutuhanDapurRouteImport } from './routes/dashboard/permintaan-kebutuhan-dapur'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as DashboardLaporanIndexRouteImport } from './routes/dashboard/laporan.index'
 import { Route as DashboardAkunAnggotaIndexRouteImport } from './routes/dashboard/akun-anggota.index'
@@ -27,6 +28,12 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardPermintaanKebutuhanDapurRoute =
+  DashboardPermintaanKebutuhanDapurRouteImport.update({
+    id: '/dashboard/permintaan-kebutuhan-dapur',
+    path: '/dashboard/permintaan-kebutuhan-dapur',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/auth/login',
   path: '/auth/login',
@@ -57,6 +64,7 @@ const DashboardLaporanIdRoute = DashboardLaporanIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth/login': typeof AuthLoginRoute
+  '/dashboard/permintaan-kebutuhan-dapur': typeof DashboardPermintaanKebutuhanDapurRoute
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/laporan/$id': typeof DashboardLaporanIdRoute
   '/dashboard/akun-admin': typeof DashboardAkunAdminIndexRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/login': typeof AuthLoginRoute
+  '/dashboard/permintaan-kebutuhan-dapur': typeof DashboardPermintaanKebutuhanDapurRoute
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/laporan/$id': typeof DashboardLaporanIdRoute
   '/dashboard/akun-admin': typeof DashboardAkunAdminIndexRoute
@@ -76,6 +85,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth/login': typeof AuthLoginRoute
+  '/dashboard/permintaan-kebutuhan-dapur': typeof DashboardPermintaanKebutuhanDapurRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/laporan/$id': typeof DashboardLaporanIdRoute
   '/dashboard/akun-admin/': typeof DashboardAkunAdminIndexRoute
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth/login'
+    | '/dashboard/permintaan-kebutuhan-dapur'
     | '/dashboard'
     | '/dashboard/laporan/$id'
     | '/dashboard/akun-admin'
@@ -96,6 +107,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth/login'
+    | '/dashboard/permintaan-kebutuhan-dapur'
     | '/dashboard'
     | '/dashboard/laporan/$id'
     | '/dashboard/akun-admin'
@@ -105,6 +117,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/auth/login'
+    | '/dashboard/permintaan-kebutuhan-dapur'
     | '/dashboard/'
     | '/dashboard/laporan/$id'
     | '/dashboard/akun-admin/'
@@ -115,6 +128,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthLoginRoute: typeof AuthLoginRoute
+  DashboardPermintaanKebutuhanDapurRoute: typeof DashboardPermintaanKebutuhanDapurRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardLaporanIdRoute: typeof DashboardLaporanIdRoute
   DashboardAkunAdminIndexRoute: typeof DashboardAkunAdminIndexRoute
@@ -136,6 +150,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/permintaan-kebutuhan-dapur': {
+      id: '/dashboard/permintaan-kebutuhan-dapur'
+      path: '/dashboard/permintaan-kebutuhan-dapur'
+      fullPath: '/dashboard/permintaan-kebutuhan-dapur'
+      preLoaderRoute: typeof DashboardPermintaanKebutuhanDapurRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/login': {
@@ -179,6 +200,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthLoginRoute: AuthLoginRoute,
+  DashboardPermintaanKebutuhanDapurRoute:
+    DashboardPermintaanKebutuhanDapurRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardLaporanIdRoute: DashboardLaporanIdRoute,
   DashboardAkunAdminIndexRoute: DashboardAkunAdminIndexRoute,

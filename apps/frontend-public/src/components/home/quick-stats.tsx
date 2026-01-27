@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react"
-import { FileText, Users, UserCheck, Loader2 } from "lucide-react"
+import { FileText, Users, UserCheck, Loader2, Building2 } from "lucide-react" // Ditambahkan Building2
 import { useQuery } from "@tanstack/react-query"
 import { reportsService } from "@/services/reports"
 
@@ -25,6 +25,12 @@ function QuickStatsComponent() {
         label: "Anggota AMP MBG",
       },
       {
+        // --- DATA DUMMY YAYASAN ---
+        icon: Building2,
+        value: "124", // Dummy value
+        label: "Yayasan Terdaftar",
+      },
+      {
         icon: FileText,
         value: stats?.total?.toLocaleString() || "0",
         label: "Laporan Masuk",
@@ -41,7 +47,8 @@ function QuickStatsComponent() {
       </div>
 
       <div className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 divide-y md:divide-y-0 md:divide-x divide-blue-80/50">
+        {/* UPDATED: grid-cols-3 menjadi grid-cols-4 agar muat 4 item */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12 divide-y md:divide-y-0 md:divide-x divide-blue-80/50">
           {statsItems.map((stat, index) => (
             <div 
               key={index} 

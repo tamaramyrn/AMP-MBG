@@ -1,5 +1,5 @@
 CREATE TYPE "public"."credibility_level" AS ENUM('high', 'medium', 'low');--> statement-breakpoint
-CREATE TYPE "public"."member_type" AS ENUM('supplier', 'caterer', 'school', 'government', 'ngo', 'farmer', 'other');--> statement-breakpoint
+CREATE TYPE "public"."member_type" AS ENUM('supplier', 'caterer', 'school', 'government', 'foundation', 'ngo', 'farmer', 'other');--> statement-breakpoint
 CREATE TYPE "public"."relation" AS ENUM('parent', 'teacher', 'principal', 'supplier', 'student', 'community', 'other');--> statement-breakpoint
 CREATE TYPE "public"."report_category" AS ENUM('poisoning', 'kitchen', 'quality', 'policy', 'implementation', 'social');--> statement-breakpoint
 CREATE TYPE "public"."report_status" AS ENUM('pending', 'verified', 'in_progress', 'resolved', 'rejected');--> statement-breakpoint

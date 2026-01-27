@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
-import { Users, ArrowUp, RefreshCw, Scale, Goal, Target } from "lucide-react"
+import { Users, ArrowUp, RefreshCw, Scale, Goal, Target, Building2, Search } from "lucide-react"
+import { useState } from "react"
 
 export const Route = createFileRoute("/tentang-kami/")({
   component: TentangKamiPage,
@@ -30,10 +31,34 @@ const coreValues = [
   },
 ]
 
+// --- DUMMY DATA YAYASAN (Bisa ditambah sampai banyak) ---
+const registeredFoundations = [
+  { id: 1, name: "Yayasan Peduli Gizi" },
+  { id: 2, name: "Yayasan Tunas Harapan" },
+  { id: 3, name: "Yayasan Anak Sehat" },
+  { id: 4, name: "Yayasan Bina Mandiri" },
+  { id: 5, name: "Yayasan Pangan Nusantara" },
+  { id: 6, name: "Yayasan Generasi Emas" },
+  { id: 7, name: "Yayasan Cahaya Pelita" },
+  { id: 8, name: "Yayasan Bakti Pertiwi" },
+  { id: 9, name: "Yayasan Harapan Ibu" },
+  { id: 10, name: "Yayasan Kasih Bunda" },
+  { id: 11, name: "Yayasan Sejahtera Bersama" },
+  { id: 12, name: "Yayasan Pelita Hati" },
+  { id: 13, name: "Yayasan Insan Cendekia" },
+  { id: 14, name: "Yayasan Karya Salemba" },
+  { id: 15, name: "Yayasan Mutiara Bangsa" },
+  { id: 16, name: "Yayasan Lentera Jiwa" },
+  { id: 17, name: "Yayasan Cipta Karya" },
+  { id: 18, name: "Yayasan Bangun Desa" },
+  { id: 19, name: "Yayasan Harmoni Alam" },
+  { id: 20, name: "Yayasan Sinar Mentari" },
+]
+
 function TentangKamiPage() {
   const navigate = useNavigate()
+  const [searchTerm, setSearchTerm] = useState("")
 
-  // Handler untuk tombol "Mulai Melapor"
   const handleLaporClick = () => {
     const user = localStorage.getItem("currentUser")
     if (user) {
@@ -43,15 +68,18 @@ function TentangKamiPage() {
     }
   }
 
+  // Filter yayasan berdasarkan search term
+  const filteredFoundations = registeredFoundations.filter((foundation) =>
+    foundation.name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
   return (
-    <div className="min-h-screen flex flex-col bg-general-20">
+    <div className="min-h-screen flex flex-col bg-general-20 font-sans">
       <Navbar />
       <main className="flex-1">
         
-        {/* --- SECTION 1: HERO DENGAN FOTO (Sesuai Request Terakhir) --- */}
+        {/* --- SECTION 1: HERO --- */}
         <section className="relative bg-blue-100 min-h-[500px] flex items-center overflow-hidden">
-          
-          {/* Container Gambar (Kanan) */}
           <div className="absolute top-0 right-0 bottom-0 w-full md:w-[55%] lg:w-[65%] hidden md:block lg:translate-x-12 transform transition-transform">
             <img
               src="/tentang_kami.webp"
@@ -60,22 +88,16 @@ function TentangKamiPage() {
               decoding="async"
               className="w-full h-full object-cover object-center"
             />
-            {/* Overlay 1: Memberi tint biru pada foto agar menyatu */}
             <div className="absolute inset-0 bg-blue-900/30 mix-blend-multiply" />
-            {/* Overlay 2: Gradien dari kiri (solid biru) ke kanan (transparan) untuk transisi halus */}
             <div className="absolute inset-0 bg-gradient-to-r from-blue-100 via-blue-100/80 to-transparent" />
           </div>
 
-          {/* Container Konten (Kiri) */}
           <div className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24 relative z-10">
-            {/* Lebar konten dibatasi di desktop agar tidak menutupi foto terlalu banyak */}
             <div className="md:w-1/2 lg:w-[45%] py-16 md:py-24 text-white text-center md:text-left">
-              
               <h1 className="h1 font-heading font-bold mb-6 leading-tight">
                 Tentang <br />
                 <span className="text-orange-20">AMP MBG</span>
               </h1>
-              
               <p className="body-lg text-blue-20/90 leading-relaxed text-justify md:text-left">
                 Asosiasi Masyarakat Pelaku Makan Bergizi Gratis (AMP MBG) adalah platform independen yang didedikasikan untuk mengawal dan memastikan transparansi dalam pelaksanaan Program Makan Bergizi Gratis di Indonesia.
               </p>
@@ -86,10 +108,8 @@ function TentangKamiPage() {
         {/* --- SECTION 2: VISI & MISI --- */}
         <section className="py-16 md:py-24 bg-general-20">
           <div className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24">
-            
             <div className="grid md:grid-cols-2 gap-8 items-stretch">
-              
-              {/* KARTU VISI: Center Vertikal & Horizontal */}
+              {/* KARTU VISI */}
               <div className="bg-white rounded-2xl p-8 md:p-10 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-blue-30/50 hover:border-blue-100 transition-all group h-full">
                 <div className="flex flex-col h-full justify-center items-center text-center">
                   <div className="flex items-center justify-center gap-3 mb-6">
@@ -138,12 +158,11 @@ function TentangKamiPage() {
                   </ul>
                 </div>
               </div>
-
             </div>
           </div>
         </section>
 
-        {/* --- SECTION 3: NILAI INTI (Background Bersih) --- */}
+        {/* --- SECTION 3: NILAI INTI --- */}
         <section className="py-16 md:py-24 bg-blue-20/30 relative overflow-hidden">
           <div className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24 relative z-10">
             <div className="text-center mb-12 md:mb-16">
@@ -175,16 +194,81 @@ function TentangKamiPage() {
           </div>
         </section>
 
-        {/* --- SECTION 4: CALL TO ACTION --- */}
-        <section className="py-16 md:py-24 bg-white">
+        {/* --- SECTION 4: YAYASAN TERDAFTAR (SCROLLABLE + SEARCH) --- */}
+        <section className="py-16 md:py-24 bg-white border-t border-general-30/50">
+          <div className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24">
+            
+            <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+              <div className="text-center md:text-left w-full md:w-auto">
+                <h2 className="h3 font-heading font-bold text-general-100 mb-2">
+                  Yayasan yang <span className="text-blue-100">Bergabung</span>
+                </h2>
+                <p className="body-md text-general-60">
+                  {registeredFoundations.length} organisasi telah resmi menjadi bagian dari jaringan kami.
+                </p>
+              </div>
+              
+              {/* Search Bar */}
+              <div className="relative w-full md:w-72">
+                <input 
+                  type="text" 
+                  placeholder="Cari nama yayasan..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-general-20 border border-general-30 rounded-lg text-sm text-general-100 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-100 transition-all"
+                />
+                <Search className="w-4 h-4 text-general-50 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              </div>
+            </div>
+
+            {/* Scrollable Container */}
+            <div className="bg-general-20/30 rounded-2xl border border-general-30 p-2">
+              <div className="max-h-[400px] overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-general-30 scrollbar-track-transparent">
+                
+                {filteredFoundations.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {filteredFoundations.map((foundation) => (
+                      <div 
+                        key={foundation.id}
+                        className="bg-white rounded-xl p-4 border border-general-30 hover:border-blue-40 transition-all duration-200 flex items-center gap-3 group shadow-sm hover:shadow-md"
+                      >
+                        <div className="w-10 h-10 bg-general-20 rounded-lg flex items-center justify-center border border-general-30 shrink-0 group-hover:bg-blue-20 transition-colors">
+                          <Building2 className="w-5 h-5 text-general-60 group-hover:text-blue-100 transition-colors" />
+                        </div>
+                        <h4 className="font-bold text-general-100 text-sm leading-tight group-hover:text-blue-100 transition-colors line-clamp-2">
+                          {foundation.name}
+                        </h4>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10">
+                    <p className="text-general-60 body-sm">
+                      Tidak ditemukan yayasan dengan nama "{searchTerm}"
+                    </p>
+                  </div>
+                )}
+
+              </div>
+            </div>
+            
+            {/* Gradient Shadow Hint (Optional Visual Cue) */}
+            <div className="text-center mt-3">
+               <p className="text-xs text-general-50">Gulir ke bawah untuk melihat lebih banyak</p>
+            </div>
+
+          </div>
+        </section>
+
+        {/* --- SECTION 5: CALL TO ACTION --- */}
+        <section className="py-16 md:py-24 bg-blue-100">
           <div className="max-w-4xl mx-auto px-5 sm:px-8 lg:px-16 text-center">
-            <h2 className="h3 font-heading font-bold text-blue-100 mb-6">Mari Berkontribusi!</h2>
-            <p className="body-md text-general-60 mb-10 leading-relaxed max-w-2xl mx-auto">
+            <h2 className="h3 font-heading font-bold text-white mb-6">Mari Berkontribusi!</h2>
+            <p className="body-md text-blue-20/80 mb-10 leading-relaxed max-w-2xl mx-auto">
               Anda bisa berperan sebagai <strong>Masyarakat</strong> untuk melaporkan temuan, atau bergabung sebagai <strong>Anggota Resmi</strong> (Organisasi/Vendor) untuk kolaborasi yang lebih erat.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              {/* Tombol Lapor (Masyarakat) - Menggunakan Button onClick Logic */}
               <button
                 onClick={handleLaporClick}
                 className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-orange-100 hover:bg-orange-90 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 body-sm font-heading cursor-pointer"
@@ -192,18 +276,16 @@ function TentangKamiPage() {
                 Mulai Melapor
               </button>
 
-              {/* Tombol Daftar Anggota */}
               <Link
                 to="/daftar-anggota"
-                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-blue-100 hover:bg-blue-90 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 body-sm font-heading"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-white text-blue-100 hover:bg-blue-20 font-bold rounded-xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 body-sm font-heading"
               >
                 Daftar Jadi Anggota
               </Link>
 
-              {/* Tombol Cara Kerja */}
               <Link
                 to="/cara-kerja"
-                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 border-2 border-blue-100 text-blue-100 hover:bg-blue-20 font-bold rounded-xl transition-all body-sm font-heading"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white hover:bg-white/10 font-bold rounded-xl transition-all body-sm font-heading"
               >
                 Pelajari Cara Kerjanya
               </Link>

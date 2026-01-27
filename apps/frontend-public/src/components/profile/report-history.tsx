@@ -10,9 +10,9 @@ const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: "numeric", month: "long"
 const STATUS_LABELS: Record<string, { label: string; variant: string }> = {
   pending: { label: "Menunggu Verifikasi", variant: "orange" },
   verified: { label: "Terverifikasi", variant: "green" },
-  in_progress: { label: "Sedang Ditindaklanjuti", variant: "yellow" }, // Variant yellow akan kita map ke orange/warning sistem
+  in_progress: { label: "Sedang Ditindaklanjuti", variant: "yellow" },
   resolved: { label: "Selesai", variant: "blue" },
-  completed: { label: "Selesai", variant: "blue" }, // Jaga-jaga
+  completed: { label: "Selesai", variant: "blue" },
   rejected: { label: "Ditolak", variant: "red" },
 }
 
@@ -31,9 +31,8 @@ const getStatusStyle = (status: string) => {
     // Red Scale (Rejected)
     red: "bg-red-20 text-red-100 border-red-30",
     
-    // Yellow Scale (In Progress) -> Map ke Orange/Warning karena variable yellow tidak ada di index.css
-    // Atau gunakan bg-orange-20 tapi border beda jika ingin beda
-    yellow: "bg-orange-20 text-orange-100 border-orange-30", 
+    // Yellow Scale (In Progress)
+    yellow: "bg-yellow-50 text-general-80 border-yellow-100", 
     
     // Blue Scale (Resolved)
     blue: "bg-blue-20 text-blue-100 border-blue-30",

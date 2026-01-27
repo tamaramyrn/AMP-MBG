@@ -9,6 +9,7 @@ const LEFT_LINKS = [
 ] as const
 
 const RIGHT_LINKS = [
+  { to: "/kebutuhan-dapur", label: "Kebutuhan Dapur" }, // <-- DITAMBAHKAN DI SINI
   { to: "/data-laporan", label: "Data Laporan" },
   { to: "/tentang-kami", label: "Tentang Kami" },
 ] as const

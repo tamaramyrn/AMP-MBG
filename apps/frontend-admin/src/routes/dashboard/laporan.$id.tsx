@@ -48,9 +48,9 @@ const RELATION_LABELS: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, { label: string; style: string }> = {
-  pending: { label: "Menunggu Verifikasi", style: "bg-orange-50 text-orange-700 border-orange-200" },
+  pending: { label: "Menunggu Verifikasi", style: "bg-orange-20 text-orange-100 border-orange-30" },
   verified: { label: "Terverifikasi", style: "bg-green-20 text-green-100 border-green-30" },
-  in_progress: { label: "Sedang Ditindaklanjuti", style: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+  in_progress: { label: "Sedang Ditindaklanjuti", style: "bg-yellow-50 text-general-80 border-yellow-100" },
   resolved: { label: "Selesai", style: "bg-blue-20 text-blue-100 border-blue-30" },
   rejected: { label: "Ditolak", style: "bg-red-20 text-red-100 border-red-30" },
 }
@@ -65,7 +65,7 @@ const STATUS_OPTIONS = [
 
 const CREDIBILITY_LABELS: Record<string, { label: string; style: string }> = {
   high: { label: "Tinggi", style: "text-red-100 bg-red-20 border-red-30" },
-  medium: { label: "Sedang", style: "text-yellow-700 bg-yellow-50 border-yellow-200" },
+  medium: { label: "Sedang", style: "text-general-80 bg-yellow-50 border-yellow-100" },
   low: { label: "Rendah", style: "text-green-100 bg-green-20 border-green-30" },
 }
 

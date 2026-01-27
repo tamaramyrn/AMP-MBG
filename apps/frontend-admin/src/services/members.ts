@@ -51,7 +51,7 @@ export interface CreateMemberData {
   email: string
   phone: string
   password: string
-  memberType: "supplier" | "caterer" | "school" | "government" | "ngo" | "farmer" | "other"
+  memberType: "supplier" | "caterer" | "school" | "government" | "foundation" | "ngo" | "farmer" | "other"
 }
 
 export const adminAccountService = {

@@ -15,6 +15,7 @@ const MEMBER_TYPES = [
   { value: "caterer", label: "Katering" },
   { value: "school", label: "Pihak Sekolah" },
   { value: "government", label: "Pemerintah Daerah" },
+  { value: "foundation", label: "Yayasan"},
   { value: "ngo", label: "LSM/NGO" },
   { value: "farmer", label: "Petani/Peternak" },
   { value: "other", label: "Lainnya" },

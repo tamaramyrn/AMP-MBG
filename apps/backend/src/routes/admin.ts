@@ -985,7 +985,7 @@ const createMemberSchema = z.object({
   email: z.string().email().max(255),
   phone: z.string().min(10).max(15),
   password: z.string().min(8).max(100),
-  memberType: z.enum(["supplier", "caterer", "school", "government", "ngo", "farmer", "other"]),
+  memberType: z.enum(["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"]),
 })
 
 admin.post("/members", zValidator("json", createMemberSchema), async (c) => {

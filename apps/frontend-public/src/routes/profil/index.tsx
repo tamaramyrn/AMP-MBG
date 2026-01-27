@@ -3,6 +3,7 @@ import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
 import { ProfileForm } from "@/components/profile/profile-form"
 import { ReportHistory } from "@/components/profile/report-history"
+import { KitchenNeedsHistory } from "@/components/profile/kitchen-needs-history" // Import Komponen Baru
 import { useState, useEffect } from "react"
 import { AlertCircle, Users, ArrowRight, LogOut } from "lucide-react"
 import { authService } from "@/services/auth"
@@ -34,11 +35,6 @@ function ProfilPage() {
         <Navbar />
         
         <main className="flex-1 py-10 md:py-14">
-          {/* UPDATE PENTING:
-              - Dihapus: max-w-[...] (Ini yang bikin mengecil saat zoom 50%)
-              - Tetap: w-full (Agar selalu 100% lebar layar)
-              - Tetap: px-5 ... px-24 (Agar konten tidak nempel tembok)
-          */}
           <div className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24">
             
             {/* Header */}
@@ -97,6 +93,11 @@ function ProfilPage() {
               {/* 3. Riwayat Laporan */}
               <div className="w-full">
                 <ReportHistory />
+              </div>
+
+              {/* 4. Riwayat Kebutuhan Dapur (BARU) */}
+              <div className="w-full">
+                <KitchenNeedsHistory />
               </div>
 
               {/* Tombol Logout Mobile */}

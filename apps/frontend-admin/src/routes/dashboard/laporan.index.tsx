@@ -8,7 +8,8 @@ import {
   ChevronsRight,
   Search,
   AlertCircle,
-  Loader2
+  Loader2,
+  Eye // Icon Baru
 } from "lucide-react"
 import { useState, useEffect, useCallback, memo } from "react"
 import { useQuery } from "@tanstack/react-query"
@@ -72,22 +73,21 @@ function LaporanPage() {
   const getStatusStyle = (status: string) => {
     const statusInfo = STATUS_LABELS[status] || { label: status, variant: "gray" }
     const variantStyles: Record<string, string> = {
-      orange: "bg-orange-50 text-orange-700 border-orange-200",
+      orange: "bg-orange-20 text-orange-100 border-orange-30",
       green: "bg-green-20 text-green-100 border-green-30",
       red: "bg-red-20 text-red-100 border-red-30",
-      yellow: "bg-yellow-50 text-yellow-700 border-yellow-200",
+      yellow: "bg-yellow-50 text-general-80 border-yellow-100", 
       blue: "bg-blue-20 text-blue-100 border-blue-30",
       gray: "bg-general-30 text-general-70 border-general-40",
     }
     return { label: statusInfo.label, className: variantStyles[statusInfo.variant] || variantStyles.gray }
   }
 
-  // UPDATED: Mengubah style text biasa menjadi style background/border seperti Status
   const getRiskStyle = (level: string) => {
     const styles: Record<string, string> = {
-      high: "bg-red-20 text-red-100 border-red-30",      // Merah untuk Tinggi
-      medium: "bg-yellow-50 text-yellow-700 border-yellow-200", // Kuning untuk Sedang
-      low: "bg-green-20 text-green-100 border-green-30", // Hijau untuk Rendah
+      high: "bg-red-20 text-red-100 border-red-30",
+      medium: "bg-yellow-50 text-general-80 border-yellow-100",
+      low: "bg-green-20 text-green-100 border-green-30",
     }
     return styles[level] || "bg-general-30 text-general-70 border-general-40"
   }
@@ -185,14 +185,14 @@ function LaporanPage() {
                     const statusStyle = getStatusStyle(item.status)
                     const riskData = item.credibilityLevel || item.credibility_level;
                     const riskLabel = riskData ? (CREDIBILITY_LABELS[riskData] || riskData) : null;
-                    const riskClassName = getRiskStyle(riskData); // Ambil class style baru
+                    const riskClassName = getRiskStyle(riskData);
 
                     return (
                     <tr key={item.id} className="border-b border-general-30 hover:bg-general-30/20 transition-colors">
-                      <td className="p-4 text-center text-general-100 body-sm border-r border-general-30 align-top">{indexOfFirstItem + idx + 1}</td>
-                      <td className="p-4 text-center text-general-100 body-sm border-r border-general-30 align-top">{formatDate(item.createdAt)}</td>
+                      <td className="p-4 text-center text-general-100 body-sm border-r border-general-30 align-middle">{indexOfFirstItem + idx + 1}</td>
+                      <td className="p-4 text-center text-general-100 body-sm border-r border-general-30 align-middle">{formatDate(item.createdAt)}</td>
                       
-                      <td className="p-4 border-r border-general-30 align-top">
+                      <td className="p-4 border-r border-general-30 align-middle">
                         <div className="flex flex-col gap-0.5 body-sm">
                           <span className="font-bold text-general-100">
                             {item.district || "Kec. Tidak Diketahui"}
@@ -206,17 +206,15 @@ function LaporanPage() {
                         </div>
                       </td>
 
-                      <td className="p-4 text-general-100 body-sm border-r border-general-30 align-top">{CATEGORY_LABELS[item.category] || item.category}</td>
+                      <td className="p-4 text-general-100 body-sm border-r border-general-30 align-middle">{CATEGORY_LABELS[item.category] || item.category}</td>
                       
-                      {/* Kolom Status (Tampilan Pill) */}
-                      <td className="p-4 text-center border-r border-general-30 align-top">
+                      <td className="p-4 text-center border-r border-general-30 align-middle">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${statusStyle.className}`}>
                           {statusStyle.label}
                         </span>
                       </td>
                       
-                      {/* Kolom Tingkat Masalah (UPDATED: Menggunakan Tampilan Pill yang sama dengan Status) */}
-                      <td className="p-4 text-center border-r border-general-30 align-top">
+                      <td className="p-4 text-center border-r border-general-30 align-middle">
                         {riskLabel ? (
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${riskClassName}`}>
                             {riskLabel}
@@ -226,21 +224,23 @@ function LaporanPage() {
                         )}
                       </td>
 
-                      <td className="p-4 text-center align-top">
-                        <Link 
-                          to="/dashboard/laporan/$id" 
-                          params={{ id: item.id }}
-                          className="
-                            text-blue-100 
-                            font-bold 
-                            underline underline-offset-4 decoration-blue-100/30
-                            hover:text-blue-80 hover:decoration-blue-80 hover:decoration-2 hover:underline-offset-2
-                            transition-all duration-200 
-                            body-sm
-                          "
-                        >
-                          Detail
-                        </Link>
+                      {/* --- TOMBOL AKSI DIPERBARUI --- */}
+                      <td className="p-4 align-middle text-center">
+                        <div className="flex justify-center">
+                          <Link
+                            to="/dashboard/laporan/$id" 
+                            params={{ id: item.id }}
+                            className="
+                              text-blue-100 font-bold text-xs 
+                              bg-blue-20 hover:bg-blue-30 
+                              px-3 py-1.5 rounded-lg 
+                              transition-all shadow-sm hover:shadow active:scale-95 
+                              flex items-center gap-1
+                            "
+                          >
+                            <Eye className="w-3 h-3" /> Detail
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   )})
@@ -272,7 +272,7 @@ function LaporanPage() {
   )
 }
 
-// --- FILTER COMPONENT ---
+// --- FILTER COMPONENT (TIDAK BERUBAH) ---
 const DataFiltersComponent = ({ onFilter }: { onFilter: (f: FilterValues) => void }) => {
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
@@ -485,7 +485,7 @@ const DataFiltersComponent = ({ onFilter }: { onFilter: (f: FilterValues) => voi
         </div>
 
         <div className="md:col-span-12 mt-2">
-          <button type="button" onClick={handleSearch} className="w-full px-6 py-2.5 bg-blue-100 hover:bg-blue-90 text-general-20 rounded-lg transition-all flex items-center justify-center gap-2 body-sm font-heading font-medium shadow-sm hover:shadow active:scale-[0.98]">
+          <button type="button" onClick={handleSearch} className="w-full px-6 py-2.5 bg-orange-100 hover:bg-orange-90 text-general-20 rounded-lg transition-all flex items-center justify-center gap-2 body-sm font-heading font-medium shadow-sm hover:shadow active:scale-[0.98]">
             <Search className="w-4 h-4" /> Cari Data
           </button>
         </div>

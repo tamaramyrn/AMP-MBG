@@ -5,7 +5,7 @@ import { relations } from "drizzle-orm"
 export const roleEnum = pgEnum("role", ["admin", "member", "public"])
 
 // Member type enum for anggota MBG
-export const memberTypeEnum = pgEnum("member_type", ["supplier", "caterer", "school", "government", "ngo", "farmer", "other"])
+export const memberTypeEnum = pgEnum("member_type", ["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"])
 
 // Credibility level for reports
 export const credibilityLevelEnum = pgEnum("credibility_level", ["high", "medium", "low"])

@@ -418,7 +418,7 @@ auth.get("/check", authMiddleware, async (c) => {
 
 // Apply as MBG member (anggota)
 const applyMemberSchema = z.object({
-  memberType: z.enum(["supplier", "caterer", "school", "government", "ngo", "farmer", "other"]),
+  memberType: z.enum(["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"]),
   organizationName: z.string().min(3, "Nama organisasi minimal 3 karakter").max(255),
   organizationEmail: z.string().email("Email organisasi tidak valid"),
   organizationPhone: z.string().min(9, "Nomor telepon minimal 9 digit").max(15),

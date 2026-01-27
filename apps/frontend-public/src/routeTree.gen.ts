@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TentangKamiIndexRouteImport } from './routes/tentang-kami/index'
 import { Route as ProfilIndexRouteImport } from './routes/profil/index'
 import { Route as LaporIndexRouteImport } from './routes/lapor/index'
+import { Route as KebutuhanDapurIndexRouteImport } from './routes/kebutuhan-dapur/index'
 import { Route as DataLaporanIndexRouteImport } from './routes/data-laporan/index'
 import { Route as DaftarAnggotaIndexRouteImport } from './routes/daftar-anggota/index'
 import { Route as CaraKerjaIndexRouteImport } from './routes/cara-kerja/index'
@@ -38,6 +39,11 @@ const ProfilIndexRoute = ProfilIndexRouteImport.update({
 const LaporIndexRoute = LaporIndexRouteImport.update({
   id: '/lapor/',
   path: '/lapor/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KebutuhanDapurIndexRoute = KebutuhanDapurIndexRouteImport.update({
+  id: '/kebutuhan-dapur/',
+  path: '/kebutuhan-dapur/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DataLaporanIndexRoute = DataLaporanIndexRouteImport.update({
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/cara-kerja': typeof CaraKerjaIndexRoute
   '/daftar-anggota': typeof DaftarAnggotaIndexRoute
   '/data-laporan': typeof DataLaporanIndexRoute
+  '/kebutuhan-dapur': typeof KebutuhanDapurIndexRoute
   '/lapor': typeof LaporIndexRoute
   '/profil': typeof ProfilIndexRoute
   '/tentang-kami': typeof TentangKamiIndexRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/cara-kerja': typeof CaraKerjaIndexRoute
   '/daftar-anggota': typeof DaftarAnggotaIndexRoute
   '/data-laporan': typeof DataLaporanIndexRoute
+  '/kebutuhan-dapur': typeof KebutuhanDapurIndexRoute
   '/lapor': typeof LaporIndexRoute
   '/profil': typeof ProfilIndexRoute
   '/tentang-kami': typeof TentangKamiIndexRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/cara-kerja/': typeof CaraKerjaIndexRoute
   '/daftar-anggota/': typeof DaftarAnggotaIndexRoute
   '/data-laporan/': typeof DataLaporanIndexRoute
+  '/kebutuhan-dapur/': typeof KebutuhanDapurIndexRoute
   '/lapor/': typeof LaporIndexRoute
   '/profil/': typeof ProfilIndexRoute
   '/tentang-kami/': typeof TentangKamiIndexRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/cara-kerja'
     | '/daftar-anggota'
     | '/data-laporan'
+    | '/kebutuhan-dapur'
     | '/lapor'
     | '/profil'
     | '/tentang-kami'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/cara-kerja'
     | '/daftar-anggota'
     | '/data-laporan'
+    | '/kebutuhan-dapur'
     | '/lapor'
     | '/profil'
     | '/tentang-kami'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/cara-kerja/'
     | '/daftar-anggota/'
     | '/data-laporan/'
+    | '/kebutuhan-dapur/'
     | '/lapor/'
     | '/profil/'
     | '/tentang-kami/'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   CaraKerjaIndexRoute: typeof CaraKerjaIndexRoute
   DaftarAnggotaIndexRoute: typeof DaftarAnggotaIndexRoute
   DataLaporanIndexRoute: typeof DataLaporanIndexRoute
+  KebutuhanDapurIndexRoute: typeof KebutuhanDapurIndexRoute
   LaporIndexRoute: typeof LaporIndexRoute
   ProfilIndexRoute: typeof ProfilIndexRoute
   TentangKamiIndexRoute: typeof TentangKamiIndexRoute
@@ -188,6 +201,13 @@ declare module '@tanstack/react-router' {
       path: '/lapor'
       fullPath: '/lapor'
       preLoaderRoute: typeof LaporIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kebutuhan-dapur/': {
+      id: '/kebutuhan-dapur/'
+      path: '/kebutuhan-dapur'
+      fullPath: '/kebutuhan-dapur'
+      preLoaderRoute: typeof KebutuhanDapurIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data-laporan/': {
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   CaraKerjaIndexRoute: CaraKerjaIndexRoute,
   DaftarAnggotaIndexRoute: DaftarAnggotaIndexRoute,
   DataLaporanIndexRoute: DataLaporanIndexRoute,
+  KebutuhanDapurIndexRoute: KebutuhanDapurIndexRoute,
   LaporIndexRoute: LaporIndexRoute,
   ProfilIndexRoute: ProfilIndexRoute,
   TentangKamiIndexRoute: TentangKamiIndexRoute,
