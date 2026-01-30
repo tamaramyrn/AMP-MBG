@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { DashboardAnggotaLayout } from "@/components/dashboard/dashboard-admin-layout"
-import { useState, useRef } from "react"
+import { useState, useRef, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { adminService, type KitchenNeedItem } from "@/services/admin"
 import { 
-  Plus, Edit, Trash2, Image as ImageIcon, Loader2, Save, X, UploadCloud, Link as LinkIcon 
+  Plus, Edit, Trash2, Image as ImageIcon, Loader2, Save, X, UploadCloud, Link as LinkIcon, Search, Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle 
 } from "lucide-react"
 
 export const Route = createFileRoute("/dashboard/manajemen-kebutuhan")({
@@ -13,11 +13,18 @@ export const Route = createFileRoute("/dashboard/manajemen-kebutuhan")({
 
 function ManajemenKebutuhanPage() {
   const queryClient = useQueryClient()
+  const [searchTerm, setSearchTerm] = useState("")
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<KitchenNeedItem | null>(null)
 
   // Fetch Data
-  const { data: needs, isLoading } = useQuery({
+  const { data: needsData, isLoading } = useQuery({
     queryKey: ["admin", "kitchen-content"],
     queryFn: adminService.kitchen.getAll,
   })
@@ -25,10 +32,37 @@ function ManajemenKebutuhanPage() {
   // Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: adminService.kitchen.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "kitchen-content"] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "kitchen-content"] })
+      // Jika item terakhir di halaman dihapus, mundur 1 halaman
+      if (currentItems.length === 1 && currentPage > 1) {
+        setCurrentPage(p => p - 1)
+      }
+    }
   })
 
-  const handleEdit = (item: KitchenNeedItem) => {
+  // Filtering, Sorting (A-Z), & Pagination Logic
+  const filteredNeeds = useMemo(() => {
+    if (!needsData) return []
+    
+    // 1. Filter Pencarian
+    const filtered = needsData.filter(item => 
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+
+    // 2. Sort A-Z berdasarkan Title
+    return filtered.sort((a, b) => a.title.localeCompare(b.title))
+
+  }, [needsData, searchTerm])
+
+  const totalPages = Math.ceil(filteredNeeds.length / itemsPerPage) || 1
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentItems = filteredNeeds.slice(indexOfFirstItem, indexOfLastItem)
+
+  // Handlers
+  const handleDetail = (item: KitchenNeedItem) => {
     setEditingItem(item)
     setIsModalOpen(true)
   }
@@ -39,21 +73,28 @@ function ManajemenKebutuhanPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (confirm("Hapus item kebutuhan ini?")) {
+    if (confirm("Hapus item kebutuhan ini secara permanen?")) {
       deleteMutation.mutate(id)
+      setIsModalOpen(false) // Tutup modal jika delete dari modal
     }
   }
+
+  // Pagination Handlers
+  const goToFirst = () => setCurrentPage(1)
+  const goToLast = () => setCurrentPage(totalPages)
+  const goToPrev = () => setCurrentPage(p => Math.max(1, p - 1))
+  const goToNext = () => setCurrentPage(p => Math.min(totalPages, p + 1))
 
   return (
     <DashboardAnggotaLayout>
       <div className="p-4 md:p-8 space-y-8">
         
-        {/* Header Section (Style matched with AkunAdminPage) */}
+        {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="h4 text-general-100 font-heading">Manajemen Konten Kebutuhan Dapur</h1>
+            <h1 className="h4 text-general-100 font-heading">Manajemen Konten Kebutuhan</h1>
             <p className="body-sm text-general-60 mt-2 max-w-2xl">
-              Atur daftar produk/jasa yang akan ditampilkan di halaman publik untuk SPPG.
+              Kelola daftar produk atau jasa kebutuhan dapur yang tampil di halaman publik.
             </p>
           </div>
 
@@ -66,62 +107,133 @@ function ManajemenKebutuhanPage() {
           </button>
         </div>
 
-        {/* Content Grid */}
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-24 space-y-4">
-            <Loader2 className="w-10 h-10 animate-spin text-blue-100" />
-            <p className="body-sm text-general-60 animate-pulse">Memuat konten...</p>
+        {/* Filters Section (Search) */}
+        <div className="bg-general-20 border border-general-30 rounded-xl p-5 shadow-sm">
+          <div className="grid grid-cols-1">
+            <label className="block body-xs font-semibold text-general-80 mb-2 uppercase tracking-wide">Pencarian</label>
+            <div className="relative group">
+              <input
+                type="text"
+                placeholder="Cari judul atau deskripsi..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setCurrentPage(1) // Reset ke halaman 1 saat search
+                }}
+                className="w-full pl-11 pr-4 py-2.5 bg-general-20 border border-general-30 rounded-lg focus:outline-none focus:border-blue-100 focus:ring-4 focus:ring-blue-100/10 transition-all body-sm text-general-100 placeholder:text-general-50"
+              />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-general-50 group-focus-within:text-blue-100 transition-colors" />
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {needs?.map((item) => (
-              <div key={item.id} className="bg-general-20 border border-general-30 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col">
-                
-                {/* Preview Image */}
-                <div className="h-48 w-full bg-general-30/30 relative flex items-center justify-center overflow-hidden shrink-0 border-b border-general-30">
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  ) : (
-                    <div className="flex flex-col items-center text-general-50">
-                      <ImageIcon className="w-10 h-10 mb-2 opacity-50" />
-                      <span className="text-xs font-semibold">Tidak ada foto</span>
-                    </div>
-                  )}
+        </div>
+
+        {/* Table Content */}
+        <div className="bg-general-20 border border-general-30 rounded-xl overflow-hidden shadow-sm">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 space-y-4">
+              <Loader2 className="w-10 h-10 animate-spin text-blue-100" />
+              <p className="body-sm text-general-60 animate-pulse">Memuat konten...</p>
+            </div>
+          ) : filteredNeeds.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+              <div className="w-20 h-20 bg-general-30/30 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="w-10 h-10 text-general-50" />
+              </div>
+              <h3 className="h5 text-general-80 mb-1">Data Tidak Ditemukan</h3>
+              <p className="body-sm text-general-60 max-w-sm">
+                Belum ada konten kebutuhan dapur yang sesuai dengan pencarian Anda.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-general-20 border-b border-general-30 text-general-100 body-sm font-heading font-semibold">
+                      <th className="p-4 w-16 text-center border-r border-general-30">No</th>
+                      <th className="p-4 w-24 text-center border-r border-general-30">Foto</th>
+                      <th className="p-4 min-w-[200px] border-r border-general-30">Judul Kebutuhan</th>
+                      <th className="p-4 border-r border-general-30">Deskripsi Singkat</th>
+                      <th className="p-4 w-32 text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentItems.map((item, idx) => (
+                      <tr key={item.id} className="border-b border-general-30 hover:bg-general-30/20 transition-colors group">
+                        <td className="p-4 text-center body-sm text-general-60 border-r border-general-30 align-middle">
+                          {indexOfFirstItem + idx + 1}
+                        </td>
+
+                        <td className="p-4 text-center align-middle border-r border-general-30">
+                          <div className="w-12 h-12 rounded-lg bg-general-30/50 flex items-center justify-center overflow-hidden mx-auto border border-general-30">
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                            ) : (
+                              <ImageIcon className="w-5 h-5 text-general-50" />
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="p-4 align-middle border-r border-general-30">
+                          <span className="font-bold text-general-100 body-sm">{item.title}</span>
+                        </td>
+
+                        <td className="p-4 align-middle border-r border-general-30">
+                          <p className="body-sm text-general-60 line-clamp-2 max-w-md">{item.description}</p>
+                        </td>
+
+                        <td className="p-4 align-middle text-center">
+                          <div className="flex justify-center">
+                            <button
+                              onClick={() => handleDetail(item)}
+                              className="text-blue-100 font-bold text-xs bg-blue-20 hover:bg-blue-30 px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow active:scale-95 flex items-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" /> Detail
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              {filteredNeeds.length > 0 && (
+                <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-general-30 text-general-60 body-sm bg-general-20">
+                  <span className="text-xs sm:text-sm">
+                    Menampilkan <span className="font-medium text-general-100">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredNeeds.length)}</span> dari {filteredNeeds.length} data
+                  </span>
                   
-                  {/* Actions Overlay */}
-                  <div className="absolute inset-0 bg-general-100/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
-                    <button 
-                      onClick={() => handleEdit(item)} 
-                      className="p-2.5 bg-general-20 text-blue-100 rounded-lg hover:scale-110 transition-transform shadow-lg border border-general-30"
-                      title="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
+                  <div className="flex items-center gap-1">
+                    <button onClick={goToFirst} disabled={currentPage === 1} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80">
+                      <ChevronsLeft className="w-4 h-4" />
                     </button>
-                    <button 
-                      onClick={() => handleDelete(item.id)} 
-                      className="p-2.5 bg-general-20 text-red-100 rounded-lg hover:scale-110 transition-transform shadow-lg border border-general-30"
-                      title="Hapus"
-                    >
-                      <Trash2 className="w-4 h-4" />
+                    <button onClick={goToPrev} disabled={currentPage === 1} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80">
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    
+                    <span className="mx-2 font-medium text-general-100 min-w-[2rem] text-center">{currentPage}</span>
+                    
+                    <button onClick={goToNext} disabled={currentPage === totalPages} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80">
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button onClick={goToLast} disabled={currentPage === totalPages} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80">
+                      <ChevronsRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
+              )}
+            </>
+          )}
+        </div>
 
-                {/* Content */}
-                <div className="p-5 flex flex-col flex-1">
-                  <h3 className="h5 text-general-100 font-heading mb-2 line-clamp-1">{item.title}</h3>
-                  <p className="body-sm text-general-60 line-clamp-3 flex-1 leading-relaxed">{item.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Modal Form */}
+        {/* Modal Form (Detail / Edit / Add) */}
         {isModalOpen && (
           <KitchenContentModal 
             initialData={editingItem} 
             onClose={() => setIsModalOpen(false)} 
+            onDelete={handleDelete}
             onSuccess={() => {
               setIsModalOpen(false)
               queryClient.invalidateQueries({ queryKey: ["admin", "kitchen-content"] })
@@ -135,7 +247,7 @@ function ManajemenKebutuhanPage() {
 }
 
 // --- FORM MODAL WITH UPLOAD ---
-function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData: KitchenNeedItem | null, onClose: () => void, onSuccess: () => void }) {
+function KitchenContentModal({ initialData, onClose, onDelete, onSuccess }: { initialData: KitchenNeedItem | null, onClose: () => void, onDelete: (id: string) => void, onSuccess: () => void }) {
   const [formData, setFormData] = useState<Partial<KitchenNeedItem>>({
     id: initialData?.id || "",
     title: initialData?.title || "",
@@ -154,7 +266,6 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
     onSuccess
   })
 
-  // Handle File Select
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -164,7 +275,6 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
     }
   }
 
-  // Handle URL Input
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value
     setFormData(prev => ({ ...prev, imageUrl: url }))
@@ -174,16 +284,14 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     let imageUrl = formData.imageUrl
 
-    // Upload file if selected
     if (selectedFile) {
       setIsUploading(true)
       try {
         imageUrl = await adminService.kitchen.uploadImage(selectedFile)
       } catch (error) {
-        console.error("Upload failed:", error)
+        console.error("Upload failed", error)
         setIsUploading(false)
         return
       }
@@ -193,7 +301,7 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
     mutation.mutate({ ...formData, imageUrl } as KitchenNeedItem)
   }
 
-  // Common Input Class (Matches AkunAdminModal)
+  // Styles
   const inputClass = "w-full px-4 py-2.5 bg-general-20 border border-general-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100/20 focus:border-blue-100 transition-all body-sm text-general-100 placeholder:text-general-50"
   const labelClass = "block body-sm font-semibold text-general-80 mb-2"
 
@@ -204,15 +312,15 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
         {/* Header */}
         <div className="px-6 py-5 border-b border-general-30 flex items-center justify-between bg-general-20 shrink-0">
           <div>
-            <h3 className="h5 text-general-100 font-heading">{initialData ? "Edit Konten" : "Tambah Konten"}</h3>
-            <p className="body-xs text-general-60 mt-0.5">Lengkapi informasi kebutuhan dapur.</p>
+            <h3 className="h5 text-general-100 font-heading">{initialData ? "Detail & Edit Konten" : "Tambah Konten Baru"}</h3>
+            <p className="body-xs text-general-60 mt-0.5">Kelola informasi produk/jasa.</p>
           </div>
           <button onClick={onClose} className="p-2 text-general-50 hover:text-general-100 hover:bg-general-30 rounded-lg transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
         
-        {/* Form Body - Scrollable */}
+        {/* Form Body */}
         <div className="p-6 overflow-y-auto">
           <form id="content-form" onSubmit={handleSubmit} className="space-y-5">
             
@@ -237,7 +345,7 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
                 value={formData.description}
                 onChange={e => setFormData({...formData, description: e.target.value})}
                 className={`${inputClass} resize-none`}
-                placeholder="Jelaskan peran dan kenapa SPPG membutuhkannya produk/jasa tersebut."
+                placeholder="Jelaskan peran dan kenapa SPPG membutuhkannya..."
               />
             </div>
 
@@ -245,7 +353,6 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
             <div>
               <label className={labelClass}>Foto / Ilustrasi</label>
               
-              {/* Tab Switcher */}
               <div className="flex bg-general-30/30 p-1 rounded-lg mb-3 w-fit border border-general-30">
                 <button
                   type="button"
@@ -259,24 +366,17 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
                   onClick={() => setImageMode("url")}
                   className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-2 ${imageMode === "url" ? "bg-general-20 text-blue-100 shadow-sm border border-general-30" : "text-general-60 hover:text-general-80"}`}
                 >
-                  <LinkIcon className="w-3.5 h-3.5" /> Masukkan Link Foto
+                  <LinkIcon className="w-3.5 h-3.5" /> Input URL
                 </button>
               </div>
 
-              {/* Input Area */}
               <div className="space-y-3">
                 {imageMode === "upload" ? (
                   <div 
                     onClick={() => fileInputRef.current?.click()}
                     className="border-2 border-dashed border-general-30 hover:border-blue-100 hover:bg-blue-100/5 bg-general-20 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all group"
                   >
-                    <input 
-                      type="file" 
-                      ref={fileInputRef}
-                      className="hidden" 
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                     <div className="w-10 h-10 bg-general-30 rounded-full flex items-center justify-center shadow-sm mb-2 group-hover:scale-110 transition-transform">
                       <UploadCloud className="w-5 h-5 text-general-60 group-hover:text-blue-100" />
                     </div>
@@ -294,14 +394,13 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
 
                 {/* Preview Image */}
                 {previewUrl && (
-                  <div className="relative rounded-xl overflow-hidden border border-general-30 h-40 bg-general-30/30 group">
+                  <div className="relative rounded-xl overflow-hidden border border-general-30 h-48 bg-general-30/30 group">
                     <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                    <button
+                    <button 
                       type="button"
                       onClick={() => {
                         setPreviewUrl(null)
                         setFormData(prev => ({ ...prev, imageUrl: "" }))
-                        setSelectedFile(null)
                         if (fileInputRef.current) fileInputRef.current.value = ""
                       }}
                       className="absolute top-2 right-2 p-1.5 bg-general-20/90 rounded-full text-red-100 hover:bg-red-20 border border-general-30 transition-all shadow-sm opacity-0 group-hover:opacity-100"
@@ -310,8 +409,6 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
                     </button>
                   </div>
                 )}
-                
-                {!previewUrl}
               </div>
             </div>
 
@@ -319,31 +416,37 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
         </div>
 
         {/* Footer Buttons */}
-        <div className="px-6 py-4 border-t border-general-30 bg-general-20 flex gap-3 shrink-0">
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="flex-1 py-2.5 border border-general-30 text-general-80 font-semibold rounded-lg hover:bg-general-30 transition-colors body-sm"
-          >
-            Batal
-          </button>
-          <button
-            type="submit"
-            form="content-form"
-            disabled={mutation.isPending || isUploading}
-            className="flex-1 py-2.5 bg-blue-100 text-general-20 font-semibold rounded-lg hover:bg-blue-90 shadow-lg hover:shadow-blue-100/20 transition-all body-sm disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 active:scale-[0.98]"
-          >
-            {(mutation.isPending || isUploading) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {isUploading ? "Mengunggah..." : "Simpan"}
-          </button>
+        <div className="px-6 py-4 border-t border-general-30 bg-general-20 flex justify-between gap-3 shrink-0">
+          {initialData && (
+            <button
+              type="button"
+              onClick={() => onDelete(initialData.id)}
+              className="px-4 py-2.5 bg-red-20 text-red-100 hover:bg-red-30 border border-red-30 rounded-lg transition-colors body-sm font-medium flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" /> Hapus
+            </button>
+          )}
+          
+          <div className={`flex gap-3 ${!initialData ? 'w-full' : ''}`}>
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className={`${!initialData ? 'flex-1' : ''} px-4 py-2.5 border border-general-30 text-general-80 font-semibold rounded-lg hover:bg-general-30 transition-colors body-sm`}
+            >
+              Batal
+            </button>
+            <button 
+              type="submit" 
+              form="content-form"
+              disabled={mutation.isPending || isUploading} 
+              className={`${!initialData ? 'flex-1' : ''} px-6 py-2.5 bg-blue-100 hover:bg-blue-90 text-white rounded-lg font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]`}
+            >
+              {(mutation.isPending || isUploading) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan
+            </button>
+          </div>
         </div>
 
       </div>
     </div>
   )
-}
-
-function AlertTriangle({ className }: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-    )
 }

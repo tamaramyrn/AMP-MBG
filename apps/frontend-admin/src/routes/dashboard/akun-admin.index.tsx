@@ -16,7 +16,7 @@ import {
   AlertCircle,
   AlertTriangle
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { adminAccountService, type Admin, type CreateAdminData } from "@/services/members"
 
@@ -61,12 +61,22 @@ function AkunAdminPage() {
     }
   })
 
-  const admins: Admin[] = (adminsData?.data || []).filter((a: Admin) => {
-    const matchSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchRole = !filterRole || a.adminRole === filterRole
-    return matchSearch && matchRole
-  })
+  // LOGIKA UTAMA: Filter & Sorting (A-Z)
+  const admins: Admin[] = useMemo(() => {
+    if (!adminsData?.data) return []
+
+    // 1. Filter
+    const filtered = adminsData.data.filter((a: Admin) => {
+      const matchSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.email.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchRole = !filterRole || a.adminRole === filterRole
+      return matchSearch && matchRole
+    })
+
+    // 2. Sort A-Z Berdasarkan Nama
+    return filtered.sort((a, b) => a.name.localeCompare(b.name))
+
+  }, [adminsData, searchTerm, filterRole])
 
   const handleDeleteClick = (id: string) => {
     setDeleteId(id)

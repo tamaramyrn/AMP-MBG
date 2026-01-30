@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
 import { authService } from "@/services/auth"
 import { adminService, type KitchenNeedItem } from "@/services/admin"
 import { useQuery } from "@tanstack/react-query"
 import { 
-  X, CheckCircle2, Send, Loader2, ArrowRight
+  X, CheckCircle2, Send, Loader2, ArrowRight, Search, ChevronLeft, ChevronRight
 } from "lucide-react"
 
 export const Route = createFileRoute("/kebutuhan-dapur/")({
@@ -21,13 +21,18 @@ function KebutuhanDapurPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
 
+  // --- STATE UNTUK SEARCH & PAGINATION ---
+  const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 9
+
   // Fetch Konten Dinamis
   const { data: kitchenNeeds, isLoading: isContentLoading } = useQuery({
     queryKey: ["public", "kitchen-content"],
     queryFn: adminService.kitchen.getAll
   })
 
-  // PERUBAHAN 1: Cek auth hanya untuk update state, JANGAN redirect di sini
+  // Auth Check
   useEffect(() => {
     const checkAuth = () => {
       const user = authService.getCurrentUser()
@@ -41,19 +46,43 @@ function KebutuhanDapurPage() {
     checkAuth()
   }, [])
 
-  // PERUBAHAN 2: Cek auth saat user mencoba berinteraksi (klik kartu)
   const handleCardClick = (need: KitchenNeedItem) => {
     if (!isAuthenticated) {
-      // Jika belum login, arahkan ke login page
-      // Opsional: Anda bisa menyimpan 'redirect' state agar setelah login balik lagi ke sini
       navigate({ to: "/auth/login" }) 
       return
     }
-
-    // Jika sudah login, buka modal
     setSelectedNeed(need)
     setIsModalOpen(true)
   }
+
+  // --- LOGIC FILTER, SORTING (A-Z), & PAGINATION ---
+  const filteredNeeds = useMemo(() => {
+    if (!kitchenNeeds) return []
+    
+    // 1. Filter Data
+    const filtered = kitchenNeeds.filter(item => 
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+
+    // 2. Sort Data A-Z (Alphabetical)
+    return filtered.sort((a, b) => a.title.localeCompare(b.title))
+
+  }, [kitchenNeeds, searchTerm])
+
+  const totalPages = Math.ceil(filteredNeeds.length / itemsPerPage)
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentItems = filteredNeeds.slice(indexOfFirstItem, indexOfLastItem)
+
+  const goToNextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages))
+  const goToPrevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1))
+
+  // Reset page ke 1 jika user melakukan pencarian
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
+
 
   if (isChecking || isContentLoading) {
     return (
@@ -63,8 +92,6 @@ function KebutuhanDapurPage() {
     )
   }
 
-  // PERUBAHAN 3: Hapus baris 'if (!isAuthenticated) return null' agar halaman tetap tampil
-
   return (
     <div className="min-h-screen flex flex-col bg-general-20 font-sans text-general-100">
       <Navbar />
@@ -72,7 +99,7 @@ function KebutuhanDapurPage() {
       <main className="flex-1 py-12 md:py-16">
         <div className="w-full mx-auto px-5 sm:px-8 lg:px-16 xl:px-24 max-w-[2400px]">
           
-          <div className="text-center mb-12 max-w-3xl mx-auto">
+          <div className="text-center mb-8 max-w-3xl mx-auto">
             <h1 className="h2 font-heading text-general-100 mb-4">
               Pusat <span className="text-blue-100">Kebutuhan Dapur</span>
             </h1>
@@ -81,61 +108,104 @@ function KebutuhanDapurPage() {
             </p>
           </div>
 
+          {/* --- SEARCH BAR --- */}
+          <div className="max-w-md mx-auto mb-10 relative group">
+            <input
+              type="text"
+              placeholder="Cari kebutuhan..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-white border border-general-30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100/20 focus:border-blue-100 transition-all body-sm text-general-100 placeholder:text-general-40 shadow-sm"
+            />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-general-40 group-focus-within:text-blue-100 transition-colors" />
+          </div>
+
           {/* DYNAMIC GRID */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            {kitchenNeeds?.map((item) => (
-              <div 
-                key={item.id}
-                onClick={() => handleCardClick(item)}
-                className={`
-                  relative overflow-hidden rounded-2xl bg-white border border-general-30 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] 
-                  hover:shadow-lg hover:border-blue-40 hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col h-full
-                `}
-              >
-                {item.imageUrl ? (
-                  // --- TAMPILAN DENGAN GAMBAR ---
-                  <>
-                    <div className="h-48 w-full relative overflow-hidden">
-                      <div className="absolute inset-0 bg-blue-100/10 group-hover:bg-transparent transition-colors z-10" />
-                      <img 
-                        src={item.imageUrl} 
-                        alt={item.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    </div>
-                    <div className="p-6 flex flex-col flex-grow">
-                      <h3 className="h4 font-heading text-general-100 mb-3 group-hover:text-blue-100 transition-colors">
+          {currentItems.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+              {currentItems.map((item) => (
+                <div 
+                  key={item.id}
+                  onClick={() => handleCardClick(item)}
+                  className={`
+                    relative overflow-hidden rounded-2xl bg-white border border-general-30 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] 
+                    hover:shadow-lg hover:border-blue-40 hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col h-full
+                  `}
+                >
+                  {item.imageUrl ? (
+                    // --- TAMPILAN DENGAN GAMBAR ---
+                    <>
+                      <div className="h-48 w-full relative overflow-hidden">
+                        <div className="absolute inset-0 bg-blue-100/10 group-hover:bg-transparent transition-colors z-10" />
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                      <div className="p-6 flex flex-col flex-grow">
+                        <h3 className="h4 font-heading text-general-100 mb-3 group-hover:text-blue-100 transition-colors">
+                          {item.title}
+                        </h3>
+                        <p className="body-sm text-general-60 flex-grow text-justify leading-relaxed line-clamp-4">
+                          {item.description}
+                        </p>
+                        <div className="mt-4 pt-4 border-t border-general-30 flex items-center text-blue-100 body-sm font-bold">
+                          Ajukan Permintaan <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    // --- TAMPILAN TANPA GAMBAR ---
+                    <div className="p-6 md:p-8 flex flex-col h-full relative">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      
+                      <h3 className="h4 font-heading text-general-100 mb-3 group-hover:text-blue-100 transition-colors relative z-10">
                         {item.title}
                       </h3>
-                      <p className="body-sm text-general-60 flex-grow text-justify leading-relaxed line-clamp-4">
+                      
+                      <p className="body-sm text-general-60 flex-grow relative z-10 text-justify leading-relaxed">
                         {item.description}
                       </p>
-                      <div className="mt-4 pt-4 border-t border-general-30 flex items-center text-blue-100 body-sm font-bold">
+
+                      <div className="mt-6 pt-4 border-t border-general-30 flex items-center text-blue-100 body-sm font-bold relative z-10">
                         Ajukan Permintaan <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </div>
-                  </>
-                ) : (
-                  // --- TAMPILAN TANPA GAMBAR ---
-                  <div className="p-6 md:p-8 flex flex-col h-full relative">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    
-                    <h3 className="h4 font-heading text-general-100 mb-3 group-hover:text-blue-100 transition-colors relative z-10">
-                      {item.title}
-                    </h3>
-                    
-                    <p className="body-sm text-general-60 flex-grow relative z-10 text-justify leading-relaxed">
-                      {item.description}
-                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+             <div className="text-center py-20">
+               <p className="text-general-50 body-md">Tidak ada data ditemukan untuk "{searchTerm}"</p>
+             </div>
+          )}
 
-                    <div className="mt-6 pt-4 border-t border-general-30 flex items-center text-blue-100 body-sm font-bold relative z-10">
-                      Ajukan Permintaan <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          {/* --- PAGINATION CONTROLS --- */}
+          {filteredNeeds.length > itemsPerPage && (
+            <div className="mt-12 flex justify-center items-center gap-4">
+              <button 
+                onClick={goToPrevPage} 
+                disabled={currentPage === 1}
+                className="p-3 rounded-xl border border-general-30 bg-white text-general-60 hover:bg-general-20 hover:text-general-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              
+              <span className="text-sm font-bold text-general-80 bg-white px-4 py-2 rounded-lg border border-general-30">
+                Halaman {currentPage} dari {totalPages}
+              </span>
+
+              <button 
+                onClick={goToNextPage} 
+                disabled={currentPage === totalPages}
+                className="p-3 rounded-xl border border-general-30 bg-white text-general-60 hover:bg-general-20 hover:text-general-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
 
         </div>
       </main>

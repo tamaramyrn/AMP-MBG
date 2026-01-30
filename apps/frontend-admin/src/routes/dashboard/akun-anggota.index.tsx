@@ -19,7 +19,7 @@ import {
   FileText,
   Save
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { memberService, type Member, type CreateMemberData } from "@/services/members"
 
@@ -82,18 +82,35 @@ function AkunAnggotaPage() {
     }
   })
 
-  const members: Member[] = (membersData?.data || []).filter((m: Member) => {
-    const orgName = m.organizationInfo?.name?.toLowerCase() || ""
-    const orgEmail = m.organizationInfo?.email?.toLowerCase() || ""
-    const matchSearch =
-      orgName.includes(searchTerm.toLowerCase()) ||
-      orgEmail.includes(searchTerm.toLowerCase()) ||
-      m.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchRole = !filterRole || m.memberType === filterRole
-    const statusInfo = getStatusInfo(m.isVerified, m.isActive)
-    const matchStatus = !filterStatus || statusInfo.key === filterStatus
-    return matchSearch && matchRole && matchStatus
-  })
+  // LOGIKA UTAMA: Filter & Sorting (A-Z)
+  const members: Member[] = useMemo(() => {
+    if (!membersData?.data) return []
+
+    // 1. Filter
+    const filtered = membersData.data.filter((m: Member) => {
+      const orgName = m.organizationInfo?.name?.toLowerCase() || ""
+      const orgEmail = m.organizationInfo?.email?.toLowerCase() || ""
+      const matchSearch =
+        orgName.includes(searchTerm.toLowerCase()) ||
+        orgEmail.includes(searchTerm.toLowerCase()) ||
+        m.name.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      const matchRole = !filterRole || m.memberType === filterRole
+      
+      const statusInfo = getStatusInfo(m.isVerified, m.isActive)
+      const matchStatus = !filterStatus || statusInfo.key === filterStatus
+      
+      return matchSearch && matchRole && matchStatus
+    })
+
+    // 2. Sort A-Z (Berdasarkan Nama Organisasi, jika kosong pakai Nama User)
+    return filtered.sort((a, b) => {
+      const nameA = (a.organizationInfo?.name || a.name).toLowerCase()
+      const nameB = (b.organizationInfo?.name || b.name).toLowerCase()
+      return nameA.localeCompare(nameB)
+    })
+
+  }, [membersData, searchTerm, filterRole, filterStatus])
 
   const confirmDelete = () => {
     if (deleteId) deleteMutation.mutate(deleteId)
@@ -255,7 +272,6 @@ function AkunAnggotaPage() {
                           </span>
                         </td>
 
-                        {/* --- TOMBOL AKSI DIPERBARUI --- */}
                         <td className="p-4 align-middle text-center">
                           <div className="flex justify-center gap-2">
                             <button
@@ -276,6 +292,7 @@ function AkunAnggotaPage() {
         </div>
       </div>
 
+      {/* --- MODAL ADD --- */}
       {showAddModal && (
         <AddMemberModal
           onClose={() => setShowAddModal(false)}
@@ -286,6 +303,7 @@ function AkunAnggotaPage() {
         />
       )}
 
+      {/* --- MODAL DELETE CONFIRM --- */}
       {deleteId && (
         <DeleteConfirmModal
           onClose={() => setDeleteId(null)}
@@ -294,6 +312,7 @@ function AkunAnggotaPage() {
         />
       )}
 
+      {/* --- MODAL DETAIL --- */}
       {detailMember && (
         <MemberDetailModal
           member={detailMember}
@@ -310,6 +329,7 @@ function AkunAnggotaPage() {
     </DashboardAnggotaLayout>
   )
 }
+
 
 // --- MODAL DETAIL ANGGOTA ---
 function MemberDetailModal({
