@@ -1,31 +1,9 @@
-import { memo, useMemo, useCallback } from "react"
+import { memo, useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Loader2, Utensils, Calendar, ChefHat, Truck, Calculator, Droplets, LayoutTemplate, HelpCircle, Building2 } from "lucide-react"
-// import { profileService } from "@/services/profile" 
+import { Loader2, Utensils, Calendar } from "lucide-react"
+import { adminService } from "@/services/admin"
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }
-
-// --- 1. CONFIG & HELPERS ---
-
-// Icon tetap disimpan untuk referensi logika desktop jika nanti dibutuhkan lagi, 
-// tapi tidak akan dirender di UI sesuai request.
-const CATEGORY_ICONS: Record<string, any> = {
-  "ahli_gizi": Utensils,
-  "akuntan": Calculator,
-  "ipal": Droplets,
-  "peralatan": ChefHat,
-  "layout": LayoutTemplate,
-  "logistik": Truck,
-}
-
-const CATEGORY_LABELS: Record<string, string> = {
-  "ahli_gizi": "Ahli Gizi",
-  "akuntan": "Akuntan/Keuangan",
-  "ipal": "IPAL Dapur",
-  "peralatan": "Peralatan Dapur",
-  "layout": "Layouting Dapur",
-  "logistik": "Rantai Pasok & Logistik",
-}
 
 // Label Status
 const STATUS_LABELS: Record<string, { label: string; variant: string }> = {
@@ -54,42 +32,11 @@ const getStatusStyle = (status: string) => {
   }
 }
 
-// --- 2. COMPONENT ---
-
 function KitchenNeedsHistoryComponent() {
-  // Simulasi Loading & Data
-  const isLoading = false
-  
-  const requests = [
-    {
-      id: "REQ-001",
-      createdAt: "2024-01-25T08:00:00Z",
-      category: "ahli_gizi",
-      sppgName: "Dapur Umum Sejahtera",
-      status: "pending" 
-    },
-    {
-      id: "REQ-002",
-      createdAt: "2024-01-20T14:30:00Z",
-      category: "layout",
-      sppgName: "Katering Berkah",
-      status: "processed" 
-    },
-    {
-      id: "REQ-003",
-      createdAt: "2024-01-10T09:15:00Z",
-      category: "peralatan",
-      sppgName: "Sekolah Alam",
-      status: "completed" 
-    },
-    {
-      id: "REQ-004",
-      createdAt: "2023-12-05T11:00:00Z",
-      category: "logistik",
-      sppgName: "UD. Sumber Rejeki",
-      status: "not_found" 
-    }
-  ]
+  const { data: requests = [], isLoading } = useQuery({
+    queryKey: ["profile", "kitchen-requests"],
+    queryFn: () => adminService.kitchen.getMyRequests(),
+  })
 
   const formatDate = useCallback((dateString: string) => new Date(dateString).toLocaleDateString("id-ID", DATE_OPTIONS), [])
 
@@ -148,9 +95,8 @@ function KitchenNeedsHistoryComponent() {
                     {formatDate(req.createdAt)}
                   </td>
                   
-                  {/* Desktop: Text Only (Sesuai Request) */}
                   <td className="px-6 py-4 body-sm text-general-80 font-medium">
-                    {CATEGORY_LABELS[req.category] || req.category}
+                    {req.category}
                   </td>
                   
                   <td className="px-6 py-4 body-sm text-general-80">
@@ -193,7 +139,7 @@ function KitchenNeedsHistoryComponent() {
               {/* Content Utama: Nama Kategori */}
               <div className="mb-4">
                 <h4 className="font-heading font-bold text-general-100 text-lg leading-tight">
-                  {CATEGORY_LABELS[req.category] || req.category}
+                  {req.category}
                 </h4>
               </div>
 

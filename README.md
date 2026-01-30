@@ -47,8 +47,6 @@ make stop     # Stop all services
 
 ## Environment Variables
 
-### Backend (`apps/backend/.env`)
-
 ### Frontend (`apps/frontend/.env`)
 
 ```env
@@ -56,6 +54,7 @@ VITE_API_URL=http://localhost:3000
 VITE_APP_TITLE=AMP MBG
 ```
 
+### Backend (`apps/backend/.env`)
 ```env
 DATABASE_URL=postgresql://ampmbg:ampmbg@localhost:5432/ampmbg_dev
 JWT_SECRET=your-jwt-secret-key

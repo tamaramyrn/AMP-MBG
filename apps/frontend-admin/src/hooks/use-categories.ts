@@ -22,18 +22,20 @@ const CATEGORY_LABELS_SHORT: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Menunggu Verifikasi",
-  verified: "Terverifikasi",
-  in_progress: "Sedang Ditindaklanjuti",
-  resolved: "Selesai",
-  rejected: "Ditolak",
+  analyzing: "Dalam Proses Analisis",
+  needs_evidence: "Butuh Bukti Tambahan",
+  invalid: "Tidak Valid",
+  in_progress: "Dalam Proses Penanganan",
+  resolved: "Selesai Ditangani",
 }
 
 const STATUS_VARIANTS: Record<string, "neutral" | "danger" | "success" | "warning"> = {
   pending: "neutral",
-  verified: "success",
+  analyzing: "warning",
+  needs_evidence: "warning",
+  invalid: "danger",
   in_progress: "warning",
   resolved: "success",
-  rejected: "danger",
 }
 
 const RELATION_LABELS: Record<string, string> = {

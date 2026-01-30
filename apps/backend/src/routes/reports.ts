@@ -12,9 +12,10 @@ type Variables = { user: AuthUser }
 
 const reports = new Hono<{ Variables: Variables }>()
 
-// Reusable verified status condition
-const getVerifiedCondition = () => or(
-  eq(schema.reports.status, "verified"),
+// Reusable public-visible status condition (not pending/invalid)
+const getPublicVisibleCondition = () => or(
+  eq(schema.reports.status, "analyzing"),
+  eq(schema.reports.status, "needs_evidence"),
   eq(schema.reports.status, "in_progress"),
   eq(schema.reports.status, "resolved")
 )
@@ -27,7 +28,7 @@ const createReportSchema = z.object({
   provinceId: z.string().length(2, "Provinsi wajib dipilih"),
   cityId: z.string().min(4).max(5, "Kota/Kabupaten wajib dipilih"),
   districtId: z.string().min(7).max(8).optional(),
-  incidentDate: z.string().transform((val) => new Date(val)),
+  incidentDate: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)),
   relation: z.enum(["parent", "teacher", "principal", "supplier", "student", "community", "other"]),
   relationDetail: z.string().max(255).optional(),
 })
@@ -36,7 +37,7 @@ const querySchema = z.object({
   page: z.string().optional().transform((val) => parseInt(val || "1")),
   limit: z.string().optional().transform((val) => parseInt(val || "10")),
   category: z.enum(["poisoning", "kitchen", "quality", "policy", "implementation", "social"]).optional(),
-  status: z.enum(["pending", "verified", "in_progress", "resolved", "rejected"]).optional(),
+  status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]).optional(),
   credibilityLevel: z.enum(["high", "medium", "low"]).optional(),
   provinceId: z.string().optional(),
   cityId: z.string().optional(),
@@ -52,7 +53,7 @@ reports.get("/", zValidator("query", querySchema), async (c) => {
   const { page, limit, category, status, credibilityLevel, provinceId, cityId, districtId, startDate, endDate, search, sortBy, sortOrder } = c.req.valid("query")
   const offset = (page - 1) * limit
 
-  const conditions = [getVerifiedCondition()]
+  const conditions = [getPublicVisibleCondition()]
 
   if (category) conditions.push(eq(schema.reports.category, category))
   if (status) conditions.push(eq(schema.reports.status, status))
@@ -126,7 +127,7 @@ reports.get("/", zValidator("query", querySchema), async (c) => {
 })
 
 reports.get("/stats", async (c) => {
-  const verifiedCondition = getVerifiedCondition()
+  const verifiedCondition = getPublicVisibleCondition()
 
   // Optimized: Combine queries where possible
   const [aggregates, byStatusResult, byCategoryResult, byProvinceResult, provinces] = await Promise.all([
@@ -161,14 +162,16 @@ reports.get("/stats", async (c) => {
   })
 })
 
-// Alias for summary endpoint
+// Summary endpoint with correct total vs verified counts
 reports.get("/summary", async (c) => {
-  const verifiedCondition = getVerifiedCondition()
+  const verifiedCondition = getPublicVisibleCondition()
 
-  const [aggregates, topCategoryResult, userAggregates] = await Promise.all([
+  const [totalCount, aggregates, topCategoryResult, userAggregates] = await Promise.all([
+    // Total ALL reports (not filtered)
+    db.select({ count: sql<number>`count(*)` }).from(schema.reports),
+    // Verified stats (filtered by verifiedCondition)
     db.select({
-      total: sql<number>`count(*)`,
-      verified: sql<number>`count(*) filter (where ${schema.reports.status} in ('verified', 'in_progress', 'resolved'))`,
+      verified: sql<number>`count(*)`,
       uniqueCities: sql<number>`count(distinct ${schema.reports.cityId})`,
       highRisk: sql<number>`count(*) filter (where ${schema.reports.credibilityLevel} = 'high')`,
       mediumRisk: sql<number>`count(*) filter (where ${schema.reports.credibilityLevel} = 'medium')`,
@@ -183,11 +186,12 @@ reports.get("/summary", async (c) => {
     db.select({
       totalCommunityUsers: sql<number>`count(*) filter (where ${schema.users.role} = 'public')`,
       totalAmpMbgUsers: sql<number>`count(*) filter (where ${schema.users.role} in ('admin', 'member'))`,
+      totalFoundations: sql<number>`count(*) filter (where ${schema.users.memberType} = 'foundation')`,
     }).from(schema.users),
   ])
 
   return c.json({
-    total: Number(aggregates[0]?.total || 0),
+    total: Number(totalCount[0]?.count || 0),
     verified: Number(aggregates[0]?.verified || 0),
     uniqueCities: Number(aggregates[0]?.uniqueCities || 0),
     highRisk: Number(aggregates[0]?.highRisk || 0),
@@ -199,6 +203,7 @@ reports.get("/summary", async (c) => {
     } : null,
     totalCommunityUsers: Number(userAggregates[0]?.totalCommunityUsers || 0),
     totalAmpMbgUsers: Number(userAggregates[0]?.totalAmpMbgUsers || 0),
+    totalFoundations: Number(userAggregates[0]?.totalFoundations || 0),
   })
 })
 
@@ -211,7 +216,7 @@ reports.get("/recent", async (c) => {
     limit: 6,
     orderBy: [desc(schema.reports.createdAt)],
     with: { province: true, city: true },
-    where: getVerifiedCondition(),
+    where: getPublicVisibleCondition(),
   })
 
   return c.json({
@@ -255,7 +260,7 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
   const data = c.req.valid("json")
   const user = c.get("user")
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
   // Optimized: Combine related queries
   const [reporter, reportsStats, mbgSchedule] = await Promise.all([
@@ -265,7 +270,7 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
     }),
     // Combined query for similar reports and location history
     db.select({
-      similarCount: sql<number>`count(*) filter (where ${schema.reports.createdAt} >= ${thirtyDaysAgo})`,
+      similarCount: sql<number>`count(*) filter (where ${schema.reports.createdAt} >= ${thirtyDaysAgo}::timestamp)`,
       totalCount: sql<number>`count(*)`,
     }).from(schema.reports).where(eq(schema.reports.cityId, data.cityId)),
     db.query.mbgSchedules.findFirst({
@@ -279,12 +284,13 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
 
   // Calculate MBG schedule match
   let mbgScheduleMatch = undefined
+  const incidentDateObj = new Date(data.incidentDate)
   if (mbgSchedule) {
-    const incidentDay = data.incidentDate.getDay().toString()
+    const incidentDay = incidentDateObj.getDay().toString()
     const dayMatches = mbgSchedule.scheduleDays.includes(incidentDay)
 
-    const incidentHour = data.incidentDate.getHours()
-    const incidentMinute = data.incidentDate.getMinutes()
+    const incidentHour = incidentDateObj.getHours()
+    const incidentMinute = incidentDateObj.getMinutes()
     const incidentTimeStr = `${incidentHour.toString().padStart(2, "0")}:${incidentMinute.toString().padStart(2, "0")}`
 
     const timeMatches = incidentTimeStr >= mbgSchedule.startTime && incidentTimeStr <= mbgSchedule.endTime
@@ -306,7 +312,7 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
     relationDetail: data.relationDetail,
     description: data.description,
     filesCount: 0,
-    incidentDate: data.incidentDate,
+    incidentDate: incidentDateObj,
     provinceId: data.provinceId,
     cityId: data.cityId,
     districtId: data.districtId,
@@ -319,10 +325,17 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
 
   // Insert report with scores
   const [report] = await db.insert(schema.reports).values({
-    ...data,
-    userId: user.id,
+    category: data.category,
+    title: data.title,
+    description: data.description,
+    location: data.location,
+    provinceId: data.provinceId,
+    cityId: data.cityId,
     districtId: data.districtId || null,
+    incidentDate: incidentDateObj,
+    relation: data.relation,
     relationDetail: data.relationDetail || null,
+    userId: user.id,
     ...scoringResult,
   }).returning()
 
@@ -471,7 +484,7 @@ reports.delete("/:id/files/:fileId", authMiddleware, async (c) => {
 })
 
 const updateStatusSchema = z.object({
-  status: z.enum(["pending", "verified", "in_progress", "resolved", "rejected"]),
+  status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]),
   notes: z.string().optional(),
 })
 
@@ -490,8 +503,8 @@ reports.patch("/:id/status", adminMiddleware, zValidator("json", updateStatusSch
   const updateData: Record<string, unknown> = { status, updatedAt: new Date() }
   if (notes) updateData.adminNotes = notes
 
-  // Set verifier if status is verified
-  if (status === "verified" && previousStatus !== "verified") {
+  // Set verifier when first reviewed (moving from pending)
+  if (previousStatus === "pending" && status !== "pending") {
     updateData.verifiedBy = user.id
     updateData.verifiedAt = new Date()
   }

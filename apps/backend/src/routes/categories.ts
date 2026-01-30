@@ -23,13 +23,14 @@ const RELATIONS = [
   { value: "other", label: "Lainnya" },
 ]
 
-// Report status types
+// Report status types (6 stages)
 const STATUSES = [
   { value: "pending", label: "Menunggu Verifikasi" },
-  { value: "verified", label: "Terverifikasi" },
-  { value: "in_progress", label: "Sedang Ditindaklanjuti" },
-  { value: "resolved", label: "Selesai" },
-  { value: "rejected", label: "Ditolak" },
+  { value: "analyzing", label: "Dalam Proses Analisis" },
+  { value: "needs_evidence", label: "Membutuhkan Bukti Tambahan" },
+  { value: "invalid", label: "Tidak Valid" },
+  { value: "in_progress", label: "Dalam Proses Penanganan" },
+  { value: "resolved", label: "Selesai Ditangani" },
 ]
 
 // Credibility levels

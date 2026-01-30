@@ -14,6 +14,12 @@ export function useAuth() {
 
     try {
       const response = await authService.getMe()
+      // Admin dashboard only allows admin role
+      if (response.user.role !== "admin") {
+        await authService.logout()
+        setUser(null)
+        return
+      }
       setUser(response.user)
       localStorage.setItem("currentUser", JSON.stringify(response.user))
     } catch {

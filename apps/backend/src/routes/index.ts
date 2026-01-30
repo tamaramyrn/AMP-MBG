@@ -5,6 +5,7 @@ import locations from "./locations"
 import categories from "./categories"
 import admin from "./admin"
 import profile from "./profile"
+import kitchenNeeds from "./kitchen-needs"
 
 const routes = new Hono()
 
@@ -14,5 +15,6 @@ routes.route("/locations", locations)
 routes.route("/categories", categories)
 routes.route("/admin", admin)
 routes.route("/profile", profile)
+routes.route("/kitchen-needs", kitchenNeeds)
 
 export default routes

@@ -10,8 +10,8 @@ export const memberTypeEnum = pgEnum("member_type", ["supplier", "caterer", "sch
 // Credibility level for reports
 export const credibilityLevelEnum = pgEnum("credibility_level", ["high", "medium", "low"])
 
-// Report status workflow
-export const reportStatusEnum = pgEnum("report_status", ["pending", "verified", "in_progress", "resolved", "rejected"])
+// Report status workflow (6 stages)
+export const reportStatusEnum = pgEnum("report_status", ["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"])
 
 // Report category types
 export const reportCategoryEnum = pgEnum("report_category", ["poisoning", "kitchen", "quality", "policy", "implementation", "social"])
@@ -248,4 +248,45 @@ export const passwordResetTokensRelations = relations(passwordResetTokens, ({ on
 
 export const emailVerificationTokensRelations = relations(emailVerificationTokens, ({ one }) => ({
   user: one(users, { fields: [emailVerificationTokens.userId], references: [users.id] }),
+}))
+
+// Kitchen needs content
+export const kitchenNeedsStatusEnum = pgEnum("kitchen_needs_status", ["pending", "processed", "completed", "not_found"])
+
+export const kitchenNeeds = pgTable("kitchen_needs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+export const kitchenNeedsRequests = pgTable("kitchen_needs_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  kitchenNeedId: uuid("kitchen_need_id").references(() => kitchenNeeds.id, { onDelete: "set null" }),
+  sppgName: varchar("sppg_name", { length: 255 }).notNull(),
+  contactPerson: varchar("contact_person", { length: 255 }).notNull(),
+  position: varchar("position", { length: 100 }).notNull(),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+  details: text("details").notNull(),
+  status: kitchenNeedsStatusEnum("status").default("pending").notNull(),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("kitchen_needs_requests_user_idx").on(table.userId),
+  index("kitchen_needs_requests_status_idx").on(table.status),
+])
+
+export const kitchenNeedsRelations = relations(kitchenNeeds, ({ many }) => ({
+  requests: many(kitchenNeedsRequests),
+}))
+
+export const kitchenNeedsRequestsRelations = relations(kitchenNeedsRequests, ({ one }) => ({
+  user: one(users, { fields: [kitchenNeedsRequests.userId], references: [users.id] }),
+  kitchenNeed: one(kitchenNeeds, { fields: [kitchenNeedsRequests.kitchenNeedId], references: [kitchenNeeds.id] }),
 }))

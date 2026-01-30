@@ -32,10 +32,11 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, { label: string; variant: string }> = {
   pending: { label: "Menunggu Verifikasi", variant: "orange" },
-  verified: { label: "Terverifikasi", variant: "green" },
-  in_progress: { label: "Sedang Ditindaklanjuti", variant: "yellow" },
-  resolved: { label: "Selesai", variant: "blue" },
-  rejected: { label: "Ditolak", variant: "red" },
+  analyzing: { label: "Dalam Proses Analisis", variant: "blue" },
+  needs_evidence: { label: "Butuh Bukti Tambahan", variant: "yellow" },
+  invalid: { label: "Tidak Valid", variant: "red" },
+  in_progress: { label: "Dalam Proses Penanganan", variant: "purple" },
+  resolved: { label: "Selesai Ditangani", variant: "green" },
 }
 
 const CREDIBILITY_LABELS: Record<string, string> = {
@@ -76,8 +77,9 @@ function LaporanPage() {
       orange: "bg-orange-20 text-orange-100 border-orange-30",
       green: "bg-green-20 text-green-100 border-green-30",
       red: "bg-red-20 text-red-100 border-red-30",
-      yellow: "bg-yellow-50 text-general-80 border-yellow-100", 
+      yellow: "bg-yellow-50 text-general-80 border-yellow-100",
       blue: "bg-blue-20 text-blue-100 border-blue-30",
+      purple: "bg-purple-100/10 text-purple-600 border-purple-200",
       gray: "bg-general-30 text-general-70 border-general-40",
     }
     return { label: statusInfo.label, className: variantStyles[statusInfo.variant] || variantStyles.gray }

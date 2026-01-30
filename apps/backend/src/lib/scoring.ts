@@ -220,7 +220,7 @@ function scoreLocationTime(
     }
   }
 
-  return Math.min(3, Math.round(score * 10) / 10)
+  return Math.min(3, Math.round(score))
 }
 
 // Score supporting evidence (0-3)

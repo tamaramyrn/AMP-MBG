@@ -142,9 +142,11 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
     description: initialData?.description || "",
     imageUrl: initialData?.imageUrl || ""
   })
-  
+
   const [imageMode, setImageMode] = useState<"upload" | "url">("upload")
   const [previewUrl, setPreviewUrl] = useState<string | null>(initialData?.imageUrl || null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const mutation = useMutation({
@@ -158,7 +160,7 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
     if (file) {
       const objectUrl = URL.createObjectURL(file)
       setPreviewUrl(objectUrl)
-      setFormData(prev => ({ ...prev, imageUrl: objectUrl }))
+      setSelectedFile(file)
     }
   }
 
@@ -167,11 +169,28 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
     const url = e.target.value
     setFormData(prev => ({ ...prev, imageUrl: url }))
     setPreviewUrl(url)
+    setSelectedFile(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    mutation.mutate(formData as KitchenNeedItem)
+
+    let imageUrl = formData.imageUrl
+
+    // Upload file if selected
+    if (selectedFile) {
+      setIsUploading(true)
+      try {
+        imageUrl = await adminService.kitchen.uploadImage(selectedFile)
+      } catch (error) {
+        console.error("Upload failed:", error)
+        setIsUploading(false)
+        return
+      }
+      setIsUploading(false)
+    }
+
+    mutation.mutate({ ...formData, imageUrl } as KitchenNeedItem)
   }
 
   // Common Input Class (Matches AkunAdminModal)
@@ -277,11 +296,12 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
                 {previewUrl && (
                   <div className="relative rounded-xl overflow-hidden border border-general-30 h-40 bg-general-30/30 group">
                     <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                    <button 
+                    <button
                       type="button"
                       onClick={() => {
                         setPreviewUrl(null)
                         setFormData(prev => ({ ...prev, imageUrl: "" }))
+                        setSelectedFile(null)
                         if (fileInputRef.current) fileInputRef.current.value = ""
                       }}
                       className="absolute top-2 right-2 p-1.5 bg-general-20/90 rounded-full text-red-100 hover:bg-red-20 border border-general-30 transition-all shadow-sm opacity-0 group-hover:opacity-100"
@@ -307,13 +327,13 @@ function KitchenContentModal({ initialData, onClose, onSuccess }: { initialData:
           >
             Batal
           </button>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             form="content-form"
-            disabled={mutation.isPending} 
+            disabled={mutation.isPending || isUploading}
             className="flex-1 py-2.5 bg-blue-100 text-general-20 font-semibold rounded-lg hover:bg-blue-90 shadow-lg hover:shadow-blue-100/20 transition-all body-sm disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 active:scale-[0.98]"
           >
-            {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan
+            {(mutation.isPending || isUploading) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {isUploading ? "Mengunggah..." : "Simpan"}
           </button>
         </div>
 

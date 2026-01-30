@@ -48,16 +48,28 @@ profile.get("/", async (c) => {
   })
 })
 
+// Format phone to +62 prefix
+const formatPhone = (rawPhone: string): string => {
+  const cleaned = rawPhone.replace(/\D/g, "")
+  if (cleaned.startsWith("62")) return "+" + cleaned
+  if (cleaned.startsWith("08")) return "+62" + cleaned.slice(1)
+  if (cleaned.startsWith("8")) return "+62" + cleaned
+  return "+62" + cleaned
+}
+
 // Update profile
 const updateProfileSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi").optional(),
-  phone: z.string().min(10).max(15).optional(),
+  phone: z.string().min(9).max(15).optional(),
   email: z.string().email("Email tidak valid").optional(),
 })
 
 profile.patch("/", zValidator("json", updateProfileSchema), async (c) => {
   const authUser = c.get("user")
-  const { name, phone, email } = c.req.valid("json")
+  const { name, phone: rawPhone, email } = c.req.valid("json")
+
+  // Format phone with +62 prefix
+  const phone = rawPhone ? formatPhone(rawPhone) : undefined
 
   // Check for duplicate phone
   if (phone) {
@@ -105,10 +117,17 @@ profile.patch("/", zValidator("json", updateProfileSchema), async (c) => {
   })
 })
 
+// Password validator (consistent with auth.ts)
+const passwordValidator = z.string()
+  .min(8, "Password minimal 8 karakter")
+  .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar")
+  .regex(/[a-z]/, "Password harus mengandung minimal 1 huruf kecil")
+  .regex(/[0-9]/, "Password harus mengandung minimal 1 angka")
+
 // Change password
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Password saat ini wajib diisi"),
-  newPassword: z.string().min(8, "Password baru minimal 8 karakter"),
+  newPassword: passwordValidator,
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Password baru tidak cocok",
@@ -147,7 +166,7 @@ profile.put("/password", zValidator("json", changePasswordSchema), async (c) => 
 const reportHistorySchema = z.object({
   page: z.string().optional().transform((val) => parseInt(val || "1")),
   limit: z.string().optional().transform((val) => parseInt(val || "10")),
-  status: z.enum(["pending", "verified", "in_progress", "resolved", "rejected"]).optional(),
+  status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]).optional(),
 })
 
 profile.get("/reports", zValidator("query", reportHistorySchema), async (c) => {

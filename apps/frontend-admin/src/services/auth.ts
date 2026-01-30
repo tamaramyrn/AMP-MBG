@@ -1,6 +1,7 @@
 import { api, setToken, removeToken } from "@/lib/api"
+import { queryClient } from "@/lib/query-client"
 
-export type UserRole = "admin" | "associate" | "public"
+export type UserRole = "admin" | "member" | "public"
 
 export interface User {
   id: string
@@ -39,19 +40,19 @@ export interface MeResponse {
 
 export const authService = {
   async login(data: LoginRequest): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/auth/login", data)
+    // Clear all cached data before login
+    queryClient.clear()
+    const response = await api.post<AuthResponse>("/auth/login", { ...data, appType: "admin" })
     setToken(response.token)
     localStorage.setItem("currentUser", JSON.stringify(response.user))
     window.dispatchEvent(new Event("user-login"))
     return response
   },
 
-  async signup(data: SignupRequest): Promise<AuthResponse> {
+  async signup(data: SignupRequest): Promise<{ message: string }> {
+    // Registration only creates account, does NOT auto-login
     const response = await api.post<AuthResponse>("/auth/signup", data)
-    setToken(response.token)
-    localStorage.setItem("currentUser", JSON.stringify(response.user))
-    window.dispatchEvent(new Event("user-login"))
-    return response
+    return { message: response.message }
   },
 
   async getMe(): Promise<MeResponse> {
@@ -64,6 +65,7 @@ export const authService = {
     } finally {
       removeToken()
       localStorage.removeItem("currentUser")
+      queryClient.clear()
       window.dispatchEvent(new Event("user-login"))
     }
   },
@@ -98,13 +100,13 @@ export const authService = {
     return user?.role === "admin"
   },
 
-  isAssociate(): boolean {
+  isMember(): boolean {
     const user = this.getCurrentUser()
-    return user?.role === "associate"
+    return user?.role === "member"
   },
 
   canAccessDashboard(): boolean {
     const user = this.getCurrentUser()
-    return user?.role === "admin" || user?.role === "associate"
+    return user?.role === "admin"
   },
 }

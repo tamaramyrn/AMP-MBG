@@ -50,7 +50,6 @@ export interface CreateMemberData {
   name: string
   email: string
   phone: string
-  password: string
   memberType: "supplier" | "caterer" | "school" | "government" | "foundation" | "ngo" | "farmer" | "other"
 }
 

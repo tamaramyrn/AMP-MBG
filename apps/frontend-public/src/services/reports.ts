@@ -1,7 +1,7 @@
 import { api } from "@/lib/api"
 
 export type ReportCategory = "poisoning" | "kitchen" | "quality" | "policy" | "implementation" | "social"
-export type ReportStatus = "pending" | "verified" | "in_progress" | "resolved" | "rejected"
+export type ReportStatus = "pending" | "analyzing" | "needs_evidence" | "invalid" | "in_progress" | "resolved"
 export type CredibilityLevel = "high" | "medium" | "low"
 export type ReporterRelation = "parent" | "teacher" | "principal" | "supplier" | "student" | "community" | "other"
 
@@ -92,6 +92,7 @@ export interface ReportStats {
   topCategory: { category: ReportCategory; count: number } | null
   totalCommunityUsers: number
   totalAmpMbgUsers: number
+  totalFoundations: number
   byStatus?: { status: ReportStatus; count: number }[]
   byCategory?: { category: ReportCategory; count: number }[]
 }

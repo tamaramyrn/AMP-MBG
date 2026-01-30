@@ -65,36 +65,38 @@ export interface AdminReportsQuery {
   search?: string
 }
 
-// --- NEW INTERFACE (KITCHEN CONTENT) ---
+// Kitchen content interface
 export interface KitchenNeedItem {
   id: string
   title: string
   description: string
   imageUrl?: string | null
+  isActive?: boolean
+  sortOrder?: number
 }
 
-// --- MOCK DATA (SIMULASI DB UNTUK KITCHEN CONTENT) ---
-// Variable ini disimpan di memori selama aplikasi berjalan (akan reset saat refresh)
-let MOCK_KITCHEN_DATA: KitchenNeedItem[] = [
-  {
-    id: "1",
-    title: "Ahli Gizi",
-    description: "Memastikan menu dan porsi memenuhi standar gizi penerima manfaat sesuai kelompok sasaran. Ini juga mengurangi risiko keluhan, alergi, dan ketidaksesuaian menu saat bahan berubah.",
-    imageUrl: null
-  },
-  {
-    id: "2",
-    title: "Logistik & Supply Chain",
-    description: "Manajemen supply chain agar pasokan bahan stabil, kualitas terjaga, dan distribusi tepat waktu. Ini mencegah stockout, lonjakan biaya, dan bahan tidak sesuai spesifikasi.",
-    imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800"
-  },
-  {
-    id: "3",
-    title: "Peralatan Dapur",
-    description: "Peralatan yang tepat agar kapasitas produksi tercapai secara konsisten dan aman. Peralatan yang sesuai juga mempercepat proses dan menurunkan human error.",
-    imageUrl: null
-  }
-]
+// Kitchen request interface
+export interface KitchenRequest {
+  id: string
+  category: string
+  sppgName: string
+  contactPerson: string
+  position: string
+  phoneNumber: string
+  details: string
+  status: string
+  adminNotes?: string
+  userName?: string
+  userEmail?: string
+  createdAt: string
+}
+
+export interface KitchenRequestsQuery {
+  [key: string]: unknown
+  page?: number
+  limit?: number
+  status?: string
+}
 
 function buildQueryString(params: Record<string, unknown>): string {
   const searchParams = new URLSearchParams()
@@ -179,35 +181,42 @@ export const adminService = {
     return api.get(`/admin/analytics${query}`)
   },
 
-  // --- NEW: KITCHEN CONTENT MANAGEMENT (Mock Implementation) ---
-  // Nanti jika backend sudah siap, ganti logika di dalam fungsi ini dengan api.get/post/delete
+  // Kitchen content management
   kitchen: {
     getAll: async (): Promise<KitchenNeedItem[]> => {
-      // Simulasi delay network
-      await new Promise(r => setTimeout(r, 500))
-      return [...MOCK_KITCHEN_DATA]
+      const response = await api.get<{ data: KitchenNeedItem[] }>("/kitchen-needs/admin/all")
+      return response.data
     },
 
     save: async (data: KitchenNeedItem): Promise<KitchenNeedItem> => {
-      await new Promise(r => setTimeout(r, 800))
-      const existingIndex = MOCK_KITCHEN_DATA.findIndex(item => item.id === data.id)
-      
-      if (existingIndex > -1) {
-        // Update existing
-        MOCK_KITCHEN_DATA[existingIndex] = data
+      if (data.id) {
+        const response = await api.patch<{ data: KitchenNeedItem }>(`/kitchen-needs/admin/${data.id}`, data)
+        return response.data
       } else {
-        // Create new
-        const newItem = { ...data, id: Math.random().toString(36).substr(2, 9) }
-        MOCK_KITCHEN_DATA.push(newItem)
-        return newItem
+        const response = await api.post<{ data: KitchenNeedItem }>("/kitchen-needs/admin", data)
+        return response.data
       }
-      return data
+    },
+
+    uploadImage: async (file: File): Promise<string> => {
+      const formData = new FormData()
+      formData.append("file", file)
+      const response = await api.upload<{ data: { imageUrl: string } }>("/kitchen-needs/admin/upload", formData)
+      return response.data.imageUrl
     },
 
     delete: async (id: string): Promise<boolean> => {
-      await new Promise(r => setTimeout(r, 500))
-      MOCK_KITCHEN_DATA = MOCK_KITCHEN_DATA.filter(item => item.id !== id)
+      await api.delete(`/kitchen-needs/admin/${id}`)
       return true
+    },
+
+    // Requests management
+    getRequests: async (query: KitchenRequestsQuery = {}): Promise<PaginatedResponse<KitchenRequest>> => {
+      return api.get(`/kitchen-needs/admin/requests${buildQueryString(query)}`)
+    },
+
+    updateRequestStatus: async (id: string, data: { status: string; adminNotes?: string }): Promise<{ data: KitchenRequest; message: string }> => {
+      return api.patch(`/kitchen-needs/admin/requests/${id}`, data)
     }
   }
 }

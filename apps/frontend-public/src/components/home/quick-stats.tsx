@@ -25,9 +25,8 @@ function QuickStatsComponent() {
         label: "Anggota AMP MBG",
       },
       {
-        // --- DATA DUMMY YAYASAN ---
         icon: Building2,
-        value: "124", // Dummy value
+        value: stats?.totalFoundations?.toLocaleString() || "0",
         label: "Yayasan Terdaftar",
       },
       {

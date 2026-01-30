@@ -174,7 +174,14 @@ function RequestModal({ need, onClose }: { need: KitchenNeedItem, onClose: () =>
     e.preventDefault()
     setIsLoading(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500)) 
+      await adminService.kitchen.submitRequest({
+        kitchenNeedId: need.id,
+        sppgName: formData.sppgName,
+        contactPerson: formData.contactPerson,
+        position: formData.position,
+        phoneNumber: formData.phoneNumber,
+        details: formData.details,
+      })
       setIsSuccess(true)
     } catch (error) {
       console.error(error)

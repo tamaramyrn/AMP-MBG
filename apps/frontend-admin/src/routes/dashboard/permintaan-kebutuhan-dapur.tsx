@@ -8,83 +8,19 @@ import {
   Eye,
   ChevronDown,
   CheckCircle2,
-  Briefcase,
   Phone,
   User,
   Save,
   X,
-  Calendar,
-  ChefHat,
-  Truck,
-  Calculator,
-  Droplets,
-  LayoutTemplate,
   Inbox
 } from "lucide-react"
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-
-// --- MOCK DATA ---
-const mockRequests = [
-  {
-    id: "REQ-2024-001",
-    sppgName: "Dapur Umum Sejahtera",
-    contactPerson: "Budi Santoso",
-    position: "Manajer Operasional",
-    phone: "08123456789",
-    category: "ahli_gizi",
-    details: "Kami membutuhkan konsultasi untuk menyusun menu siklus 10 hari yang memenuhi standar gizi lansia.",
-    status: "pending", 
-    createdAt: "2024-01-26T08:00:00Z"
-  },
-  {
-    id: "REQ-2024-002",
-    sppgName: "Katering Berkah",
-    contactPerson: "Siti Aminah",
-    position: "Pemilik",
-    phone: "08198765432",
-    category: "peralatan",
-    details: "Membutuhkan pengadaan 2 unit oven gas kapasitas besar untuk meningkatkan produksi roti.",
-    status: "processed", 
-    createdAt: "2024-01-25T14:30:00Z"
-  },
-  {
-    id: "REQ-2024-003",
-    sppgName: "Sekolah Alam",
-    contactPerson: "Rahmat",
-    position: "Kepala Dapur",
-    phone: "08567890123",
-    category: "ipal",
-    details: "Saluran pembuangan limbah cair sering tersumbat dan menimbulkan bau. Butuh asesmen IPAL.",
-    status: "completed", 
-    createdAt: "2024-01-20T09:15:00Z"
-  },
-  {
-    id: "REQ-2024-004",
-    sppgName: "UD. Sumber Rejeki",
-    contactPerson: "Joko",
-    position: "Staff Logistik",
-    phone: "08123456000",
-    category: "logistik",
-    details: "Kesulitan mendapatkan pasokan beras organik yang stabil. Mencari vendor alternatif.",
-    status: "not_found", 
-    createdAt: "2024-01-15T11:00:00Z"
-  }
-]
+import { adminService, type KitchenRequest } from "@/services/admin"
 
 export const Route = createFileRoute("/dashboard/permintaan-kebutuhan-dapur")({
   component: PermintaanKebutuhanDapurPage,
 })
-
-// --- CONFIG ---
-const CATEGORY_OPTIONS = [
-  { value: "ahli_gizi", label: "Ahli Gizi", icon: Utensils },
-  { value: "akuntan", label: "Akuntan/Keuangan", icon: Calculator },
-  { value: "ipal", label: "IPAL Dapur", icon: Droplets },
-  { value: "peralatan", label: "Peralatan Dapur", icon: ChefHat },
-  { value: "layout", label: "Layouting Dapur", icon: LayoutTemplate },
-  { value: "logistik", label: "Rantai Pasok", icon: Truck },
-]
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Belum Diproses" },
@@ -119,35 +55,25 @@ const getStatusStyle = (status: string) => {
   return variantStyles[variant]
 }
 
-const getCategoryInfo = (val: string) => CATEGORY_OPTIONS.find(o => o.value === val) || { label: val, icon: Utensils }
-
 function PermintaanKebutuhanDapurPage() {
   const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState("")
-  const [filterCategory, setFilterCategory] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
-  
-  // State Modal Detail
-  const [detailRequest, setDetailRequest] = useState<typeof mockRequests[0] | null>(null)
 
-  // Fetch Data (Simulasi)
+  const [detailRequest, setDetailRequest] = useState<KitchenRequest | null>(null)
+
   const { data: requestsData, isLoading } = useQuery({
-    queryKey: ["admin", "permintaan-kebutuhan"],
-    queryFn: async () => {
-      await new Promise(r => setTimeout(r, 500))
-      return mockRequests
-    },
+    queryKey: ["admin", "permintaan-kebutuhan", filterStatus],
+    queryFn: () => adminService.kitchen.getRequests({ status: filterStatus || undefined }),
   })
 
-  // Filter Logic
-  const requests = (requestsData || []).filter((item) => {
-    const matchSearch = 
-      item.sppgName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  // Filter by search term
+  const requests = (requestsData?.data || []).filter((item) => {
+    const matchSearch =
+      item.sppgName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.id.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchCategory = !filterCategory || item.category === filterCategory
-    const matchStatus = !filterStatus || item.status === filterStatus
-    return matchSearch && matchCategory && matchStatus
+    return matchSearch
   })
 
   return (
@@ -175,7 +101,7 @@ function PermintaanKebutuhanDapurPage() {
         <div className="bg-general-20 border border-general-30 rounded-xl p-5 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
             {/* Search */}
-            <div className="md:col-span-12 lg:col-span-4">
+            <div className="md:col-span-6 lg:col-span-6">
               <label className="block body-xs font-semibold text-general-80 mb-2 uppercase tracking-wide">Pencarian</label>
               <div className="relative group">
                 <input
@@ -189,26 +115,8 @@ function PermintaanKebutuhanDapurPage() {
               </div>
             </div>
 
-            {/* Category Filter */}
-            <div className="md:col-span-6 lg:col-span-4">
-              <label className="block body-xs font-semibold text-general-80 mb-2 uppercase tracking-wide">Filter Kategori</label>
-              <div className="relative group">
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 bg-general-20 border border-general-30 rounded-lg focus:outline-none focus:border-blue-100 focus:ring-4 focus:ring-blue-100/10 transition-all body-sm text-general-100 appearance-none cursor-pointer"
-                >
-                  <option value="">Semua Kategori</option>
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-general-50 group-focus-within:text-blue-100 pointer-events-none transition-colors" />
-              </div>
-            </div>
-
             {/* Status Filter */}
-            <div className="md:col-span-6 lg:col-span-4">
+            <div className="md:col-span-6 lg:col-span-6">
               <label className="block body-xs font-semibold text-general-80 mb-2 uppercase tracking-wide">Filter Status</label>
               <div className="relative group">
                 <select
@@ -259,8 +167,7 @@ function PermintaanKebutuhanDapurPage() {
                 </thead>
                 <tbody>
                   {requests.map((req, idx) => {
-                    const catInfo = getCategoryInfo(req.category)
-                    const statusClass = getStatusStyle(req.status) // Panggil fungsi helper
+                    const statusClass = getStatusStyle(req.status)
                     const StatusLabel = STATUS_OPTIONS.find(s => s.value === req.status)?.label || req.status
 
                     return (
@@ -281,7 +188,7 @@ function PermintaanKebutuhanDapurPage() {
                         <td className="p-4 align-middle border-r border-general-30">
                           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-general-20 text-general-80 border-general-30 shadow-sm">
                             <span className="text-md font-semibold whitespace-nowrap">
-                              {catInfo.label}
+                              {req.category}
                             </span>
                           </div>
                         </td>
@@ -294,7 +201,7 @@ function PermintaanKebutuhanDapurPage() {
                             </div>
                             <div className="flex items-center gap-1.5 text-general-60 text-md">
                                 <Phone className="w-3.5 h-3.5 text-general-50" />
-                                {req.phone}
+                                {req.phoneNumber}
                             </div>
                           </div>
                         </td>
@@ -341,25 +248,33 @@ function PermintaanKebutuhanDapurPage() {
   )
 }
 
-// --- MODAL DETAIL (ADMIN VIEW) ---
+// Modal detail for admin view
 function RequestDetailModal({
   request,
   onClose,
   onUpdate
 }: {
-  request: typeof mockRequests[0]
+  request: KitchenRequest
   onClose: () => void
   onUpdate: () => void
 }) {
   const [status, setStatus] = useState(request.status)
   const [isSaving, setIsSaving] = useState(false)
-  const catInfo = getCategoryInfo(request.category)
+
+  const updateMutation = useMutation({
+    mutationFn: (data: { status: string }) => adminService.kitchen.updateRequestStatus(request.id, data),
+    onSuccess: () => {
+      setIsSaving(false)
+      onUpdate()
+    },
+    onError: () => {
+      setIsSaving(false)
+    }
+  })
 
   const handleSave = async () => {
     setIsSaving(true)
-    await new Promise(r => setTimeout(r, 1000))
-    setIsSaving(false)
-    onUpdate()
+    updateMutation.mutate({ status })
   }
 
   const hasChanges = status !== request.status
@@ -405,7 +320,7 @@ function RequestDetailModal({
               </div>
               <div>
                 <label className="block text-xs font-bold text-general-60 mb-1 uppercase tracking-wide">Nomor Telepon</label>
-                <p className="body-sm font-medium text-general-100">{request.phone}</p>
+                <p className="body-sm font-medium text-general-100">{request.phoneNumber}</p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-general-60 mb-1 uppercase tracking-wide">Tanggal Masuk</label>
@@ -419,10 +334,10 @@ function RequestDetailModal({
           {/* Detail Kebutuhan */}
           <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-5 shadow-sm">
             <h4 className="body-sm font-bold text-blue-900 mb-4 flex items-center gap-2">
-              <catInfo.icon className="w-4 h-4 text-blue-600" />
-              Kategori: {catInfo.label}
+              <Utensils className="w-4 h-4 text-blue-600" />
+              Kategori: {request.category}
             </h4>
-            
+
             <div>
                <label className="block text-xs font-bold text-blue-700/70 mb-2 uppercase tracking-wide">Deskripsi Permintaan</label>
                <div className="body-sm text-general-100 bg-white p-4 rounded-lg border border-blue-100/20 leading-relaxed min-h-[80px]">

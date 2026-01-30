@@ -4,6 +4,7 @@ import { z } from "zod"
 import { eq, desc, sql, like, and, or, gte, lte, inArray } from "drizzle-orm"
 import { db, schema } from "../db"
 import { adminMiddleware } from "../middleware/auth"
+import { hashPassword } from "../lib/password"
 import type { AuthUser } from "../types"
 
 type Variables = { user: AuthUser }
@@ -197,7 +198,7 @@ admin.get("/reports/:id/history", async (c) => {
 const adminReportsQuerySchema = z.object({
   page: z.string().optional().transform((val) => parseInt(val || "1")),
   limit: z.string().optional().transform((val) => parseInt(val || "10")),
-  status: z.enum(["pending", "verified", "in_progress", "resolved", "rejected"]).optional(),
+  status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]).optional(),
   category: z.enum(["poisoning", "kitchen", "quality", "policy", "implementation", "social"]).optional(),
   credibilityLevel: z.enum(["high", "medium", "low"]).optional(),
   provinceId: z.string().optional(),
@@ -337,7 +338,7 @@ admin.get("/reports/:id", async (c) => {
 
 // Update report status
 const updateReportStatusSchema = z.object({
-  status: z.enum(["pending", "verified", "in_progress", "resolved", "rejected"]),
+  status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]),
   credibilityLevel: z.enum(["high", "medium", "low"]).optional(),
   notes: z.string().max(1000).optional(),
 })
@@ -356,7 +357,8 @@ admin.patch("/reports/:id/status", zValidator("json", updateReportStatusSchema),
   if (notes) updateData.adminNotes = notes
   if (credibilityLevel) updateData.credibilityLevel = credibilityLevel
 
-  if (status === "verified" && previousStatus !== "verified") {
+  // Set verifiedBy/At when first reviewed (moving from pending)
+  if (previousStatus === "pending" && status !== "pending") {
     updateData.verifiedBy = user.id
     updateData.verifiedAt = new Date()
   }
@@ -380,7 +382,7 @@ admin.patch("/reports/:id/status", zValidator("json", updateReportStatusSchema),
 // Bulk update report status
 const bulkUpdateSchema = z.object({
   reportIds: z.array(z.string().uuid()).min(1),
-  status: z.enum(["pending", "verified", "in_progress", "resolved", "rejected"]),
+  status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]),
   notes: z.string().max(500).optional(),
 })
 
@@ -400,7 +402,8 @@ admin.patch("/reports/bulk-status", zValidator("json", bulkUpdateSchema), async 
   const updateData: Record<string, unknown> = { status, updatedAt: new Date() }
   if (notes) updateData.adminNotes = notes
 
-  if (status === "verified") {
+  // Set verifiedBy/At when reviewed (not pending anymore)
+  if (status !== "pending") {
     updateData.verifiedBy = user.id
     updateData.verifiedAt = new Date()
   }
@@ -554,13 +557,13 @@ admin.get("/analytics", zValidator("query", analyticsQuerySchema), async (c) => 
     const daysInMonth = new Date(year, month, 0).getDate()
     formattedTrends = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1
-      const found = trendData.find((r: { day?: number }) => Number(r.day) === day)
+      const found = (trendData as Array<{ day?: number; count: number }>).find((r) => Number(r.day) === day)
       return { label: String(day), count: Number(found?.count || 0) }
     })
   } else {
     // Monthly data for whole year
     formattedTrends = monthLabels.map((label, idx) => {
-      const found = trendData.find((r: { monthNum?: number }) => Number(r.monthNum) === idx + 1)
+      const found = (trendData as Array<{ monthNum?: number; count: number }>).find((r) => Number(r.monthNum) === idx + 1)
       return { label, count: Number(found?.count || 0) }
     })
   }
@@ -779,7 +782,7 @@ admin.delete("/mbg-schedules/:id", async (c) => {
 // Export reports data for admin
 admin.get("/reports/export", zValidator("query", z.object({
   format: z.enum(["csv", "json"]).default("json"),
-  status: z.enum(["pending", "verified", "in_progress", "resolved", "rejected"]).optional(),
+  status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 })), async (c) => {
@@ -865,7 +868,11 @@ admin.get("/admins", zValidator("query", adminQuerySchema), async (c) => {
 const createAdminSchema = z.object({
   name: z.string().min(3).max(255),
   email: z.string().email().max(255),
-  password: z.string().min(8).max(100),
+  password: z.string()
+    .min(8, "Password minimal 8 karakter")
+    .regex(/[A-Z]/, "Password harus mengandung huruf besar")
+    .regex(/[a-z]/, "Password harus mengandung huruf kecil")
+    .regex(/[0-9]/, "Password harus mengandung angka"),
   adminRole: z.string().min(2).max(100),
 })
 
@@ -875,7 +882,7 @@ admin.post("/admins", zValidator("json", createAdminSchema), async (c) => {
   const existing = await db.query.users.findFirst({ where: eq(schema.users.email, email) })
   if (existing) return c.json({ error: "Email sudah terdaftar" }, 400)
 
-  const hashedPassword = await Bun.password.hash(password, { algorithm: "bcrypt", cost: 10 })
+  const hashedPassword = await hashPassword(password)
 
   const [newAdmin] = await db.insert(schema.users).values({
     name,
@@ -984,12 +991,11 @@ const createMemberSchema = z.object({
   name: z.string().min(3).max(255),
   email: z.string().email().max(255),
   phone: z.string().min(10).max(15),
-  password: z.string().min(8).max(100),
   memberType: z.enum(["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"]),
 })
 
 admin.post("/members", zValidator("json", createMemberSchema), async (c) => {
-  const { name, email, phone: rawPhone, password, memberType } = c.req.valid("json")
+  const { name, email, phone: rawPhone, memberType } = c.req.valid("json")
 
   // Convert phone format
   let phone = rawPhone
@@ -1005,13 +1011,11 @@ admin.post("/members", zValidator("json", createMemberSchema), async (c) => {
   const existingPhone = await db.query.users.findFirst({ where: eq(schema.users.phone, phone) })
   if (existingPhone) return c.json({ error: "Nomor telepon sudah terdaftar" }, 400)
 
-  const hashedPassword = await Bun.password.hash(password, { algorithm: "bcrypt", cost: 10 })
-
+  // Members don't have passwords (not login accounts)
   const [newMember] = await db.insert(schema.users).values({
     name,
     email,
     phone,
-    password: hashedPassword,
     role: "member",
     memberType,
     isVerified: true,

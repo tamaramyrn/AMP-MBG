@@ -19,7 +19,7 @@ export type UserRole = "admin" | "public"
 export type CredibilityLevel = "high" | "medium" | "low"
 
 // Report status workflow
-export type ReportStatus = "pending" | "verified" | "in_progress" | "resolved" | "rejected"
+export type ReportStatus = "pending" | "analyzing" | "needs_evidence" | "invalid" | "in_progress" | "resolved"
 
 // Report categories
 export type ReportCategory = "poisoning" | "kitchen" | "quality" | "policy" | "implementation" | "social"

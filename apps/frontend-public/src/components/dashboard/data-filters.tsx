@@ -20,10 +20,11 @@ interface DataFiltersProps {
 
 const REPORT_STATUSES = [
   { value: "pending", label: "Menunggu Verifikasi" },
-  { value: "verified", label: "Terverifikasi" },
-  { value: "in_progress", label: "Sedang Diproses" },
-  { value: "completed", label: "Selesai" },
-  { value: "rejected", label: "Ditolak" },
+  { value: "analyzing", label: "Dalam Proses Analisis" },
+  { value: "needs_evidence", label: "Butuh Bukti Tambahan" },
+  { value: "invalid", label: "Tidak Valid" },
+  { value: "in_progress", label: "Dalam Proses Penanganan" },
+  { value: "resolved", label: "Selesai Ditangani" },
 ]
 
 function DataFiltersComponent({ onFilter }: DataFiltersProps) {

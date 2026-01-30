@@ -67,12 +67,36 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   return data
 }
 
+async function uploadRequest<T>(endpoint: string, formData: FormData): Promise<T> {
+  const token = getToken()
+  const requestHeaders: Record<string, string> = {}
+
+  if (token) {
+    requestHeaders["Authorization"] = `Bearer ${token}`
+  }
+
+  const response = await fetch(`${API_URL}/api${endpoint}`, {
+    method: "POST",
+    headers: requestHeaders,
+    body: formData,
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new ApiError(response.status, data.error || "Upload failed", data)
+  }
+
+  return data
+}
+
 export const api = {
   get: <T>(endpoint: string) => request<T>(endpoint, { method: "GET" }),
   post: <T>(endpoint: string, body?: unknown) => request<T>(endpoint, { method: "POST", body }),
   put: <T>(endpoint: string, body?: unknown) => request<T>(endpoint, { method: "PUT", body }),
   patch: <T>(endpoint: string, body?: unknown) => request<T>(endpoint, { method: "PATCH", body }),
   delete: <T>(endpoint: string) => request<T>(endpoint, { method: "DELETE" }),
+  upload: <T>(endpoint: string, formData: FormData) => uploadRequest<T>(endpoint, formData),
 }
 
 export { ApiError }

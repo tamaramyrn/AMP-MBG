@@ -8,8 +8,7 @@ import {
   Plus,
   X,
   Trash2,
-  Eye, // Icon Mata
-  EyeOff,
+  Eye,
   ChevronDown,
   CheckCircle2,
   AlertCircle,
@@ -579,10 +578,8 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
     name: "",
     email: "",
     phone: "",
-    password: "",
     memberType: "supplier"
   })
-  const [showPassword, setShowPassword] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -593,14 +590,14 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
       setErrorMsg(null)
     },
     onError: (error: Error) => {
-      setErrorMsg(error.message || "Gagal membuat akun anggota")
+      setErrorMsg(error.message || "Gagal membuat data anggota")
     }
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.name || !formData.email || !formData.phone || !formData.password) {
+    if (!formData.name || !formData.email || !formData.phone) {
       setErrorMsg("Mohon lengkapi seluruh kolom formulir.")
       return
     }
@@ -714,25 +711,6 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
                 </div>
               </div>
 
-              <div>
-                <label className="block body-sm font-semibold text-general-80 mb-2">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-4 py-2.5 pr-10 bg-general-20 border border-general-30 rounded-lg focus:outline-none focus:border-blue-100 focus:ring-4 focus:ring-blue-100/10 transition-all body-sm text-general-100"
-                    placeholder="Minimal 8 karakter"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-general-50 hover:text-blue-100 transition-colors p-1"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
             </div>
 
             <div className="flex gap-3 pt-6 border-t border-general-30 mt-2">

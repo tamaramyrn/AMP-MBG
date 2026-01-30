@@ -14,6 +14,12 @@ export function useAuth() {
 
     try {
       const response = await authService.getMe()
+      // Public app only allows public role
+      if (response.user.role !== "public") {
+        await authService.logout()
+        setUser(null)
+        return
+      }
       setUser(response.user)
       localStorage.setItem("currentUser", JSON.stringify(response.user))
     } catch {

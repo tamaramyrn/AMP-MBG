@@ -65,7 +65,7 @@ export interface AdminReportsQuery {
   search?: string
 }
 
-// --- NEW INTERFACE (KITCHEN CONTENT) ---
+// Kitchen content interface
 export interface KitchenNeedItem {
   id: string
   title: string
@@ -73,28 +73,23 @@ export interface KitchenNeedItem {
   imageUrl?: string | null
 }
 
-// --- MOCK DATA (SIMULASI DB UNTUK KITCHEN CONTENT) ---
-// Variable ini disimpan di memori selama aplikasi berjalan (akan reset saat refresh)
-let MOCK_KITCHEN_DATA: KitchenNeedItem[] = [
-  {
-    id: "1",
-    title: "Ahli Gizi",
-    description: "Memastikan menu dan porsi memenuhi standar gizi penerima manfaat sesuai kelompok sasaran. Ini juga mengurangi risiko keluhan, alergi, dan ketidaksesuaian menu saat bahan berubah.",
-    imageUrl: null
-  },
-  {
-    id: "2",
-    title: "Logistik & Supply Chain",
-    description: "Manajemen supply chain agar pasokan bahan stabil, kualitas terjaga, dan distribusi tepat waktu. Ini mencegah stockout, lonjakan biaya, dan bahan tidak sesuai spesifikasi.",
-    imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800"
-  },
-  {
-    id: "3",
-    title: "Peralatan Dapur",
-    description: "Peralatan yang tepat agar kapasitas produksi tercapai secara konsisten dan aman. Peralatan yang sesuai juga mempercepat proses dan menurunkan human error.",
-    imageUrl: null
-  }
-]
+// Kitchen request interface
+export interface KitchenNeedRequest {
+  kitchenNeedId: string
+  sppgName: string
+  contactPerson: string
+  position: string
+  phoneNumber: string
+  details: string
+}
+
+export interface KitchenRequestHistory {
+  id: string
+  category: string
+  sppgName: string
+  status: string
+  createdAt: string
+}
 
 function buildQueryString(params: Record<string, unknown>): string {
   const searchParams = new URLSearchParams()
@@ -179,35 +174,20 @@ export const adminService = {
     return api.get(`/admin/analytics${query}`)
   },
 
-  // --- NEW: KITCHEN CONTENT MANAGEMENT (Mock Implementation) ---
-  // Nanti jika backend sudah siap, ganti logika di dalam fungsi ini dengan api.get/post/delete
+  // Kitchen content (public access)
   kitchen: {
     getAll: async (): Promise<KitchenNeedItem[]> => {
-      // Simulasi delay network
-      await new Promise(r => setTimeout(r, 500))
-      return [...MOCK_KITCHEN_DATA]
+      const response = await api.get<{ data: KitchenNeedItem[] }>("/kitchen-needs")
+      return response.data
     },
 
-    save: async (data: KitchenNeedItem): Promise<KitchenNeedItem> => {
-      await new Promise(r => setTimeout(r, 800))
-      const existingIndex = MOCK_KITCHEN_DATA.findIndex(item => item.id === data.id)
-      
-      if (existingIndex > -1) {
-        // Update existing
-        MOCK_KITCHEN_DATA[existingIndex] = data
-      } else {
-        // Create new
-        const newItem = { ...data, id: Math.random().toString(36).substr(2, 9) }
-        MOCK_KITCHEN_DATA.push(newItem)
-        return newItem
-      }
-      return data
+    submitRequest: async (data: KitchenNeedRequest): Promise<{ message: string }> => {
+      return api.post("/kitchen-needs/requests", data)
     },
 
-    delete: async (id: string): Promise<boolean> => {
-      await new Promise(r => setTimeout(r, 500))
-      MOCK_KITCHEN_DATA = MOCK_KITCHEN_DATA.filter(item => item.id !== id)
-      return true
+    getMyRequests: async (): Promise<KitchenRequestHistory[]> => {
+      const response = await api.get<{ data: KitchenRequestHistory[] }>("/kitchen-needs/requests/my")
+      return response.data
     }
   }
 }

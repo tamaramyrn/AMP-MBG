@@ -13,13 +13,12 @@ export const phoneSchema = z.string()
   .max(15, "Nomor telepon tidak valid")
   .regex(/^\+62\d{9,12}$/, "Format nomor telepon tidak valid")
 
-// Password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol
+// Password: min 8 chars, 1 uppercase, 1 lowercase, 1 number
 export const passwordSchema = z.string()
   .min(8, "Password minimal 8 karakter")
   .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar")
   .regex(/[a-z]/, "Password harus mengandung minimal 1 huruf kecil")
   .regex(/[0-9]/, "Password harus mengandung minimal 1 angka")
-  .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password harus mengandung minimal 1 simbol")
 
 // Email: must contain @ and .
 export const emailSchema = z.string()
@@ -63,7 +62,7 @@ export const reportCategorySchema = z.enum([
 
 // Report status
 export const reportStatusSchema = z.enum([
-  "pending", "verified", "in_progress", "resolved", "rejected"
+  "pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"
 ])
 
 // User role (admin or public)

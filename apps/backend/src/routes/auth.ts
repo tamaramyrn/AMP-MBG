@@ -27,13 +27,12 @@ const emailValidator = z.string()
   .regex(/@.*\./, "Email harus mengandung @ dan .")
   .toLowerCase()
 
-// Password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol
+// Password: min 8 chars, 1 uppercase, 1 lowercase, 1 number
 const passwordValidator = z.string()
   .min(8, "Password minimal 8 karakter")
   .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar")
   .regex(/[a-z]/, "Password harus mengandung minimal 1 huruf kecil")
   .regex(/[0-9]/, "Password harus mengandung minimal 1 angka")
-  .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password harus mengandung minimal 1 simbol")
 
 const signupSchema = z.object({
   email: emailValidator,
@@ -49,6 +48,7 @@ const signupSchema = z.object({
 const loginSchema = z.object({
   identifier: z.string().min(1, "Email atau nomor telepon wajib diisi"),
   password: z.string().min(1, "Password wajib diisi"),
+  appType: z.enum(["public", "admin"]).optional(),
 })
 
 const forgotPasswordSchema = z.object({
@@ -57,7 +57,7 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1, "Token wajib diisi"),
-  password: z.string().min(8, "Password minimal 8 karakter"),
+  password: passwordValidator,
   passwordConfirmation: z.string(),
 }).refine((data) => data.password === data.passwordConfirmation, {
   message: "Password tidak cocok",
@@ -121,7 +121,7 @@ auth.post("/signup", zValidator("json", signupSchema), async (c) => {
 })
 
 auth.post("/login", zValidator("json", loginSchema), async (c) => {
-  const { identifier, password } = c.req.valid("json")
+  const { identifier, password, appType } = c.req.valid("json")
 
   // Support login by email or phone (various formats)
   let phoneWithPrefix = identifier
@@ -151,6 +151,14 @@ auth.post("/login", zValidator("json", loginSchema), async (c) => {
 
   // Members don't have passwords and cannot login
   if (!user.password) return c.json({ error: "Akun ini tidak dapat melakukan login" }, 403)
+
+  // Role-based app access restriction
+  if (appType === "public" && user.role !== "public") {
+    return c.json({ error: "Akun ini tidak memiliki akses ke aplikasi publik" }, 403)
+  }
+  if (appType === "admin" && user.role !== "admin") {
+    return c.json({ error: "Akun ini tidak memiliki akses ke dashboard admin" }, 403)
+  }
 
   const isValid = await verifyPassword(password, user.password)
   if (!isValid) return c.json({ error: "Email/telepon atau password salah" }, 401)

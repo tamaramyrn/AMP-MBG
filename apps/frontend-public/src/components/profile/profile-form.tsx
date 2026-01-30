@@ -20,7 +20,7 @@ function ProfileFormComponent() {
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
   const isPhoneValid = /^\d{9,15}$/.test(formData.phone)
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
   const isNewPasswordValid = passwordRegex.test(passwordData.newPassword)
   const isPasswordMatch = passwordData.newPassword === passwordData.confirmPassword && passwordData.confirmPassword !== ""
 
@@ -234,7 +234,6 @@ function ProfileFormComponent() {
                         { test: /[A-Z]/.test(passwordData.newPassword), label: "Huruf Besar" },
                         { test: /[a-z]/.test(passwordData.newPassword), label: "Huruf Kecil" },
                         { test: /[0-9]/.test(passwordData.newPassword), label: "Angka" },
-                        { test: /[\W_]/.test(passwordData.newPassword), label: "Simbol" },
                       ].map((req, idx) => (
                         <span key={idx} className={`text-[10px] flex items-center gap-1 ${req.test ? "text-green-600 font-bold" : "text-general-50"}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${req.test ? "bg-green-600" : "bg-general-40"}`} />

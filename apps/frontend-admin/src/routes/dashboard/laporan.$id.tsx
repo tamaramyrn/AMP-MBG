@@ -49,18 +49,20 @@ const RELATION_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, { label: string; style: string }> = {
   pending: { label: "Menunggu Verifikasi", style: "bg-orange-20 text-orange-100 border-orange-30" },
-  verified: { label: "Terverifikasi", style: "bg-green-20 text-green-100 border-green-30" },
-  in_progress: { label: "Sedang Ditindaklanjuti", style: "bg-yellow-50 text-general-80 border-yellow-100" },
-  resolved: { label: "Selesai", style: "bg-blue-20 text-blue-100 border-blue-30" },
-  rejected: { label: "Ditolak", style: "bg-red-20 text-red-100 border-red-30" },
+  analyzing: { label: "Dalam Proses Analisis", style: "bg-blue-20 text-blue-100 border-blue-30" },
+  needs_evidence: { label: "Butuh Bukti Tambahan", style: "bg-yellow-50 text-general-80 border-yellow-100" },
+  invalid: { label: "Tidak Valid", style: "bg-red-20 text-red-100 border-red-30" },
+  in_progress: { label: "Dalam Proses Penanganan", style: "bg-purple-100/10 text-purple-600 border-purple-200" },
+  resolved: { label: "Selesai Ditangani", style: "bg-green-20 text-green-100 border-green-30" },
 }
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Menunggu Verifikasi" },
-  { value: "verified", label: "Terverifikasi" },
-  { value: "in_progress", label: "Sedang Ditindaklanjuti" },
-  { value: "resolved", label: "Selesai" },
-  { value: "rejected", label: "Ditolak" },
+  { value: "analyzing", label: "Dalam Proses Analisis" },
+  { value: "needs_evidence", label: "Butuh Bukti Tambahan" },
+  { value: "invalid", label: "Tidak Valid" },
+  { value: "in_progress", label: "Dalam Proses Penanganan" },
+  { value: "resolved", label: "Selesai Ditangani" },
 ]
 
 const CREDIBILITY_LABELS: Record<string, { label: string; style: string }> = {

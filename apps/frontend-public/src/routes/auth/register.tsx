@@ -14,6 +14,7 @@ function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
 
   // --- LOGIKA ASLI (TETAP SAMA PERSIS) ---
   const [formData, setFormData] = useState({
@@ -26,8 +27,8 @@ function RegisterPage() {
   const [isAgreed, setIsAgreed] = useState(false)
 
   // Validasi
-  const isPhoneValid = /^\d{9,12}$/.test(formData.phone) 
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/
+  const isPhoneValid = /^\d{9,12}$/.test(formData.phone)
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
   const isPasswordValid = passwordRegex.test(formData.password)
   const isMatch = formData.password === formData.confirmPassword && formData.confirmPassword !== ""
   const isNameValid = formData.name.trim().length > 0
@@ -62,7 +63,11 @@ function RegisterPage() {
         password: formData.password,
         passwordConfirmation: formData.confirmPassword,
       })
-      navigate({ to: "/" })
+      setSuccess(true)
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        navigate({ to: "/auth/login" })
+      }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registrasi gagal")
     } finally {
@@ -84,6 +89,15 @@ function RegisterPage() {
       </div>
 
       <form onSubmit={handleRegister} className="space-y-4">
+        {success && (
+          <div className="bg-green-20 border border-green-100/30 text-green-100 px-4 py-4 rounded-xl body-sm flex items-center gap-3 animate-in fade-in">
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+            <div>
+              <p className="font-bold">Registrasi Berhasil!</p>
+              <p className="text-xs mt-0.5">Mengalihkan ke halaman login...</p>
+            </div>
+          </div>
+        )}
         {error && (
           <div className="bg-red-20/50 border border-red-100/20 text-red-100 px-4 py-3 rounded-xl body-sm flex items-start gap-3 animate-in fade-in">
             <div className="w-1.5 h-1.5 bg-red-100 rounded-full mt-2 shrink-0" />
@@ -248,9 +262,6 @@ function RegisterPage() {
                </li>
                <li className={`flex items-center gap-1.5 ${/[0-9]/.test(formData.password) ? "text-green-600 font-bold" : ""}`}>
                  <span className={`w-1.5 h-1.5 rounded-full ${/[0-9]/.test(formData.password) ? "bg-green-600" : "bg-red-300"}`} /> Angka
-               </li>
-               <li className={`flex items-center gap-1.5 col-span-2 ${/[\W_]/.test(formData.password) ? "text-green-600 font-bold" : ""}`}>
-                 <span className={`w-1.5 h-1.5 rounded-full ${/[\W_]/.test(formData.password) ? "bg-green-600" : "bg-red-300"}`} /> Simbol Unik (!@#$...)
                </li>
              </ul>
           </div>
