@@ -50,7 +50,7 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
   )
   const currentLength = formData.location.length
 
-  const { todayInTz, isDateError, isDateFuture, isYearInvalid, isTimeError } = useMemo(() => {
+  const { todayInTz, isDateError, isTimeError } = useMemo(() => {
     const now = new Date()
     const tz = TIMEZONES.find((t) => t.value === formData.timezone) || TIMEZONES[0]
     const utc = now.getTime() + now.getTimezoneOffset() * 60000

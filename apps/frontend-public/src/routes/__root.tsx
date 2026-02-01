@@ -1,5 +1,6 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router"
 import { lazy, Suspense } from "react"
+import { NotFound } from "@/components/not-found"
 
 const TanStackRouterDevtools =
   import.meta.env.DEV
@@ -12,6 +13,7 @@ const TanStackRouterDevtools =
 
 export const Route = createRootRoute({
   component: RootComponent,
+  notFoundComponent: NotFound,
 })
 
 function RootComponent() {

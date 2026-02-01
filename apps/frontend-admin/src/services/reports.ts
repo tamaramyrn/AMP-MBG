@@ -140,7 +140,7 @@ export const reportsService = {
     const formData = new FormData()
     files.forEach((file) => formData.append("files", file))
 
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("admin_token")
     const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/reports/${reportId}/files`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},

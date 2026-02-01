@@ -3,8 +3,8 @@ import { Hono } from "hono"
 import reports from "../routes/reports"
 import { createTestApp, testRequest, testData, generateTestToken } from "./setup"
 import { db } from "../db"
-import { users } from "../db/schema"
-import { eq, and } from "drizzle-orm"
+import { publics, admins } from "../db/schema"
+import { eq } from "drizzle-orm"
 
 const app = createTestApp(new Hono().route("/reports", reports))
 
@@ -12,15 +12,17 @@ let publicToken: string
 let adminToken: string
 
 beforeAll(async () => {
-  const publicUser = await db.query.users.findFirst({
-    where: and(eq(users.role, "public"), eq(users.email, "budi@example.com")),
+  // Get seeded public user
+  const publicUser = await db.query.publics.findFirst({
+    where: eq(publics.email, "budi@example.com"),
   })
   if (publicUser) {
-    publicToken = await generateTestToken(publicUser.id, publicUser.email, "public")
+    publicToken = await generateTestToken(publicUser.id, publicUser.email, "user")
   }
 
-  const adminUser = await db.query.users.findFirst({
-    where: and(eq(users.role, "admin"), eq(users.email, "admin@ampmbg.id")),
+  // Get seeded admin from admins table
+  const adminUser = await db.query.admins.findFirst({
+    where: eq(admins.email, "admin@ampmbg.id"),
   })
   if (adminUser) {
     adminToken = await generateTestToken(adminUser.id, adminUser.email, "admin")
@@ -149,6 +151,28 @@ describe("Reports Routes", () => {
       const json = await res.json()
       expect(json.data).toBeDefined()
       expect(Array.isArray(json.data)).toBe(true)
+    })
+  })
+
+  describe("GET /api/reports/foundations", () => {
+    test("returns foundations list", async () => {
+      const res = await testRequest(app, "GET", "/api/reports/foundations")
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      expect(json.data).toBeDefined()
+      expect(Array.isArray(json.data)).toBe(true)
+      expect(json.total).toBeDefined()
+      expect(typeof json.total).toBe("number")
+    })
+
+    test("returns foundation with id and name", async () => {
+      const res = await testRequest(app, "GET", "/api/reports/foundations")
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      if (json.data.length > 0) {
+        expect(json.data[0].id).toBeDefined()
+        expect(json.data[0].name).toBeDefined()
+      }
     })
   })
 

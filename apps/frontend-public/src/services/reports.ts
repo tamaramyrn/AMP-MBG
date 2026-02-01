@@ -97,6 +97,11 @@ export interface ReportStats {
   byCategory?: { category: ReportCategory; count: number }[]
 }
 
+export interface Foundation {
+  id: string
+  name: string
+}
+
 function buildQueryString(params: Record<string, unknown>): string {
   const searchParams = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
@@ -137,11 +142,15 @@ export const reportsService = {
     return api.get("/reports/recent")
   },
 
+  async getFoundations(): Promise<{ data: Foundation[]; total: number }> {
+    return api.get("/reports/foundations")
+  },
+
   async uploadFiles(reportId: string, files: File[]): Promise<{ data: ReportFile[]; message: string }> {
     const formData = new FormData()
     files.forEach((file) => formData.append("files", file))
 
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("public_token")
     const baseUrl = import.meta.env.VITE_API_URL || ""
     const response = await fetch(`${baseUrl}/api/reports/${reportId}/files`, {
       method: "POST",

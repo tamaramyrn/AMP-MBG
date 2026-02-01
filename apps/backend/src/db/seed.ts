@@ -1,5 +1,5 @@
 import { db } from "./index"
-import { provinces, cities, districts, users, reports, mbgSchedules, kitchenNeeds, kitchenNeedsRequests } from "./schema"
+import * as schema from "./schema"
 import { sql, eq } from "drizzle-orm"
 import { hashPassword } from "../lib/password"
 
@@ -35,7 +35,7 @@ async function seed() {
   const provValues = provincesData.map((p) => ({ id: p.id, name: p.name }))
   for (let i = 0; i < provValues.length; i += 100) {
     const batch = provValues.slice(i, i + 100)
-    await db.insert(provinces).values(batch).onConflictDoNothing()
+    await db.insert(schema.provinces).values(batch).onConflictDoNothing()
   }
 
   console.log(`Inserting ${citiesData.length} cities...`)
@@ -46,7 +46,7 @@ async function seed() {
   }))
   for (let i = 0; i < cityValues.length; i += 100) {
     const batch = cityValues.slice(i, i + 100)
-    await db.insert(cities).values(batch).onConflictDoNothing()
+    await db.insert(schema.cities).values(batch).onConflictDoNothing()
   }
 
   console.log(`Inserting ${districtsData.length} districts...`)
@@ -56,16 +56,16 @@ async function seed() {
   })
   for (let i = 0; i < distValues.length; i += 100) {
     const batch = distValues.slice(i, i + 100)
-    await db.insert(districts).values(batch).onConflictDoNothing()
+    await db.insert(schema.districts).values(batch).onConflictDoNothing()
   }
 
-  const [provCount] = await db.select({ count: sql<number>`count(*)` }).from(provinces)
-  const [cityCount] = await db.select({ count: sql<number>`count(*)` }).from(cities)
-  const [distCount] = await db.select({ count: sql<number>`count(*)` }).from(districts)
+  const [provCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.provinces)
+  const [cityCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.cities)
+  const [distCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.districts)
 
-  // Create admin users (10+ admins)
+  // Create admin users in admins table
   console.log("Creating admin users...")
-  const adminUsers = [
+  const adminUsersData = [
     { email: "admin@ampmbg.id", phone: "+62812345678901", name: "Administrator", adminRole: "Super Admin" },
     { email: "koordinator@ampmbg.id", phone: "+62812345678902", name: "Andi Koordinator", adminRole: "Koordinator Nasional" },
     { email: "validator1@ampmbg.id", phone: "+62812345678903", name: "Budi Validator", adminRole: "Validator Laporan" },
@@ -80,26 +80,24 @@ async function seed() {
     { email: "regional.sumatra@ampmbg.id", phone: "+62812345678912", name: "Kartika Regional", adminRole: "Koordinator Sumatra" },
   ]
 
-  let adminId: string = ""
-  for (const adminData of adminUsers) {
-    const existing = await db.query.users.findFirst({ where: eq(users.email, adminData.email) })
+  let mainAdminId: string = ""
+  for (const adminData of adminUsersData) {
+    const existing = await db.query.admins.findFirst({ where: eq(schema.admins.email, adminData.email) })
     if (!existing) {
       const hashedPassword = await hashPassword("Admin@123!")
-      const [admin] = await db.insert(users).values({
+      const [admin] = await db.insert(schema.admins).values({
         ...adminData,
         password: hashedPassword,
-        role: "admin",
-        isVerified: true,
         isActive: true,
       }).returning()
-      if (adminData.email === "admin@ampmbg.id") adminId = admin.id
+      if (adminData.email === "admin@ampmbg.id") mainAdminId = admin.id
       console.log(`- Admin: ${adminData.email} / Admin@123!`)
     } else {
-      if (adminData.email === "admin@ampmbg.id") adminId = existing.id
+      if (adminData.email === "admin@ampmbg.id") mainAdminId = existing.id
     }
   }
 
-  // Create public test users (12 users)
+  // Create public users
   console.log("Creating public users...")
   const testUsers = [
     { email: "budi@example.com", phone: "+62812000001", name: "Budi Santoso", reportCount: 5, verifiedReportCount: 4 },
@@ -118,13 +116,12 @@ async function seed() {
 
   const userIds: string[] = []
   for (const userData of testUsers) {
-    const existing = await db.query.users.findFirst({ where: eq(users.email, userData.email) })
+    const existing = await db.query.publics.findFirst({ where: eq(schema.publics.email, userData.email) })
     if (!existing) {
       const hashedPassword = await hashPassword("Test@123!")
-      const [user] = await db.insert(users).values({
+      const [user] = await db.insert(schema.publics).values({
         ...userData,
         password: hashedPassword,
-        role: "public",
         isVerified: true,
         isActive: true,
       }).returning()
@@ -135,74 +132,54 @@ async function seed() {
     }
   }
 
-  // Create members with Yayasan (foundation) type - 12 members
-  console.log("Creating foundation members...")
-  const foundationMembers = [
-    { email: "yayasan.peduli@example.com", phone: "+62821000001", name: "Yayasan Peduli Bangsa", organizationName: "Yayasan Peduli Bangsa", organizationEmail: "contact@pedulibangsa.org", organizationPhone: "+62215550001", roleInOrganization: "Direktur Eksekutif", organizationMbgRole: "Penyedia bahan baku sayuran organik untuk program MBG" },
-    { email: "yayasan.kasih@example.com", phone: "+62821000002", name: "Yayasan Kasih Ibu", organizationName: "Yayasan Kasih Ibu", organizationEmail: "info@kasihibu.org", organizationPhone: "+62215550002", roleInOrganization: "Ketua Yayasan", organizationMbgRole: "Pengelola dapur umum untuk distribusi makanan" },
-    { email: "yayasan.cerdas@example.com", phone: "+62821000003", name: "Yayasan Cerdas Indonesia", organizationName: "Yayasan Cerdas Indonesia", organizationEmail: "hello@cerdasindonesia.org", organizationPhone: "+62215550003", roleInOrganization: "Program Manager", organizationMbgRole: "Monitoring dan evaluasi program gizi sekolah" },
-    { email: "yayasan.sejahtera@example.com", phone: "+62821000004", name: "Yayasan Sejahtera", organizationName: "Yayasan Sejahtera Nusantara", organizationEmail: "admin@sejahtera.org", organizationPhone: "+62215550004", roleInOrganization: "Koordinator Program", organizationMbgRole: "Pelatihan tenaga masak profesional" },
-    { email: "yayasan.harapan@example.com", phone: "+62821000005", name: "Yayasan Harapan Anak", organizationName: "Yayasan Harapan Anak Indonesia", organizationEmail: "contact@harapananak.org", organizationPhone: "+62215550005", roleInOrganization: "Direktur Program", organizationMbgRole: "Advokasi kebijakan gizi anak sekolah" },
-    { email: "yayasan.nutrisi@example.com", phone: "+62821000006", name: "Yayasan Nutrisi Bangsa", organizationName: "Yayasan Nutrisi Bangsa", organizationEmail: "info@nutrisibangsa.org", organizationPhone: "+62215550006", roleInOrganization: "Ahli Gizi Senior", organizationMbgRole: "Penyusunan menu dan standar gizi program MBG" },
-    { email: "yayasan.sehat@example.com", phone: "+62821000007", name: "Yayasan Sehat Ceria", organizationName: "Yayasan Sehat Ceria", organizationEmail: "hello@sehatceria.org", organizationPhone: "+62215550007", roleInOrganization: "Sekretaris", organizationMbgRole: "Koordinasi dengan dinas kesehatan daerah" },
-    { email: "yayasan.mandiri@example.com", phone: "+62821000008", name: "Yayasan Mandiri Pangan", organizationName: "Yayasan Mandiri Pangan", organizationEmail: "admin@mandiripangan.org", organizationPhone: "+62215550008", roleInOrganization: "Bendahara", organizationMbgRole: "Pengelolaan logistik bahan pangan" },
-    { email: "yayasan.generasi@example.com", phone: "+62821000009", name: "Yayasan Generasi Sehat", organizationName: "Yayasan Generasi Sehat Indonesia", organizationEmail: "contact@generasisehat.org", organizationPhone: "+62215550009", roleInOrganization: "Direktur", organizationMbgRole: "Kampanye edukasi gizi masyarakat" },
-    { email: "yayasan.bumi@example.com", phone: "+62821000010", name: "Yayasan Bumi Hijau", organizationName: "Yayasan Bumi Hijau", organizationEmail: "info@bumihijau.org", organizationPhone: "+62215550010", roleInOrganization: "Koordinator Lapangan", organizationMbgRole: "Pengembangan pertanian organik untuk MBG" },
-    { email: "yayasan.asa@example.com", phone: "+62821000011", name: "Yayasan Asa Mulia", organizationName: "Yayasan Asa Mulia", organizationEmail: "hello@asamulia.org", organizationPhone: "+62215550011", roleInOrganization: "Program Officer", organizationMbgRole: "Pemberdayaan UMKM pangan lokal" },
-    { email: "yayasan.gizi@example.com", phone: "+62821000012", name: "Yayasan Gizi Prima", organizationName: "Yayasan Gizi Prima Indonesia", organizationEmail: "admin@giziprima.org", organizationPhone: "+62215550012", roleInOrganization: "Ketua", organizationMbgRole: "Riset dan pengembangan menu bergizi" },
+  // Create member applications (link existing users to member records)
+  // Members are PUBLIC USERS who applied to become organization members
+  console.log("Creating member applications...")
+
+  // Foundation members - use some existing public users
+  const foundationMembersData = [
+    { userIndex: 0, memberType: "foundation" as const, organizationName: "Yayasan Peduli Bangsa", organizationEmail: "contact@pedulibangsa.org", organizationPhone: "+62215550001", roleInOrganization: "Direktur Eksekutif", organizationMbgRole: "Penyedia bahan baku sayuran organik untuk program MBG", isVerified: true },
+    { userIndex: 1, memberType: "foundation" as const, organizationName: "Yayasan Kasih Ibu", organizationEmail: "info@kasihibu.org", organizationPhone: "+62215550002", roleInOrganization: "Ketua Yayasan", organizationMbgRole: "Pengelola dapur umum untuk distribusi makanan", isVerified: true },
+    { userIndex: 2, memberType: "foundation" as const, organizationName: "Yayasan Cerdas Indonesia", organizationEmail: "hello@cerdasindonesia.org", organizationPhone: "+62215550003", roleInOrganization: "Program Manager", organizationMbgRole: "Monitoring dan evaluasi program gizi sekolah", isVerified: true },
   ]
 
-  for (const memberData of foundationMembers) {
-    const existing = await db.query.users.findFirst({ where: eq(users.email, memberData.email) })
-    if (!existing) {
-      await db.insert(users).values({
-        ...memberData,
-        password: null,
-        role: "member",
-        memberType: "foundation",
-        isVerified: true,
-        isActive: true,
+  // Other member types - use remaining public users
+  const otherMembersData = [
+    { userIndex: 3, memberType: "supplier" as const, organizationName: "PT Pangan Makmur", organizationEmail: "info@panganmakmur.com", organizationPhone: "+62215551001", roleInOrganization: "Manager Pengadaan", organizationMbgRole: "Supplier bahan baku protein hewani", isVerified: true },
+    { userIndex: 4, memberType: "caterer" as const, organizationName: "CV Katering Sehat Selalu", organizationEmail: "order@kateringsehat.com", organizationPhone: "+62215551002", roleInOrganization: "Owner", organizationMbgRole: "Jasa katering untuk sekolah", isVerified: true },
+    { userIndex: 5, memberType: "school" as const, organizationName: "SD Negeri Harapan Baru 01", organizationEmail: "sdn.harapanbaru@edu.id", organizationPhone: "+62215551003", roleInOrganization: "Kepala Sekolah", organizationMbgRole: "Penerima manfaat program MBG", isVerified: false },
+    { userIndex: 6, memberType: "government" as const, organizationName: "Dinas Pendidikan Kota Bandung", organizationEmail: "dinas.dikbud@bandung.go.id", organizationPhone: "+62215551004", roleInOrganization: "Kepala Bidang", organizationMbgRole: "Koordinator program MBG tingkat kota", isVerified: false },
+    { userIndex: 7, memberType: "ngo" as const, organizationName: "LSM Pangan Adil Indonesia", organizationEmail: "contact@panganadil.org", organizationPhone: "+62215551005", roleInOrganization: "Direktur Eksekutif", organizationMbgRole: "Advokasi dan monitoring program MBG", isVerified: true },
+    { userIndex: 8, memberType: "farmer" as const, organizationName: "Kelompok Tani Maju Bersama", organizationEmail: "tanimaju@gmail.com", organizationPhone: "+62215551006", roleInOrganization: "Ketua Kelompok", organizationMbgRole: "Pemasok sayuran lokal", isVerified: false },
+  ]
+
+  const allMembersData = [...foundationMembersData, ...otherMembersData]
+
+  for (const memberData of allMembersData) {
+    const userId = userIds[memberData.userIndex]
+    if (!userId) continue
+
+    // Check if member record already exists for this user
+    const existingMember = await db.query.members.findFirst({ where: eq(schema.members.publicId, userId) })
+    if (!existingMember) {
+      await db.insert(schema.members).values({
+        publicId: userId,
+        memberType: memberData.memberType,
+        organizationName: memberData.organizationName,
+        organizationEmail: memberData.organizationEmail,
+        organizationPhone: memberData.organizationPhone,
+        roleInOrganization: memberData.roleInOrganization,
+        organizationMbgRole: memberData.organizationMbgRole,
+        isVerified: memberData.isVerified,
+        verifiedAt: memberData.isVerified ? new Date() : null,
+        verifiedBy: memberData.isVerified ? mainAdminId || null : null,
         appliedAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
-        verifiedAt: new Date(),
       })
-      console.log(`- Foundation member: ${memberData.organizationName}`)
+      console.log(`- Member (${memberData.memberType}): ${memberData.organizationName}`)
     }
   }
 
-  // Create pending member applications (public users wanting to become members)
-  console.log("Creating pending member applications...")
-  const pendingApplications = [
-    { email: "supplier1@example.com", phone: "+62822000001", name: "PT Pangan Makmur", memberType: "supplier" as const, organizationName: "PT Pangan Makmur", organizationEmail: "info@panganmakmur.com", organizationPhone: "+62215551001", roleInOrganization: "Manager Pengadaan", organizationMbgRole: "Supplier bahan baku protein hewani" },
-    { email: "caterer1@example.com", phone: "+62822000002", name: "Katering Sehat", memberType: "caterer" as const, organizationName: "CV Katering Sehat Selalu", organizationEmail: "order@kateringsehat.com", organizationPhone: "+62215551002", roleInOrganization: "Owner", organizationMbgRole: "Jasa katering untuk sekolah" },
-    { email: "school1@example.com", phone: "+62822000003", name: "SD Harapan Baru", memberType: "school" as const, organizationName: "SD Negeri Harapan Baru 01", organizationEmail: "sdn.harapanbaru@edu.id", organizationPhone: "+62215551003", roleInOrganization: "Kepala Sekolah", organizationMbgRole: "Penerima manfaat program MBG" },
-    { email: "gov1@example.com", phone: "+62822000004", name: "Dinas Pendidikan", memberType: "government" as const, organizationName: "Dinas Pendidikan Kota Bandung", organizationEmail: "dinas.dikbud@bandung.go.id", organizationPhone: "+62215551004", roleInOrganization: "Kepala Bidang", organizationMbgRole: "Koordinator program MBG tingkat kota" },
-    { email: "ngo1@example.com", phone: "+62822000005", name: "LSM Pangan Adil", memberType: "ngo" as const, organizationName: "LSM Pangan Adil Indonesia", organizationEmail: "contact@panganadil.org", organizationPhone: "+62215551005", roleInOrganization: "Direktur Eksekutif", organizationMbgRole: "Advokasi dan monitoring program MBG" },
-    { email: "farmer1@example.com", phone: "+62822000006", name: "Kelompok Tani Maju", memberType: "farmer" as const, organizationName: "Kelompok Tani Maju Bersama", organizationEmail: "tanimaju@gmail.com", organizationPhone: "+62215551006", roleInOrganization: "Ketua Kelompok", organizationMbgRole: "Pemasok sayuran lokal" },
-    { email: "supplier2@example.com", phone: "+62822000007", name: "CV Protein Sehat", memberType: "supplier" as const, organizationName: "CV Protein Sehat", organizationEmail: "order@proteinsehat.com", organizationPhone: "+62215551007", roleInOrganization: "Direktur", organizationMbgRole: "Supplier telur dan daging ayam" },
-    { email: "caterer2@example.com", phone: "+62822000008", name: "Dapur Nusantara", memberType: "caterer" as const, organizationName: "Dapur Nusantara Catering", organizationEmail: "info@dapurnusantara.com", organizationPhone: "+62215551008", roleInOrganization: "General Manager", organizationMbgRole: "Katering skala besar untuk sekolah" },
-    { email: "school2@example.com", phone: "+62822000009", name: "SMP Tunas Bangsa", memberType: "school" as const, organizationName: "SMP Swasta Tunas Bangsa", organizationEmail: "smp.tunasbangsa@edu.id", organizationPhone: "+62215551009", roleInOrganization: "Wakil Kepala Sekolah", organizationMbgRole: "Pengelola program MBG di sekolah" },
-    { email: "other1@example.com", phone: "+62822000010", name: "Komunitas Gizi", memberType: "other" as const, organizationName: "Komunitas Gizi Seimbang", organizationEmail: "hello@komunitasgizi.org", organizationPhone: "+62215551010", roleInOrganization: "Koordinator", organizationMbgRole: "Edukasi gizi untuk masyarakat" },
-    { email: "farmer2@example.com", phone: "+62822000011", name: "Koperasi Petani", memberType: "farmer" as const, organizationName: "Koperasi Petani Sejahtera", organizationEmail: "koptani@gmail.com", organizationPhone: "+62215551011", roleInOrganization: "Sekretaris", organizationMbgRole: "Pemasok beras dan umbi-umbian" },
-    { email: "gov2@example.com", phone: "+62822000012", name: "Dinas Kesehatan", memberType: "government" as const, organizationName: "Dinas Kesehatan Kabupaten Bogor", organizationEmail: "dinkes@bogorkab.go.id", organizationPhone: "+62215551012", roleInOrganization: "Kepala Seksi", organizationMbgRole: "Pengawasan standar gizi MBG" },
-  ]
-
-  for (const appData of pendingApplications) {
-    const existing = await db.query.users.findFirst({ where: eq(users.email, appData.email) })
-    if (!existing) {
-      const hashedPassword = await hashPassword("Test@123!")
-      await db.insert(users).values({
-        ...appData,
-        password: hashedPassword,
-        role: "member",
-        isVerified: false,
-        isActive: true,
-        appliedAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-      })
-      console.log(`- Pending application: ${appData.organizationName}`)
-    }
-  }
-
-  // Create MBG schedules for scoring validation (12 schedules)
+  // Create MBG schedules
   console.log("Creating MBG schedules...")
   const mbgScheduleData = [
     { schoolName: "SDN Menteng 01", provinceId: "31", cityId: "31.71", districtId: "31.71.01", scheduleDays: "12345", startTime: "07:00", endTime: "12:00" },
@@ -219,10 +196,10 @@ async function seed() {
     { schoolName: "SDN Manado 02", provinceId: "71", cityId: "71.71", districtId: "71.71.01", scheduleDays: "12345", startTime: "07:30", endTime: "12:00" },
   ]
 
-  const [existingSchedules] = await db.select({ count: sql<number>`count(*)` }).from(mbgSchedules)
+  const [existingSchedules] = await db.select({ count: sql<number>`count(*)` }).from(schema.mbgSchedules)
   if (Number(existingSchedules.count) === 0) {
     for (const schedule of mbgScheduleData) {
-      await db.insert(mbgSchedules).values({
+      await db.insert(schema.mbgSchedules).values({
         ...schedule,
         address: `Jl. Pendidikan No. ${Math.floor(Math.random() * 100) + 1}`,
         isActive: true,
@@ -235,12 +212,12 @@ async function seed() {
 
   // Create dummy reports
   console.log("Creating dummy reports...")
-  const [existingReports] = await db.select({ count: sql<number>`count(*)` }).from(reports)
+  const [existingReports] = await db.select({ count: sql<number>`count(*)` }).from(schema.reports)
 
   if (Number(existingReports.count) === 0) {
     const dummyReports = [
       {
-        userId: userIds[0],
+        publicId: userIds[0],
         category: "poisoning" as const,
         title: "Keracunan massal siswa SDN Menteng",
         description: "Pada tanggal 10 Januari 2025 pukul 10:00 WIB, sekitar 15 siswa SDN Menteng 01 mengalami gejala keracunan setelah mengonsumsi makanan program MBG. Gejala yang dialami meliputi mual, muntah, dan diare. Siswa-siswa tersebut langsung dibawa ke puskesmas terdekat untuk mendapat penanganan medis. Makanan yang dicurigai adalah nasi goreng dengan lauk ayam.",
@@ -256,7 +233,7 @@ async function seed() {
         credibilityLevel: "high" as const,
       },
       {
-        userId: userIds[1],
+        publicId: userIds[1],
         category: "quality" as const,
         title: "Makanan basi ditemukan di dapur sekolah",
         description: "Saya menemukan bahan makanan yang sudah basi di dapur SDN Kebayoran Baru 05 pada hari Senin tanggal 8 Januari 2025 sekitar pukul 08:30. Bahan makanan tersebut berupa sayuran yang sudah layu dan berbau tidak sedap, serta telur yang sudah melewati tanggal kadaluarsa. Kondisi ini sangat mengkhawatirkan karena dapat membahayakan kesehatan siswa.",
@@ -273,7 +250,7 @@ async function seed() {
         credibilityLevel: "high" as const,
       },
       {
-        userId: userIds[2],
+        publicId: userIds[2],
         category: "kitchen" as const,
         title: "Kondisi dapur tidak higienis",
         description: "Dapur sekolah SDN Bandung 01 dalam kondisi yang sangat tidak higienis. Pada kunjungan tanggal 5 Januari 2025 pukul 09:00, saya melihat lantai dapur kotor, tidak ada sabun cuci tangan, dan peralatan masak tidak dicuci dengan baik. Selain itu, tidak ada pemisahan antara area persiapan makanan mentah dan matang.",
@@ -290,7 +267,7 @@ async function seed() {
         credibilityLevel: "medium" as const,
       },
       {
-        userId: userIds[3],
+        publicId: userIds[3],
         category: "policy" as const,
         title: "Dana MBG tidak transparan",
         description: "Saya sebagai orang tua murid merasa khawatir dengan pengelolaan dana program MBG di SDN Surabaya 01. Tidak ada laporan keuangan yang dipublikasikan kepada orang tua sejak program dimulai pada bulan Desember 2024. Ketika kami bertanya kepada pihak sekolah, tidak ada jawaban yang jelas mengenai alokasi dana tersebut.",
@@ -306,7 +283,7 @@ async function seed() {
         credibilityLevel: "medium" as const,
       },
       {
-        userId: userIds[4],
+        publicId: userIds[4],
         category: "implementation" as const,
         title: "Distribusi makanan tidak merata",
         description: "Program MBG di SDN Semarang 01 mengalami masalah distribusi. Pada hari Selasa tanggal 7 Januari 2025, kelas 1 dan 2 tidak mendapat jatah makanan karena persediaan habis. Hal ini sudah terjadi beberapa kali dalam sebulan terakhir. Siswa yang tidak kebagian harus membeli makanan sendiri di kantin.",
@@ -323,7 +300,7 @@ async function seed() {
         credibilityLevel: "medium" as const,
       },
       {
-        userId: userIds[0],
+        publicId: userIds[0],
         category: "social" as const,
         title: "Diskriminasi dalam pembagian makanan",
         description: "Di SDN Yogyakarta 01, terjadi diskriminasi dalam pembagian makanan MBG. Siswa dari keluarga mampu mendapat porsi lebih besar dibanding siswa dari keluarga kurang mampu. Hal ini saya amati pada tanggal 9 Januari 2025 saat jam makan siang pukul 12:00. Beberapa siswa bahkan tidak mendapat lauk karena habis duluan.",
@@ -339,7 +316,7 @@ async function seed() {
         credibilityLevel: "medium" as const,
       },
       {
-        userId: userIds[1],
+        publicId: userIds[1],
         category: "poisoning" as const,
         title: "Siswa diare setelah makan MBG",
         description: "Anak saya mengalami diare berat setelah mengonsumsi makanan MBG di SDN Medan 01 pada tanggal 6 Januari 2025. Makanan yang dimakan adalah soto ayam dengan nasi. Gejala diare muncul sekitar 2 jam setelah makan siang pukul 12:00. Saat ini anak saya sedang dalam perawatan dokter dan membutuhkan obat-obatan.",
@@ -356,7 +333,7 @@ async function seed() {
         credibilityLevel: "high" as const,
       },
       {
-        userId: userIds[2],
+        publicId: userIds[2],
         category: "quality" as const,
         title: "Porsi makanan terlalu sedikit",
         description: "Porsi makanan MBG di SDN Makassar 01 sangat sedikit dan tidak memenuhi kebutuhan gizi siswa. Nasi yang diberikan hanya sekitar 100 gram dengan lauk yang sangat minim. Kondisi ini sudah berlangsung sejak awal Januari 2025. Siswa sering mengeluh masih lapar setelah makan.",
@@ -372,7 +349,7 @@ async function seed() {
         credibilityLevel: "medium" as const,
       },
       {
-        userId: userIds[3],
+        publicId: userIds[3],
         category: "kitchen" as const,
         title: "Petugas dapur tidak pakai sarung tangan",
         description: "Saya melihat petugas dapur di SDN Menteng 01 tidak menggunakan sarung tangan saat menyiapkan makanan pada tanggal 11 Januari 2025 pukul 08:00 pagi. Mereka juga tidak mencuci tangan sebelum memegang bahan makanan. Hal ini sangat tidak higienis dan berisiko mencemari makanan.",
@@ -388,7 +365,7 @@ async function seed() {
         credibilityLevel: "high" as const,
       },
       {
-        userId: userIds[4],
+        publicId: userIds[4],
         category: "implementation" as const,
         title: "Jadwal makan tidak konsisten",
         description: "Jadwal pemberian makanan MBG di SDN Kebayoran Baru 05 tidak konsisten. Kadang makanan datang pukul 10:00, kadang pukul 12:00. Hal ini mengganggu jadwal belajar siswa karena mereka harus menunggu makanan datang. Kejadian ini sudah berlangsung sejak minggu pertama Januari 2025.",
@@ -408,10 +385,10 @@ async function seed() {
 
     for (const report of dummyReports) {
       const { verifiedAt, adminNotes, ...reportData } = report
-      await db.insert(reports).values({
+      await db.insert(schema.reports).values({
         ...reportData,
         verifiedAt: verifiedAt || null,
-        verifiedBy: verifiedAt ? adminId : null,
+        verifiedBy: verifiedAt ? mainAdminId : null,
         adminNotes: adminNotes || null,
       })
     }
@@ -420,9 +397,9 @@ async function seed() {
     console.log("- Reports already exist")
   }
 
-  // Seed kitchen needs (10+ items)
+  // Seed kitchen needs
   console.log("Creating kitchen needs...")
-  const [existingKitchenNeeds] = await db.select({ count: sql<number>`count(*)` }).from(kitchenNeeds)
+  const [existingKitchenNeeds] = await db.select({ count: sql<number>`count(*)` }).from(schema.kitchenNeeds)
   let kitchenNeedIds: string[] = []
   if (Number(existingKitchenNeeds.count) === 0) {
     const kitchenNeedsData = [
@@ -439,7 +416,7 @@ async function seed() {
       { title: "Transportasi Makanan", description: "Kendaraan khusus dengan pendingin untuk menjaga kualitas makanan selama distribusi ke berbagai lokasi sekolah.", imageUrl: null, sortOrder: 11 },
       { title: "Quality Control", description: "Tim dan peralatan untuk melakukan pengecekan kualitas bahan baku dan makanan jadi sebelum didistribusikan.", imageUrl: null, sortOrder: 12 },
     ]
-    const insertedNeeds = await db.insert(kitchenNeeds).values(kitchenNeedsData).returning()
+    const insertedNeeds = await db.insert(schema.kitchenNeeds).values(kitchenNeedsData).returning()
     kitchenNeedIds = insertedNeeds.map(k => k.id)
     console.log(`- Created ${kitchenNeedsData.length} kitchen needs`)
   } else {
@@ -448,28 +425,28 @@ async function seed() {
     console.log("- Kitchen needs already exist")
   }
 
-  // Seed kitchen needs requests from public users (12 requests)
+  // Seed kitchen needs requests
   console.log("Creating kitchen needs requests...")
-  const [existingRequests] = await db.select({ count: sql<number>`count(*)` }).from(kitchenNeedsRequests)
+  const [existingRequests] = await db.select({ count: sql<number>`count(*)` }).from(schema.kitchenNeedsRequests)
   if (Number(existingRequests.count) === 0 && kitchenNeedIds.length > 0 && userIds.length > 0) {
     const requestsData = [
-      { userId: userIds[0], kitchenNeedId: kitchenNeedIds[0], sppgName: "SPPG Jakarta Pusat", contactPerson: "Budi Santoso", position: "Koordinator", phoneNumber: "+62812000001", details: "Membutuhkan ahli gizi untuk konsultasi menu harian program MBG di 5 sekolah wilayah Jakarta Pusat. Diharapkan dapat membantu menyusun menu seimbang untuk 2000 siswa.", status: "pending" as const },
-      { userId: userIds[1], kitchenNeedId: kitchenNeedIds[1], sppgName: "SPPG Bandung Barat", contactPerson: "Siti Rahayu", position: "Manager Operasional", phoneNumber: "+62812000002", details: "Butuh bantuan manajemen supply chain untuk distribusi bahan ke 10 sekolah. Saat ini mengalami kendala keterlambatan pengiriman dan kualitas bahan yang tidak konsisten.", status: "processed" as const, adminNotes: "Sudah dihubungkan dengan tim logistik regional Jawa Barat" },
-      { userId: userIds[2], kitchenNeedId: kitchenNeedIds[2], sppgName: "SPPG Surabaya Timur", contactPerson: "Ahmad Hidayat", position: "Kepala Dapur", phoneNumber: "+62812000003", details: "Memerlukan upgrade peralatan dapur untuk kapasitas produksi 3000 porsi/hari. Peralatan lama sudah tidak memadai dan sering rusak.", status: "completed" as const, adminNotes: "Peralatan sudah dikirim dan diinstall tanggal 15 Januari 2025" },
-      { userId: userIds[3], kitchenNeedId: kitchenNeedIds[3], sppgName: "SPPG Semarang Selatan", contactPerson: "Dewi Lestari", position: "Procurement", phoneNumber: "+62812000004", details: "Mencari supplier bahan baku sayuran organik lokal untuk program MBG. Kebutuhan sekitar 500kg sayuran per minggu.", status: "pending" as const },
-      { userId: userIds[4], kitchenNeedId: kitchenNeedIds[4], sppgName: "SPPG Medan Kota", contactPerson: "Rudi Hermawan", position: "HR Manager", phoneNumber: "+62812000005", details: "Membutuhkan 10 tenaga masak profesional untuk dapur sentral. Diutamakan yang memiliki sertifikat keamanan pangan.", status: "not_found" as const, adminNotes: "Belum ada kandidat yang sesuai di wilayah Medan" },
-      { userId: userIds[5], kitchenNeedId: kitchenNeedIds[5], sppgName: "SPPG Makassar Utara", contactPerson: "Maya Sari", position: "IT Coordinator", phoneNumber: "+62812000006", details: "Memerlukan sistem digital untuk tracking inventori dan jadwal produksi. Saat ini masih menggunakan pencatatan manual.", status: "processed" as const, adminNotes: "Sedang dalam proses implementasi sistem" },
-      { userId: userIds[6], kitchenNeedId: kitchenNeedIds[6], sppgName: "SPPG Yogyakarta", contactPerson: "Eko Prasetyo", position: "Quality Assurance", phoneNumber: "+62812000007", details: "Membutuhkan program pelatihan keamanan pangan untuk 25 staf dapur. Pelatihan harus mencakup HACCP dan food handling.", status: "pending" as const },
-      { userId: userIds[7], kitchenNeedId: kitchenNeedIds[7], sppgName: "SPPG Denpasar", contactPerson: "Nina Wulandari", position: "Environmental Officer", phoneNumber: "+62812000008", details: "Mencari solusi pengelolaan limbah dapur yang ramah lingkungan. Sisa makanan rata-rata 50kg/hari perlu ditangani.", status: "completed" as const, adminNotes: "Sudah bekerja sama dengan bank sampah lokal" },
-      { userId: userIds[8], kitchenNeedId: kitchenNeedIds[8], sppgName: "SPPG Palembang", contactPerson: "Tono Sugiarto", position: "Facility Manager", phoneNumber: "+62812000009", details: "Memerlukan sistem pemurnian air untuk dapur sentral. Kualitas air di lokasi kurang memadai untuk memasak.", status: "pending" as const },
-      { userId: userIds[9], kitchenNeedId: kitchenNeedIds[9], sppgName: "SPPG Pontianak", contactPerson: "Ratna Dewi", position: "Packaging Supervisor", phoneNumber: "+62812000010", details: "Butuh supplier kemasan makanan yang food-grade dan ramah lingkungan untuk 2000 porsi/hari.", status: "processed" as const, adminNotes: "Sedang negosiasi dengan vendor lokal" },
-      { userId: userIds[10], kitchenNeedId: kitchenNeedIds[10], sppgName: "SPPG Balikpapan", contactPerson: "Hasan Abdullah", position: "Logistics Head", phoneNumber: "+62812000011", details: "Memerlukan kendaraan berpendingin untuk distribusi makanan ke 8 sekolah dalam radius 20km.", status: "pending" as const },
-      { userId: userIds[11], kitchenNeedId: kitchenNeedIds[11], sppgName: "SPPG Manado", contactPerson: "Wati Suryani", position: "QC Manager", phoneNumber: "+62812000012", details: "Butuh peralatan dan pelatihan untuk tim quality control. Saat ini belum ada standar pengecekan yang baku.", status: "not_found" as const, adminNotes: "Menunggu alokasi budget dari pusat" },
+      { publicId: userIds[0], kitchenNeedId: kitchenNeedIds[0], sppgName: "SPPG Jakarta Pusat", contactPerson: "Budi Santoso", position: "Koordinator", phoneNumber: "+62812000001", details: "Membutuhkan ahli gizi untuk konsultasi menu harian program MBG di 5 sekolah wilayah Jakarta Pusat. Diharapkan dapat membantu menyusun menu seimbang untuk 2000 siswa.", status: "pending" as const },
+      { publicId: userIds[1], kitchenNeedId: kitchenNeedIds[1], sppgName: "SPPG Bandung Barat", contactPerson: "Siti Rahayu", position: "Manager Operasional", phoneNumber: "+62812000002", details: "Butuh bantuan manajemen supply chain untuk distribusi bahan ke 10 sekolah. Saat ini mengalami kendala keterlambatan pengiriman dan kualitas bahan yang tidak konsisten.", status: "processed" as const, adminNotes: "Sudah dihubungkan dengan tim logistik regional Jawa Barat" },
+      { publicId: userIds[2], kitchenNeedId: kitchenNeedIds[2], sppgName: "SPPG Surabaya Timur", contactPerson: "Ahmad Hidayat", position: "Kepala Dapur", phoneNumber: "+62812000003", details: "Memerlukan upgrade peralatan dapur untuk kapasitas produksi 3000 porsi/hari. Peralatan lama sudah tidak memadai dan sering rusak.", status: "completed" as const, adminNotes: "Peralatan sudah dikirim dan diinstall tanggal 15 Januari 2025" },
+      { publicId: userIds[3], kitchenNeedId: kitchenNeedIds[3], sppgName: "SPPG Semarang Selatan", contactPerson: "Dewi Lestari", position: "Procurement", phoneNumber: "+62812000004", details: "Mencari supplier bahan baku sayuran organik lokal untuk program MBG. Kebutuhan sekitar 500kg sayuran per minggu.", status: "pending" as const },
+      { publicId: userIds[4], kitchenNeedId: kitchenNeedIds[4], sppgName: "SPPG Medan Kota", contactPerson: "Rudi Hermawan", position: "HR Manager", phoneNumber: "+62812000005", details: "Membutuhkan 10 tenaga masak profesional untuk dapur sentral. Diutamakan yang memiliki sertifikat keamanan pangan.", status: "not_found" as const, adminNotes: "Belum ada kandidat yang sesuai di wilayah Medan" },
+      { publicId: userIds[5], kitchenNeedId: kitchenNeedIds[5], sppgName: "SPPG Makassar Utara", contactPerson: "Maya Sari", position: "IT Coordinator", phoneNumber: "+62812000006", details: "Memerlukan sistem digital untuk tracking inventori dan jadwal produksi. Saat ini masih menggunakan pencatatan manual.", status: "processed" as const, adminNotes: "Sedang dalam proses implementasi sistem" },
+      { publicId: userIds[6], kitchenNeedId: kitchenNeedIds[6], sppgName: "SPPG Yogyakarta", contactPerson: "Eko Prasetyo", position: "Quality Assurance", phoneNumber: "+62812000007", details: "Membutuhkan program pelatihan keamanan pangan untuk 25 staf dapur. Pelatihan harus mencakup HACCP dan food handling.", status: "pending" as const },
+      { publicId: userIds[7], kitchenNeedId: kitchenNeedIds[7], sppgName: "SPPG Denpasar", contactPerson: "Nina Wulandari", position: "Environmental Officer", phoneNumber: "+62812000008", details: "Mencari solusi pengelolaan limbah dapur yang ramah lingkungan. Sisa makanan rata-rata 50kg/hari perlu ditangani.", status: "completed" as const, adminNotes: "Sudah bekerja sama dengan bank sampah lokal" },
+      { publicId: userIds[8], kitchenNeedId: kitchenNeedIds[8], sppgName: "SPPG Palembang", contactPerson: "Tono Sugiarto", position: "Facility Manager", phoneNumber: "+62812000009", details: "Memerlukan sistem pemurnian air untuk dapur sentral. Kualitas air di lokasi kurang memadai untuk memasak.", status: "pending" as const },
+      { publicId: userIds[9], kitchenNeedId: kitchenNeedIds[9], sppgName: "SPPG Pontianak", contactPerson: "Ratna Dewi", position: "Packaging Supervisor", phoneNumber: "+62812000010", details: "Butuh supplier kemasan makanan yang food-grade dan ramah lingkungan untuk 2000 porsi/hari.", status: "processed" as const, adminNotes: "Sedang negosiasi dengan vendor lokal" },
+      { publicId: userIds[10], kitchenNeedId: kitchenNeedIds[10], sppgName: "SPPG Balikpapan", contactPerson: "Hasan Abdullah", position: "Logistics Head", phoneNumber: "+62812000011", details: "Memerlukan kendaraan berpendingin untuk distribusi makanan ke 8 sekolah dalam radius 20km.", status: "pending" as const },
+      { publicId: userIds[11], kitchenNeedId: kitchenNeedIds[11], sppgName: "SPPG Manado", contactPerson: "Wati Suryani", position: "QC Manager", phoneNumber: "+62812000012", details: "Butuh peralatan dan pelatihan untuk tim quality control. Saat ini belum ada standar pengecekan yang baku.", status: "not_found" as const, adminNotes: "Menunggu alokasi budget dari pusat" },
     ]
 
     for (const reqData of requestsData) {
       const { adminNotes, ...data } = reqData
-      await db.insert(kitchenNeedsRequests).values({
+      await db.insert(schema.kitchenNeedsRequests).values({
         ...data,
         adminNotes: adminNotes || null,
       })
@@ -479,17 +456,21 @@ async function seed() {
     console.log("- Kitchen needs requests already exist or no data to link")
   }
 
-  const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users)
-  const [reportCount] = await db.select({ count: sql<number>`count(*)` }).from(reports)
-  const [scheduleCount] = await db.select({ count: sql<number>`count(*)` }).from(mbgSchedules)
-  const [kitchenCount] = await db.select({ count: sql<number>`count(*)` }).from(kitchenNeeds)
-  const [requestCount] = await db.select({ count: sql<number>`count(*)` }).from(kitchenNeedsRequests)
+  const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.publics)
+  const [adminCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.admins)
+  const [memberCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.members)
+  const [reportCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.reports)
+  const [scheduleCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.mbgSchedules)
+  const [kitchenCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.kitchenNeeds)
+  const [requestCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.kitchenNeedsRequests)
 
   console.log(`\nSeeding complete!`)
   console.log(`- Provinces: ${provCount.count}`)
   console.log(`- Cities: ${cityCount.count}`)
   console.log(`- Districts: ${distCount.count}`)
+  console.log(`- Admins: ${adminCount.count}`)
   console.log(`- Users: ${userCount.count}`)
+  console.log(`- Members: ${memberCount.count}`)
   console.log(`- Reports: ${reportCount.count}`)
   console.log(`- MBG Schedules: ${scheduleCount.count}`)
   console.log(`- Kitchen Needs: ${kitchenCount.count}`)

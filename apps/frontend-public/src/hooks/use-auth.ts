@@ -14,18 +14,12 @@ export function useAuth() {
 
     try {
       const response = await authService.getMe()
-      // Public app only allows public role
-      if (response.user.role !== "public") {
-        await authService.logout()
-        setUser(null)
-        return
-      }
       setUser(response.user)
-      localStorage.setItem("currentUser", JSON.stringify(response.user))
+      localStorage.setItem("public_currentUser", JSON.stringify(response.user))
     } catch {
       setUser(null)
-      localStorage.removeItem("currentUser")
-      localStorage.removeItem("token")
+      localStorage.removeItem("public_currentUser")
+      localStorage.removeItem("public_token")
     } finally {
       setIsLoading(false)
     }
@@ -52,7 +46,6 @@ export function useAuth() {
     user,
     isLoading,
     isLoggedIn: !!user,
-    isAdmin: user?.role === "admin",
     logout,
     refresh: checkAuth,
   }

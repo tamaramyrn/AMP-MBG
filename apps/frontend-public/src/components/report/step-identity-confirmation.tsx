@@ -1,5 +1,5 @@
 import { memo, useCallback } from "react"
-import { ChevronDown, CheckSquare, Square, Loader2, UserCircle2 } from "lucide-react"
+import { ChevronDown, CheckSquare, Square, UserCircle2 } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import type { ReportFormData } from "./report-form"
 import { categoriesService } from "@/services/categories"

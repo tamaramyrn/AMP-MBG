@@ -196,27 +196,6 @@ describe("Auth Routes", () => {
     })
   })
 
-  describe("POST /api/auth/resend-verification", () => {
-    test("returns 401 without token", async () => {
-      const res = await testRequest(app, "POST", "/api/auth/resend-verification")
-      expect(res.status).toBe(401)
-    })
-  })
-
-  describe("POST /api/auth/verify-email", () => {
-    test("validates token is required", async () => {
-      const res = await testRequest(app, "POST", "/api/auth/verify-email", { body: {} })
-      expect(res.status).toBe(400)
-    })
-
-    test("returns 400 for invalid token", async () => {
-      const res = await testRequest(app, "POST", "/api/auth/verify-email", {
-        body: { token: "invalid-token" },
-      })
-      expect(res.status).toBe(400)
-    })
-  })
-
   describe("GET /api/auth/check", () => {
     test("returns 401 without token", async () => {
       const res = await testRequest(app, "GET", "/api/auth/check")

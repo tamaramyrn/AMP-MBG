@@ -1,64 +1,119 @@
+// ============================================
+// AUTH TYPES
+// ============================================
+
+export type AccountType = "admin" | "user"
+
 export interface JWTPayload {
   sub: string
   email: string
-  role: UserRole
+  type: AccountType // admin or user
+  temp?: boolean // for incomplete Google signup
   iat: number
   exp: number
+}
+
+export interface AuthAdmin {
+  id: string
+  email: string
+  type: "admin"
 }
 
 export interface AuthUser {
   id: string
   email: string
-  role: UserRole
+  type: "user"
 }
 
-// User roles (admin for dashboard, public for reporting)
-export type UserRole = "admin" | "public"
+// ============================================
+// ADMIN TYPES
+// ============================================
 
-// Credibility level for reports
-export type CredibilityLevel = "high" | "medium" | "low"
-
-// Report status workflow
-export type ReportStatus = "pending" | "analyzing" | "needs_evidence" | "invalid" | "in_progress" | "resolved"
-
-// Report categories
-export type ReportCategory = "poisoning" | "kitchen" | "quality" | "policy" | "implementation" | "social"
-
-// Reporter relation to MBG
-export type ReporterRelation = "parent" | "teacher" | "principal" | "supplier" | "student" | "community" | "other"
-
-// User interface
-export interface User {
+export interface Admin {
   id: string
   email: string
-  phone: string
   name: string
-  role: UserRole
-  isVerified: boolean
+  phone: string | null
+  adminRole: string | null
   isActive: boolean
-  reportCount: number
-  verifiedReportCount: number
   lastLoginAt: Date | null
   createdAt: Date
   updatedAt: Date
 }
 
-// Report scoring components
-export interface ReportScoring {
-  scoreRelation: number        // 0-3: Relation to MBG
-  scoreLocationTime: number    // 0-3: Location/time validity
-  scoreEvidence: number        // 0-3: Supporting evidence
-  scoreNarrative: number       // 0-3: Narrative consistency
-  scoreReporterHistory: number // 0-3: Reporter history
-  scoreSimilarity: number      // 0-3: Similarity with other reports
-  totalScore: number           // 0-18: Sum of all scores
-  credibilityLevel: CredibilityLevel // high/medium/low
+// ============================================
+// USER TYPES (Public users)
+// ============================================
+
+export type SignupMethod = "manual" | "google"
+
+export interface User {
+  id: string
+  email: string
+  phone: string | null
+  name: string
+  signupMethod: SignupMethod
+  googleId: string | null
+  googleEmail: string | null
+  reportCount: number
+  verifiedReportCount: number
+  lastLoginAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+  // Computed
+  hasPassword?: boolean
+  isGoogleLinked?: boolean
+  isMember?: boolean
 }
 
-// Report interface
+// ============================================
+// MEMBER TYPES (Extension of User)
+// ============================================
+
+export type MemberType = "supplier" | "caterer" | "school" | "government" | "foundation" | "ngo" | "farmer" | "other"
+
+export interface Member {
+  id: string
+  publicId: string
+  memberType: MemberType
+  organizationName: string
+  organizationEmail: string | null
+  organizationPhone: string | null
+  roleInOrganization: string | null
+  organizationMbgRole: string | null
+  isVerified: boolean
+  verifiedAt: Date | null
+  verifiedBy: string | null
+  appliedAt: Date
+  createdAt: Date
+  updatedAt: Date
+  // Relations
+  public?: User
+}
+
+// ============================================
+// REPORT TYPES
+// ============================================
+
+export type CredibilityLevel = "high" | "medium" | "low"
+export type ReportStatus = "pending" | "analyzing" | "needs_evidence" | "invalid" | "in_progress" | "resolved"
+export type ReportCategory = "poisoning" | "kitchen" | "quality" | "policy" | "implementation" | "social"
+export type ReporterRelation = "parent" | "teacher" | "principal" | "supplier" | "student" | "community" | "other"
+
+export interface ReportScoring {
+  scoreRelation: number
+  scoreLocationTime: number
+  scoreEvidence: number
+  scoreNarrative: number
+  scoreReporterHistory: number
+  scoreSimilarity: number
+  totalScore: number
+  credibilityLevel: CredibilityLevel
+}
+
 export interface Report {
   id: string
-  userId: string | null
+  publicId: string | null
   category: ReportCategory
   title: string
   description: string
@@ -70,7 +125,6 @@ export interface Report {
   status: ReportStatus
   relation: ReporterRelation
   relationDetail: string | null
-  // Scoring
   scoreRelation: number
   scoreLocationTime: number
   scoreEvidence: number
@@ -79,7 +133,6 @@ export interface Report {
   scoreSimilarity: number
   totalScore: number
   credibilityLevel: CredibilityLevel
-  // Admin
   adminNotes: string | null
   verifiedBy: string | null
   verifiedAt: Date | null
@@ -87,7 +140,6 @@ export interface Report {
   updatedAt: Date
 }
 
-// Report file interface
 export interface ReportFile {
   id: string
   reportId: string
@@ -98,19 +150,10 @@ export interface ReportFile {
   createdAt: Date
 }
 
-// Session interface
-export interface Session {
-  id: string
-  userId: string
-  token: string
-  userAgent: string | null
-  ipAddress: string | null
-  isRevoked: boolean
-  expiresAt: Date
-  createdAt: Date
-}
+// ============================================
+// LOCATION TYPES
+// ============================================
 
-// Location interfaces
 export interface Province {
   id: string
   name: string
@@ -128,7 +171,36 @@ export interface District {
   name: string
 }
 
-// API Response types
+// ============================================
+// SESSION TYPES
+// ============================================
+
+export interface Session {
+  id: string
+  publicId: string
+  token: string
+  userAgent: string | null
+  ipAddress: string | null
+  isRevoked: boolean
+  expiresAt: Date
+  createdAt: Date
+}
+
+export interface AdminSession {
+  id: string
+  adminId: string
+  token: string
+  userAgent: string | null
+  ipAddress: string | null
+  isRevoked: boolean
+  expiresAt: Date
+  createdAt: Date
+}
+
+// ============================================
+// API RESPONSE TYPES
+// ============================================
+
 export interface ApiResponse<T = unknown> {
   data?: T
   message?: string
@@ -146,11 +218,15 @@ export interface PaginatedApiResponse<T> {
   }
 }
 
-// Dashboard stats
+// ============================================
+// DASHBOARD TYPES
+// ============================================
+
 export interface DashboardStats {
   users: {
     total: number
-    byRole: Array<{ role: UserRole; count: number }>
+    members: number
+    bySignupMethod: { manual: number; google: number }
   }
   reports: {
     total: number
@@ -171,6 +247,10 @@ export interface DashboardStats {
   }>
 }
 
+// ============================================
+// ENV TYPES
+// ============================================
+
 export interface Env {
   DATABASE_URL: string
   JWT_SECRET: string
@@ -178,6 +258,12 @@ export interface Env {
   CORS_ORIGIN: string
   PORT: string
   NODE_ENV: string
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
+  SMTP_HOST?: string
+  SMTP_PORT?: string
+  SMTP_USER?: string
+  SMTP_PASS?: string
   R2_ACCESS_KEY_ID?: string
   R2_SECRET_ACCESS_KEY?: string
   R2_BUCKET?: string

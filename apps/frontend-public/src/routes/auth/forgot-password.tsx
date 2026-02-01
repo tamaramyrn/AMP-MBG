@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
-import { ArrowLeft, CheckCircle2, Mail } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Mail, Loader2 } from "lucide-react"
+import { authService } from "@/services/auth"
 
 export const Route = createFileRoute('/auth/forgot-password')({
   component: ForgotPasswordPage,
@@ -10,15 +11,26 @@ export const Route = createFileRoute('/auth/forgot-password')({
 function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
 
   // Validasi Email Sederhana
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isEmailValid) {
-      // Simulasi kirim email
+    if (!isEmailValid) return
+
+    setError("")
+    setIsLoading(true)
+
+    try {
+      await authService.forgotPassword(email)
       setIsSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengirim email")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -71,6 +83,13 @@ function ForgotPasswordPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-20/50 border border-red-100/20 text-red-100 px-4 py-3 rounded-xl body-sm flex items-center gap-3 animate-in fade-in">
+                <div className="w-1.5 h-1.5 bg-red-100 rounded-full shrink-0" />
+                {error}
+              </div>
+            )}
+
             {/* Email Field */}
             <div className="flex flex-col gap-1">
               <fieldset className={`border rounded-lg px-3 pb-2.5 pt-1 transition-all ${
@@ -86,6 +105,7 @@ function ForgotPasswordPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Masukkan surel Anda"
                     className="w-full outline-none text-general-100 placeholder:text-general-40 body-sm bg-transparent"
+                    disabled={isLoading}
                   />
                   <Mail className="w-5 h-5 text-general-40" />
                 </div>
@@ -98,14 +118,15 @@ function ForgotPasswordPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={!isEmailValid}
-              className={`w-full py-2.5 font-heading font-semibold rounded-lg transition-all shadow-sm body-sm ${
-                isEmailValid 
-                  ? "bg-blue-100 hover:bg-blue-90 text-general-20 cursor-pointer" 
+              disabled={!isEmailValid || isLoading}
+              className={`w-full py-2.5 font-heading font-semibold rounded-lg transition-all shadow-sm body-sm flex items-center justify-center gap-2 ${
+                isEmailValid && !isLoading
+                  ? "bg-blue-100 hover:bg-blue-90 text-general-20 cursor-pointer"
                   : "bg-general-30 text-general-60 cursor-not-allowed opacity-70"
               }`}
             >
-              Kirim Tautan Atur Ulang
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isLoading ? "Mengirim..." : "Kirim Tautan Atur Ulang"}
             </button>
           </form>
         </div>

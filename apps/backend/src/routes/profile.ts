@@ -11,35 +11,50 @@ type Variables = { user: AuthUser }
 
 const profile = new Hono<{ Variables: Variables }>()
 
-// All routes require authentication
 profile.use("*", authMiddleware)
 
-// Get current user profile
 profile.get("/", async (c) => {
   const authUser = c.get("user")
 
-  // Optimized: Single query for user and stats
-  const [user, reportStats] = await Promise.all([
-    db.query.users.findFirst({
-      where: eq(schema.users.id, authUser.id),
+  const [publicUser, reportStats] = await Promise.all([
+    db.query.publics.findFirst({
+      where: eq(schema.publics.id, authUser.id),
       columns: {
         id: true, email: true, phone: true, name: true,
-        role: true, isVerified: true, reportCount: true,
-        verifiedReportCount: true, createdAt: true, lastLoginAt: true,
+        signupMethod: true, googleId: true, googleEmail: true,
+        reportCount: true, verifiedReportCount: true,
+        createdAt: true, lastLoginAt: true, password: true,
+      },
+      with: {
+        member: { columns: { id: true, memberType: true, organizationName: true, isVerified: true } },
       },
     }),
-    // Combined aggregates in single query
     db.select({
       total: sql<number>`count(*)`,
       pending: sql<number>`count(*) filter (where ${schema.reports.status} = 'pending')`,
       resolved: sql<number>`count(*) filter (where ${schema.reports.status} = 'resolved')`,
-    }).from(schema.reports).where(eq(schema.reports.userId, authUser.id)),
+    }).from(schema.reports).where(eq(schema.reports.publicId, authUser.id)),
   ])
 
-  if (!user) return c.json({ error: "User tidak ditemukan" }, 404)
+  if (!publicUser) return c.json({ error: "User tidak ditemukan" }, 404)
 
   return c.json({
-    user,
+    user: {
+      id: publicUser.id,
+      email: publicUser.email,
+      phone: publicUser.phone,
+      name: publicUser.name,
+      signupMethod: publicUser.signupMethod,
+      reportCount: publicUser.reportCount,
+      verifiedReportCount: publicUser.verifiedReportCount,
+      createdAt: publicUser.createdAt,
+      lastLoginAt: publicUser.lastLoginAt,
+      hasPassword: !!publicUser.password,
+      isGoogleLinked: !!publicUser.googleId,
+      googleEmail: publicUser.googleEmail || null,
+      isMember: !!publicUser.member,
+      member: publicUser.member || null,
+    },
     stats: {
       totalReports: Number(reportStats[0]?.total || 0),
       pendingReports: Number(reportStats[0]?.pending || 0),
@@ -48,7 +63,6 @@ profile.get("/", async (c) => {
   })
 })
 
-// Format phone to +62 prefix
 const formatPhone = (rawPhone: string): string => {
   const cleaned = rawPhone.replace(/\D/g, "")
   if (cleaned.startsWith("62")) return "+" + cleaned
@@ -57,7 +71,6 @@ const formatPhone = (rawPhone: string): string => {
   return "+62" + cleaned
 }
 
-// Update profile
 const updateProfileSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi").optional(),
   phone: z.string().min(9).max(15).optional(),
@@ -68,23 +81,20 @@ profile.patch("/", zValidator("json", updateProfileSchema), async (c) => {
   const authUser = c.get("user")
   const { name, phone: rawPhone, email } = c.req.valid("json")
 
-  // Format phone with +62 prefix
   const phone = rawPhone ? formatPhone(rawPhone) : undefined
 
-  // Check for duplicate phone
   if (phone) {
-    const existingPhone = await db.query.users.findFirst({
-      where: eq(schema.users.phone, phone),
+    const existingPhone = await db.query.publics.findFirst({
+      where: eq(schema.publics.phone, phone),
     })
     if (existingPhone && existingPhone.id !== authUser.id) {
       return c.json({ error: "Nomor telepon sudah digunakan" }, 400)
     }
   }
 
-  // Check for duplicate email
   if (email) {
-    const existingEmail = await db.query.users.findFirst({
-      where: eq(schema.users.email, email),
+    const existingEmail = await db.query.publics.findFirst({
+      where: eq(schema.publics.email, email),
     })
     if (existingEmail && existingEmail.id !== authUser.id) {
       return c.json({ error: "Email sudah digunakan" }, 400)
@@ -94,21 +104,16 @@ profile.patch("/", zValidator("json", updateProfileSchema), async (c) => {
   const updateData: Record<string, unknown> = { updatedAt: new Date() }
   if (name !== undefined) updateData.name = name
   if (phone !== undefined) updateData.phone = phone
-  if (email !== undefined) {
-    updateData.email = email
-    updateData.isVerified = false
-  }
+  if (email !== undefined) updateData.email = email
 
-  const [updated] = await db.update(schema.users)
+  const [updated] = await db.update(schema.publics)
     .set(updateData)
-    .where(eq(schema.users.id, authUser.id))
+    .where(eq(schema.publics.id, authUser.id))
     .returning({
-      id: schema.users.id,
-      email: schema.users.email,
-      phone: schema.users.phone,
-      name: schema.users.name,
-      role: schema.users.role,
-      isVerified: schema.users.isVerified,
+      id: schema.publics.id,
+      email: schema.publics.email,
+      phone: schema.publics.phone,
+      name: schema.publics.name,
     })
 
   return c.json({
@@ -117,14 +122,12 @@ profile.patch("/", zValidator("json", updateProfileSchema), async (c) => {
   })
 })
 
-// Password validator (consistent with auth.ts)
 const passwordValidator = z.string()
   .min(8, "Password minimal 8 karakter")
   .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar")
   .regex(/[a-z]/, "Password harus mengandung minimal 1 huruf kecil")
   .regex(/[0-9]/, "Password harus mengandung minimal 1 angka")
 
-// Change password
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Password saat ini wajib diisi"),
   newPassword: passwordValidator,
@@ -138,31 +141,64 @@ profile.put("/password", zValidator("json", changePasswordSchema), async (c) => 
   const authUser = c.get("user")
   const { currentPassword, newPassword } = c.req.valid("json")
 
-  const user = await db.query.users.findFirst({
-    where: eq(schema.users.id, authUser.id),
+  const publicUser = await db.query.publics.findFirst({
+    where: eq(schema.publics.id, authUser.id),
   })
 
-  if (!user) return c.json({ error: "User tidak ditemukan" }, 404)
+  if (!publicUser) return c.json({ error: "User tidak ditemukan" }, 404)
 
-  const isValid = await verifyPassword(currentPassword, user.password)
+  if (!publicUser.password) {
+    return c.json({ error: "Anda login dengan Google. Silakan set password terlebih dahulu." }, 400)
+  }
+
+  const isValid = await verifyPassword(currentPassword, publicUser.password)
   if (!isValid) return c.json({ error: "Password saat ini salah" }, 400)
 
   const hashedPassword = await hashPassword(newPassword)
 
-  // Parallel: Update password and revoke sessions
   await Promise.all([
-    db.update(schema.users)
+    db.update(schema.publics)
       .set({ password: hashedPassword, updatedAt: new Date() })
-      .where(eq(schema.users.id, authUser.id)),
+      .where(eq(schema.publics.id, authUser.id)),
     db.update(schema.sessions)
       .set({ isRevoked: true })
-      .where(eq(schema.sessions.userId, authUser.id)),
+      .where(eq(schema.sessions.publicId, authUser.id)),
   ])
 
   return c.json({ message: "Password berhasil diubah" })
 })
 
-// Get user's report history
+const setPasswordSchema = z.object({
+  newPassword: passwordValidator,
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Password tidak cocok",
+  path: ["confirmPassword"],
+})
+
+profile.post("/password", zValidator("json", setPasswordSchema), async (c) => {
+  const authUser = c.get("user")
+  const { newPassword } = c.req.valid("json")
+
+  const publicUser = await db.query.publics.findFirst({
+    where: eq(schema.publics.id, authUser.id),
+  })
+
+  if (!publicUser) return c.json({ error: "User tidak ditemukan" }, 404)
+
+  if (publicUser.password) {
+    return c.json({ error: "Password sudah diset. Gunakan fitur ubah password." }, 400)
+  }
+
+  const hashedPassword = await hashPassword(newPassword)
+
+  await db.update(schema.publics)
+    .set({ password: hashedPassword, updatedAt: new Date() })
+    .where(eq(schema.publics.id, authUser.id))
+
+  return c.json({ message: "Password berhasil diset" })
+})
+
 const reportHistorySchema = z.object({
   page: z.string().optional().transform((val) => parseInt(val || "1")),
   limit: z.string().optional().transform((val) => parseInt(val || "10")),
@@ -175,8 +211,8 @@ profile.get("/reports", zValidator("query", reportHistorySchema), async (c) => {
   const offset = (page - 1) * limit
 
   const whereClause = status
-    ? and(eq(schema.reports.userId, authUser.id), eq(schema.reports.status, status))
-    : eq(schema.reports.userId, authUser.id)
+    ? and(eq(schema.reports.publicId, authUser.id), eq(schema.reports.status, status))
+    : eq(schema.reports.publicId, authUser.id)
 
   const [data, countResult] = await Promise.all([
     db.query.reports.findMany({
@@ -220,13 +256,12 @@ profile.get("/reports", zValidator("query", reportHistorySchema), async (c) => {
   })
 })
 
-// Get single report detail for owner
 profile.get("/reports/:id", async (c) => {
   const authUser = c.get("user")
   const id = c.req.param("id")
 
   const report = await db.query.reports.findFirst({
-    where: and(eq(schema.reports.id, id), eq(schema.reports.userId, authUser.id)),
+    where: and(eq(schema.reports.id, id), eq(schema.reports.publicId, authUser.id)),
     with: {
       province: { columns: { name: true } },
       city: { columns: { name: true } },
@@ -234,7 +269,7 @@ profile.get("/reports/:id", async (c) => {
       files: true,
       statusHistory: {
         orderBy: [desc(schema.reportStatusHistory.createdAt)],
-        with: { changedByUser: { columns: { name: true } } },
+        with: { changedByAdmin: { columns: { name: true } } },
       },
     },
   })
@@ -252,28 +287,40 @@ profile.get("/reports/:id", async (c) => {
         fromStatus: h.fromStatus,
         toStatus: h.toStatus,
         notes: h.notes,
-        changedBy: h.changedByUser?.name || "Admin",
+        changedBy: h.changedByAdmin?.name || "Admin",
         createdAt: h.createdAt,
       })),
     },
   })
 })
 
-// Delete account (soft delete by deactivating)
 profile.delete("/", async (c) => {
   const authUser = c.get("user")
 
-  // Parallel updates
+  // Delete all related data in order
   await Promise.all([
-    db.update(schema.users)
-      .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(schema.users.id, authUser.id)),
-    db.update(schema.sessions)
-      .set({ isRevoked: true })
-      .where(eq(schema.sessions.userId, authUser.id)),
+    // Revoke and delete sessions
+    db.delete(schema.sessions).where(eq(schema.sessions.publicId, authUser.id)),
+    // Delete password reset tokens
+    db.delete(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.publicId, authUser.id)),
+    // Delete member record if exists
+    db.delete(schema.members).where(eq(schema.members.publicId, authUser.id)),
   ])
 
-  return c.json({ message: "Akun berhasil dinonaktifkan" })
+  // Set reports publicId to null (keep reports for data integrity)
+  await db.update(schema.reports)
+    .set({ publicId: null })
+    .where(eq(schema.reports.publicId, authUser.id))
+
+  // Set kitchen needs requests publicId to null
+  await db.update(schema.kitchenNeedsRequests)
+    .set({ publicId: null })
+    .where(eq(schema.kitchenNeedsRequests.publicId, authUser.id))
+
+  // Delete the user account
+  await db.delete(schema.publics).where(eq(schema.publics.id, authUser.id))
+
+  return c.json({ message: "Akun berhasil dihapus" })
 })
 
 export default profile

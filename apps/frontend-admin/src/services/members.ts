@@ -5,9 +5,9 @@ export interface Admin {
   name: string
   email: string
   phone: string | null
-  role: string
   adminRole: string | null
-  isVerified: boolean
+  isActive: boolean
+  lastLoginAt: string | null
   createdAt: string
 }
 
@@ -21,21 +21,21 @@ export interface OrganizationInfo {
 
 export interface Member {
   id: string
+  userId: string
   name: string
   email: string
-  phone: string
-  role: string
-  memberType: string | null
-  organizationName: string | null
+  phone: string | null
+  memberType: string
+  organizationName: string
   organizationEmail: string | null
   organizationPhone: string | null
   roleInOrganization: string | null
   organizationMbgRole: string | null
-  appliedAt: string | null
+  appliedAt: string
   verifiedAt: string | null
+  verifiedBy: string | null
   organizationInfo: OrganizationInfo | null
   isVerified: boolean
-  isActive: boolean
   createdAt: string
 }
 
@@ -54,12 +54,20 @@ export interface CreateMemberData {
 }
 
 export const adminAccountService = {
-  getAdmins: async (status: "verified" | "pending" | "all" = "all"): Promise<{ data: Admin[] }> => {
-    return api.get(`/admin/admins?status=${status}`)
+  getAdmins: async (params?: { search?: string; isActive?: boolean }): Promise<{ data: Admin[] }> => {
+    const searchParams = new URLSearchParams()
+    if (params?.search) searchParams.append("search", params.search)
+    if (params?.isActive !== undefined) searchParams.append("isActive", String(params.isActive))
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : ""
+    return api.get(`/admin/admins${query}`)
   },
 
   createAdmin: async (data: CreateAdminData): Promise<{ data: Admin; message: string }> => {
     return api.post("/admin/admins", data)
+  },
+
+  updateAdmin: async (id: string, data: { name?: string; adminRole?: string; isActive?: boolean }): Promise<{ data: Admin; message: string }> => {
+    return api.patch(`/admin/admins/${id}`, data)
   },
 
   deleteAdmin: async (id: string): Promise<{ message: string }> => {
@@ -68,8 +76,13 @@ export const adminAccountService = {
 }
 
 export const memberService = {
-  getMembers: async (status: "verified" | "pending" | "all" = "all"): Promise<{ data: Member[] }> => {
-    return api.get(`/admin/members?status=${status}`)
+  getMembers: async (params?: { status?: "verified" | "pending" | "all"; memberType?: string; search?: string }): Promise<{ data: Member[] }> => {
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.append("status", params.status)
+    if (params?.memberType) searchParams.append("memberType", params.memberType)
+    if (params?.search) searchParams.append("search", params.search)
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : ""
+    return api.get(`/admin/members${query}`)
   },
 
   getMember: async (id: string): Promise<{ data: Member }> => {
@@ -84,7 +97,7 @@ export const memberService = {
     return api.patch(`/admin/members/${id}/verify`)
   },
 
-  updateMemberStatus: async (id: string, data: { isVerified?: boolean; isActive?: boolean }): Promise<{ data: { id: string; isVerified: boolean; isActive: boolean }; message: string }> => {
+  updateMemberStatus: async (id: string, data: { isVerified?: boolean }): Promise<{ message: string }> => {
     return api.patch(`/admin/members/${id}/status`, data)
   },
 

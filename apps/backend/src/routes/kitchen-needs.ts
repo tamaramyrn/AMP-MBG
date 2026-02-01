@@ -4,11 +4,12 @@ import { z } from "zod"
 import { eq, desc, sql, and, asc } from "drizzle-orm"
 import { db, schema } from "../db"
 import { authMiddleware, adminMiddleware } from "../middleware/auth"
-import type { AuthUser } from "../types"
+import type { AuthUser, AuthAdmin } from "../types"
 
-type Variables = { user: AuthUser }
+type UserVariables = { user: AuthUser }
+type AdminVariables = { admin: AuthAdmin }
 
-const kitchenNeeds = new Hono<{ Variables: Variables }>()
+const kitchenNeeds = new Hono()
 
 // Public: Get all active kitchen needs
 kitchenNeeds.get("/", async (c) => {
@@ -57,7 +58,7 @@ kitchenNeeds.post("/requests", authMiddleware, zValidator("json", submitRequestS
   if (!kitchenNeed) return c.json({ error: "Konten kebutuhan tidak ditemukan" }, 404)
 
   const [request] = await db.insert(schema.kitchenNeedsRequests).values({
-    userId: user.id,
+    publicId: user.id,
     kitchenNeedId: data.kitchenNeedId,
     sppgName: data.sppgName,
     contactPerson: data.contactPerson,
@@ -77,7 +78,7 @@ kitchenNeeds.get("/requests/my", authMiddleware, async (c) => {
   const user = c.get("user")
 
   const data = await db.query.kitchenNeedsRequests.findMany({
-    where: eq(schema.kitchenNeedsRequests.userId, user.id),
+    where: eq(schema.kitchenNeedsRequests.publicId, user.id),
     orderBy: [desc(schema.kitchenNeedsRequests.createdAt)],
     with: { kitchenNeed: { columns: { id: true, title: true } } },
   })
@@ -207,7 +208,7 @@ kitchenNeeds.get("/admin/requests", adminMiddleware, zValidator("query", request
       offset,
       orderBy: [desc(schema.kitchenNeedsRequests.createdAt)],
       with: {
-        user: { columns: { name: true, email: true } },
+        public: { columns: { name: true, email: true } },
         kitchenNeed: { columns: { title: true } },
       },
     }),
@@ -227,8 +228,8 @@ kitchenNeeds.get("/admin/requests", adminMiddleware, zValidator("query", request
       details: r.details,
       status: r.status,
       adminNotes: r.adminNotes,
-      userName: r.user?.name,
-      userEmail: r.user?.email,
+      userName: r.public?.name,
+      userEmail: r.public?.email,
       createdAt: r.createdAt,
     })),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },

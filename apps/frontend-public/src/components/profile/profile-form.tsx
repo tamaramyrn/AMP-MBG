@@ -16,7 +16,7 @@ function ProfileFormComponent() {
     newPassword: "",
     confirmPassword: "",
   })
-  const [showPasswordChange, setShowPasswordChange] = useState(false)
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
   const isPhoneValid = /^\d{9,15}$/.test(formData.phone)
@@ -28,6 +28,9 @@ function ProfileFormComponent() {
     queryKey: ["profile"],
     queryFn: () => profileService.getProfile(),
   })
+
+  const hasPassword = profileData?.user?.hasPassword
+  const isGoogleLinked = profileData?.user?.isGoogleLinked
 
   useEffect(() => {
     if (profileData?.user) {
@@ -62,8 +65,22 @@ function ProfileFormComponent() {
       })
     },
     onSuccess: () => {
-      setShowPasswordChange(false)
+      setShowPasswordForm(false)
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" })
+    },
+  })
+
+  const createPasswordMutation = useMutation({
+    mutationFn: async () => {
+      return profileService.createPassword({
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword,
+      })
+    },
+    onSuccess: () => {
+      setShowPasswordForm(false)
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      queryClient.invalidateQueries({ queryKey: ["profile"] })
     },
   })
 
@@ -75,16 +92,22 @@ function ProfileFormComponent() {
     }
   }, [isEditing, updateProfileMutation])
 
-  const handlePasswordChange = useCallback(() => changePasswordMutation.mutate(), [changePasswordMutation])
+  const handlePasswordSubmit = useCallback(() => {
+    if (hasPassword) {
+      changePasswordMutation.mutate()
+    } else {
+      createPasswordMutation.mutate()
+    }
+  }, [hasPassword, changePasswordMutation, createPasswordMutation])
   const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, name: e.target.value })), [])
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, email: e.target.value })), [])
   const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, phone: e.target.value })), [])
   const handleCurrentPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value })), [])
   const handleNewPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPasswordData((prev) => ({ ...prev, newPassword: e.target.value })), [])
   const handleConfirmPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value })), [])
-  const showPasswordForm = useCallback(() => setShowPasswordChange(true), [])
+  const openPasswordForm = useCallback(() => setShowPasswordForm(true), [])
   const hidePasswordForm = useCallback(() => {
-    setShowPasswordChange(false)
+    setShowPasswordForm(false)
     setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" })
   }, [])
 
@@ -190,32 +213,49 @@ function ProfileFormComponent() {
 
         {/* PASSWORD SECTION */}
         <div className="mt-8 pt-6 border-t border-general-30">
-          {!showPasswordChange ? (
+          {/* Google Connected Indicator */}
+          {isGoogleLinked && (
+            <div className="flex items-center gap-3 text-general-60 mb-4 p-3 bg-green-50 border border-green-200 rounded-xl">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              <span className="body-sm font-medium text-green-700">Terhubung dengan Akun Google</span>
+            </div>
+          )}
+
+          {/* Password Form Toggle */}
+          {!showPasswordForm ? (
             <button
-              onClick={showPasswordForm}
+              onClick={openPasswordForm}
               className="text-blue-100 hover:text-blue-90 body-sm font-bold flex items-center gap-2 hover:underline decoration-blue-100/30 underline-offset-4"
             >
-              Ubah Kata Sandi
+              {hasPassword ? "Ubah Kata Sandi" : "Buat Kata Sandi"}
             </button>
           ) : (
             <div className="bg-general-20/50 rounded-xl p-5 border border-general-30 max-w-lg">
-              <h3 className="font-bold text-general-100 mb-4">Ubah Kata Sandi</h3>
-              
-              {changePasswordMutation.isError && (
+              <h3 className="font-bold text-general-100 mb-4">{hasPassword ? "Ubah Kata Sandi" : "Buat Kata Sandi"}</h3>
+
+              {(changePasswordMutation.isError || createPasswordMutation.isError) && (
                 <div className="mb-4 p-3 bg-red-20 border border-red-100 rounded-lg text-red-100 text-xs font-medium">
-                  {(changePasswordMutation.error as Error)?.message || "Gagal mengubah kata sandi"}
+                  {((changePasswordMutation.error || createPasswordMutation.error) as Error)?.message || "Gagal menyimpan kata sandi"}
                 </div>
               )}
 
               <div className="space-y-4">
-                <input
-                  type="password"
-                  placeholder="Kata sandi saat ini"
-                  value={passwordData.currentPassword}
-                  onChange={handleCurrentPasswordChange}
-                  className="w-full px-4 py-2.5 bg-white border border-general-30 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-100 body-sm"
-                />
-                
+                {/* Current Password - Only for users with existing password */}
+                {hasPassword && (
+                  <input
+                    type="password"
+                    placeholder="Kata sandi saat ini"
+                    value={passwordData.currentPassword}
+                    onChange={handleCurrentPasswordChange}
+                    className="w-full px-4 py-2.5 bg-white border border-general-30 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-100 body-sm"
+                  />
+                )}
+
                 <div>
                   <input
                     type="password"
@@ -247,7 +287,7 @@ function ProfileFormComponent() {
                 <div>
                   <input
                     type="password"
-                    placeholder="Konfirmasi kata sandi baru"
+                    placeholder="Konfirmasi kata sandi"
                     value={passwordData.confirmPassword}
                     onChange={handleConfirmPasswordChange}
                     className={`w-full px-4 py-2.5 bg-white border rounded-lg focus:ring-2 body-sm ${
@@ -267,12 +307,17 @@ function ProfileFormComponent() {
                     Batal
                   </button>
                   <button
-                    onClick={handlePasswordChange}
-                    disabled={changePasswordMutation.isPending || !passwordData.currentPassword || !isNewPasswordValid || !isPasswordMatch}
+                    onClick={handlePasswordSubmit}
+                    disabled={
+                      (changePasswordMutation.isPending || createPasswordMutation.isPending) ||
+                      (hasPassword && !passwordData.currentPassword) ||
+                      !isNewPasswordValid ||
+                      !isPasswordMatch
+                    }
                     className="px-6 py-2 bg-blue-100 hover:bg-blue-90 text-white font-bold rounded-lg transition-colors body-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {changePasswordMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
-                    Simpan Password
+                    {(changePasswordMutation.isPending || createPasswordMutation.isPending) && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {hasPassword ? "Simpan Perubahan" : "Buat Kata Sandi"}
                   </button>
                 </div>
               </div>

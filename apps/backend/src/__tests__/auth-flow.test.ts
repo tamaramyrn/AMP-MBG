@@ -3,7 +3,7 @@ import { Hono } from "hono"
 import auth from "../routes/auth"
 import { createTestApp, testRequest } from "./setup"
 import { db } from "../db"
-import { users, passwordResetTokens, emailVerificationTokens } from "../db/schema"
+import { publics, passwordResetTokens, admins } from "../db/schema"
 import { eq } from "drizzle-orm"
 import { randomBytes } from "crypto"
 
@@ -21,7 +21,7 @@ describe("Auth Flow - Complete Signup and Login", () => {
   afterAll(async () => {
     // Cleanup test user
     if (userId) {
-      await db.delete(users).where(eq(users.id, userId))
+      await db.delete(publics).where(eq(publics.id, userId))
     }
   })
 
@@ -148,20 +148,19 @@ describe("Auth Flow - Password Reset", () => {
 
   beforeAll(async () => {
     // Create test user for password reset
-    const [user] = await db.insert(users).values({
+    const [user] = await db.insert(publics).values({
       email: resetTestEmail,
       password: "$argon2id$v=19$m=65536,t=2,p=1$test$test", // Dummy hash
       name: "Reset Test User",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
     }).returning()
     testUserId = user.id
   })
 
   afterAll(async () => {
     if (testUserId) {
-      await db.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, testUserId))
-      await db.delete(users).where(eq(users.id, testUserId))
+      await db.delete(passwordResetTokens).where(eq(passwordResetTokens.publicId, testUserId))
+      await db.delete(publics).where(eq(publics.id, testUserId))
     }
   })
 
@@ -211,187 +210,88 @@ describe("Auth Flow - Password Reset", () => {
   })
 })
 
-describe("Auth Flow - Email Verification", () => {
-  let verifyToken: string
-  let testUserId: string
-  let userToken: string
-  const verifyTestEmail = `verify-${randomBytes(4).toString("hex")}@example.com`
-
-  beforeAll(async () => {
-    // Create unverified test user
-    const [user] = await db.insert(users).values({
-      email: verifyTestEmail,
-      password: "$argon2id$v=19$m=65536,t=2,p=1$test$test",
-      name: "Verify Test User",
-      phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
-      isVerified: false,
-    }).returning()
-    testUserId = user.id
-
-    // Create verification token
-    verifyToken = randomBytes(32).toString("hex")
-    await db.insert(emailVerificationTokens).values({
-      userId: user.id,
-      token: verifyToken,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    })
-
-    // Generate auth token
-    const { signToken } = await import("../lib/jwt")
-    userToken = await signToken({ sub: user.id, email: verifyTestEmail, role: "public" })
-  })
-
-  afterAll(async () => {
-    if (testUserId) {
-      await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.userId, testUserId))
-      await db.delete(users).where(eq(users.id, testUserId))
-    }
-  })
-
-  test("POST /api/auth/verify-email verifies email", async () => {
-    const res = await testRequest(app, "POST", "/api/auth/verify-email", {
-      body: { token: verifyToken },
-    })
-    expect(res.status).toBe(200)
-  })
-
-  test("POST /api/auth/verify-email fails with used token", async () => {
-    const res = await testRequest(app, "POST", "/api/auth/verify-email", {
-      body: { token: verifyToken },
-    })
-    expect(res.status).toBe(400)
-  })
-
-  test("POST /api/auth/resend-verification for verified user fails", async () => {
-    const res = await testRequest(app, "POST", "/api/auth/resend-verification", {
-      token: userToken,
-    })
-    expect(res.status).toBe(400)
-    const json = await res.json()
-    expect(json.error).toContain("terverifikasi")
-  })
-})
-
 describe("Auth Flow - Login Restrictions", () => {
-  let inactiveUserId: string
-  let memberUserId: string
-  const inactiveEmail = `inactive-${randomBytes(4).toString("hex")}@example.com`
-  const memberEmail = `member-${randomBytes(4).toString("hex")}@example.com`
+  let googleUserId: string
+  const googleOnlyEmail = `googleonly-${randomBytes(4).toString("hex")}@example.com`
 
   beforeAll(async () => {
-    const { hashPassword } = await import("../lib/password")
-    const hashedPassword = await hashPassword("Test1234")
-
-    // Create inactive user
-    const [inactiveUser] = await db.insert(users).values({
-      email: inactiveEmail,
-      password: hashedPassword,
-      name: "Inactive User",
-      phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
-      isActive: false,
-    }).returning()
-    inactiveUserId = inactiveUser.id
-
-    // Create member without password
-    const [memberUser] = await db.insert(users).values({
-      email: memberEmail,
+    // Create user without password (Google-only user)
+    const [googleUser] = await db.insert(publics).values({
+      email: googleOnlyEmail,
       password: null,
-      name: "Member User",
+      name: "Google Only User",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "member",
+      signupMethod: "google",
+      googleId: `google-${randomBytes(8).toString("hex")}`,
+      googleEmail: googleOnlyEmail,
     }).returning()
-    memberUserId = memberUser.id
+    googleUserId = googleUser.id
   })
 
   afterAll(async () => {
-    if (inactiveUserId) await db.delete(users).where(eq(users.id, inactiveUserId))
-    if (memberUserId) await db.delete(users).where(eq(users.id, memberUserId))
+    if (googleUserId) await db.delete(publics).where(eq(publics.id, googleUserId))
   })
 
-  test("POST /api/auth/login fails for inactive user", async () => {
+  test("POST /api/auth/login fails for Google-only user without password", async () => {
     const res = await testRequest(app, "POST", "/api/auth/login", {
-      body: { identifier: inactiveEmail, password: "Test1234" },
+      body: { identifier: googleOnlyEmail, password: "Test1234" },
     })
     expect(res.status).toBe(403)
     const json = await res.json()
-    expect(json.error).toContain("dinonaktifkan")
-  })
-
-  test("POST /api/auth/login fails for member without password", async () => {
-    const res = await testRequest(app, "POST", "/api/auth/login", {
-      body: { identifier: memberEmail, password: "Test1234" },
-    })
-    expect(res.status).toBe(403)
-    const json = await res.json()
-    expect(json.error).toContain("tidak dapat melakukan login")
+    expect(json.error).toContain("Google")
   })
 })
 
-describe("Auth Flow - App Type Restrictions", () => {
-  let publicUserId: string
-  let adminUserId: string
-  const publicEmail = `public-${randomBytes(4).toString("hex")}@example.com`
-  const adminEmail = `admin-${randomBytes(4).toString("hex")}@example.com`
+describe("Auth Flow - Admin Login", () => {
+  let adminId: string
+  let adminToken: string
+  const adminEmail = `admin-test-${randomBytes(4).toString("hex")}@example.com`
 
   beforeAll(async () => {
     const { hashPassword } = await import("../lib/password")
-    const hashedPassword = await hashPassword("Test1234")
+    const hashedPassword = await hashPassword("Admin1234")
 
-    const [publicUser] = await db.insert(users).values({
-      email: publicEmail,
-      password: hashedPassword,
-      name: "Public Test",
-      phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
-    }).returning()
-    publicUserId = publicUser.id
-
-    const [adminUser] = await db.insert(users).values({
+    const [admin] = await db.insert(admins).values({
       email: adminEmail,
       password: hashedPassword,
-      name: "Admin Test",
-      phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "admin",
+      name: "Test Admin",
+      adminRole: "validator",
     }).returning()
-    adminUserId = adminUser.id
+    adminId = admin.id
   })
 
   afterAll(async () => {
-    if (publicUserId) await db.delete(users).where(eq(users.id, publicUserId))
-    if (adminUserId) await db.delete(users).where(eq(users.id, adminUserId))
+    if (adminId) await db.delete(admins).where(eq(admins.id, adminId))
   })
 
-  test("public user cannot login to admin app", async () => {
-    const res = await testRequest(app, "POST", "/api/auth/login", {
-      body: { identifier: publicEmail, password: "Test1234", appType: "admin" },
-    })
-    expect(res.status).toBe(403)
-    const json = await res.json()
-    expect(json.error).toContain("dashboard admin")
-  })
-
-  test("admin user cannot login to public app", async () => {
-    const res = await testRequest(app, "POST", "/api/auth/login", {
-      body: { identifier: adminEmail, password: "Test1234", appType: "public" },
-    })
-    expect(res.status).toBe(403)
-    const json = await res.json()
-    expect(json.error).toContain("aplikasi publik")
-  })
-
-  test("public user can login to public app", async () => {
-    const res = await testRequest(app, "POST", "/api/auth/login", {
-      body: { identifier: publicEmail, password: "Test1234", appType: "public" },
+  test("POST /api/auth/admin/login succeeds with correct credentials", async () => {
+    const res = await testRequest(app, "POST", "/api/auth/admin/login", {
+      body: { email: adminEmail, password: "Admin1234" },
     })
     expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.admin).toBeDefined()
+    expect(json.admin.email).toBe(adminEmail)
+    expect(json.token).toBeDefined()
+    adminToken = json.token
   })
 
-  test("admin user can login to admin app", async () => {
-    const res = await testRequest(app, "POST", "/api/auth/login", {
-      body: { identifier: adminEmail, password: "Test1234", appType: "admin" },
+  test("POST /api/auth/admin/login fails with wrong password", async () => {
+    const res = await testRequest(app, "POST", "/api/auth/admin/login", {
+      body: { email: adminEmail, password: "WrongPass1" },
     })
+    expect(res.status).toBe(401)
+  })
+
+  test("GET /api/auth/admin/me returns admin data", async () => {
+    const res = await testRequest(app, "GET", "/api/auth/admin/me", { token: adminToken })
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.admin.email).toBe(adminEmail)
+  })
+
+  test("POST /api/auth/admin/logout succeeds", async () => {
+    const res = await testRequest(app, "POST", "/api/auth/admin/logout", { token: adminToken })
     expect(res.status).toBe(200)
   })
 })
@@ -405,21 +305,20 @@ describe("Auth Flow - Member Application", () => {
     const { hashPassword } = await import("../lib/password")
     const hashedPassword = await hashPassword("Test1234")
 
-    const [user] = await db.insert(users).values({
+    const [user] = await db.insert(publics).values({
       email: applyEmail,
       password: hashedPassword,
       name: "Apply Test",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
     }).returning()
     publicUserId = user.id
 
     const { signToken } = await import("../lib/jwt")
-    publicToken = await signToken({ sub: user.id, email: applyEmail, role: "public" })
+    publicToken = await signToken({ sub: user.id, email: applyEmail, type: "user" })
   })
 
   afterAll(async () => {
-    if (publicUserId) await db.delete(users).where(eq(users.id, publicUserId))
+    if (publicUserId) await db.delete(publics).where(eq(publics.id, publicUserId))
   })
 
   test("POST /api/auth/apply-member succeeds for public user", async () => {

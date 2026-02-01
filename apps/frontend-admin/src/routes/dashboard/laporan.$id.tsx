@@ -548,7 +548,7 @@ function LaporanDetail() {
                         Log Aktivitas
                     </h4>
                     <div className="relative pl-2 border-l-2 border-general-30 space-y-6 my-2">
-                        {history.map((h: any, idx: number) => (
+                        {history.map((h: any) => (
                         <div key={h.id} className="relative pl-4">
                             <div className="absolute -left-[13px] top-1.5 w-2.5 h-2.5 rounded-full bg-general-40 border-2 border-general-20" />
                             <p className="text-xs text-general-50 mb-0.5">{formatDateTime(h.createdAt)}</p>

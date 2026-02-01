@@ -39,15 +39,13 @@ const MEMBER_TYPE_OPTIONS = [
 ]
 
 const STATUS_OPTIONS = [
-  { value: "active", label: "Aktif" },
+  { value: "verified", label: "Terverifikasi" },
   { value: "pending", label: "Pending" },
-  { value: "rejected", label: "Ditolak" },
 ]
 
-const getStatusInfo = (isVerified: boolean, isActive: boolean) => {
-  if (!isActive) return { key: "rejected", label: "Ditolak", style: "bg-red-20 text-red-100 border-red-30" }
+const getStatusInfo = (isVerified: boolean) => {
   if (!isVerified) return { key: "pending", label: "Pending", style: "bg-orange-20 text-orange-100 border-orange-30" }
-  return { key: "active", label: "Aktif", style: "bg-green-20 text-green-100 border-green-30" }
+  return { key: "verified", label: "Terverifikasi", style: "bg-green-20 text-green-100 border-green-30" }
 }
 
 const getMemberTypeLabel = (type: string | null) => {
@@ -68,7 +66,7 @@ function AkunAnggotaPage() {
 
   const { data: membersData, isLoading } = useQuery({
     queryKey: ["admin", "members"],
-    queryFn: () => memberService.getMembers("all"),
+    queryFn: () => memberService.getMembers({ status: "all" }),
   })
 
   const deleteMutation = useMutation({
@@ -97,7 +95,7 @@ function AkunAnggotaPage() {
       
       const matchRole = !filterRole || m.memberType === filterRole
       
-      const statusInfo = getStatusInfo(m.isVerified, m.isActive)
+      const statusInfo = getStatusInfo(m.isVerified)
       const matchStatus = !filterStatus || statusInfo.key === filterStatus
       
       return matchSearch && matchRole && matchStatus
@@ -227,7 +225,7 @@ function AkunAnggotaPage() {
                 </thead>
                 <tbody>
                   {members.map((member, idx) => {
-                    const statusInfo = getStatusInfo(member.isVerified, member.isActive)
+                    const statusInfo = getStatusInfo(member.isVerified)
                     const orgName = member.organizationInfo?.name || member.name
                     const orgEmail = member.organizationInfo?.email || member.email
                     const orgPhone = member.organizationInfo?.phone || member.phone
@@ -344,12 +342,12 @@ function MemberDetailModal({
   onStatusUpdate: () => void
 }) {
   const [newStatus, setNewStatus] = useState<string>(
-    !member.isActive ? "rejected" : !member.isVerified ? "pending" : "active"
+    member.isVerified ? "verified" : "pending"
   )
   const [showSuccess, setShowSuccess] = useState(false)
 
   const statusMutation = useMutation({
-    mutationFn: (data: { isVerified?: boolean; isActive?: boolean }) =>
+    mutationFn: (data: { isVerified?: boolean }) =>
       memberService.updateMemberStatus(member.id, data),
     onSuccess: () => {
       setShowSuccess(true)
@@ -361,17 +359,15 @@ function MemberDetailModal({
   })
 
   const handleSaveStatus = () => {
-    if (newStatus === "active") {
-      statusMutation.mutate({ isVerified: true, isActive: true })
-    } else if (newStatus === "pending") {
-      statusMutation.mutate({ isVerified: false, isActive: true })
-    } else if (newStatus === "rejected") {
-      statusMutation.mutate({ isVerified: false, isActive: false })
+    if (newStatus === "verified") {
+      statusMutation.mutate({ isVerified: true })
+    } else {
+      statusMutation.mutate({ isVerified: false })
     }
   }
 
   const orgInfo = member.organizationInfo
-  const currentStatus = !member.isActive ? "rejected" : !member.isVerified ? "pending" : "active"
+  const currentStatus = member.isVerified ? "verified" : "pending"
   const hasChanges = newStatus !== currentStatus
 
   if (showSuccess) {
@@ -514,9 +510,8 @@ function MemberDetailModal({
                   onChange={(e) => setNewStatus(e.target.value)}
                   className="w-full px-4 py-3 bg-general-20 border border-general-30 rounded-lg appearance-none cursor-pointer pr-10 body-sm focus:outline-none focus:ring-2 focus:ring-blue-100/20 focus:border-blue-100 text-general-100"
                 >
-                  <option value="active">Aktif (Terverifikasi)</option>
-                  <option value="pending">Pending (Menunggu Verifikasi)</option>
-                  <option value="rejected">Ditolak</option>
+                  <option value="verified">Terverifikasi</option>
+                  <option value="pending">Menunggu Verifikasi</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-general-60 pointer-events-none" />
               </div>

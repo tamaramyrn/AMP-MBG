@@ -42,6 +42,10 @@ export const profileService = {
     return api.put("/profile/password", data)
   },
 
+  async createPassword(data: { newPassword: string; confirmPassword: string }): Promise<{ message: string }> {
+    return api.post("/profile/password", data)
+  },
+
   async getReports(query: ProfileReportsQuery = {}): Promise<PaginatedResponse<Report>> {
     return api.get(`/profile/reports${buildQueryString(query)}`)
   },

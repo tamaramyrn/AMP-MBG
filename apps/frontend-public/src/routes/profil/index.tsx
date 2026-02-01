@@ -15,15 +15,17 @@ export const Route = createFileRoute("/profil/")({
 function ProfilPage() {
   const navigate = useNavigate()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
-  const [isPublicUser, setIsPublicUser] = useState(false)
+  const [canApplyMember, setCanApplyMember] = useState(false)
 
   useEffect(() => {
     const user = authService.getCurrentUser()
-    setIsPublicUser(user?.role === "public")
+    // Show member banner if user is not already a member
+    setCanApplyMember(!!user && !user.isMember)
   }, [])
 
   const confirmLogout = () => {
-    localStorage.removeItem("currentUser")
+    localStorage.removeItem("public_currentUser")
+    localStorage.removeItem("public_token")
     window.dispatchEvent(new Event("user-login"))
     setShowLogoutConfirm(false)
     navigate({ to: "/" })
@@ -65,7 +67,7 @@ function ProfilPage() {
               </div>
 
               {/* 2. Banner Anggota (Hanya Public User) */}
-              {isPublicUser && (
+              {canApplyMember && (
                 <div className="w-full bg-blue-20/50 border border-blue-30 rounded-2xl p-6 md:p-8 relative overflow-hidden shadow-sm">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/5 rounded-full blur-2xl -mr-10 -mt-10" />
                   

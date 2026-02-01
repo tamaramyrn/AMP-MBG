@@ -24,7 +24,7 @@ function NavbarComponent() {
 
   // --- 1. FUNGSI CEK LOGIN USER ---
   const checkUser = useCallback(() => {
-    const userStr = localStorage.getItem("currentUser")
+    const userStr = localStorage.getItem("public_currentUser")
     setCurrentUser(userStr ? JSON.parse(userStr) : null)
   }, [])
 
@@ -58,10 +58,11 @@ function NavbarComponent() {
   }, [])
 
   const confirmLogout = useCallback(() => {
-    localStorage.removeItem("currentUser") 
-    setCurrentUser(null) 
-    setShowLogoutConfirm(false) 
-    navigate({ to: "/" }) 
+    localStorage.removeItem("public_currentUser")
+    localStorage.removeItem("public_token")
+    setCurrentUser(null)
+    setShowLogoutConfirm(false)
+    navigate({ to: "/" })
   }, [navigate])
 
   const cancelLogout = useCallback(() => setShowLogoutConfirm(false), [])

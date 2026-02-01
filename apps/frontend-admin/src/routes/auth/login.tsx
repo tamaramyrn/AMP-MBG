@@ -35,15 +35,7 @@ function AdminLoginPage() {
     setIsLoading(true)
 
     try {
-      const response = await authService.login({ identifier, password })
-      
-      // --- LOGIKA KHUSUS ADMIN ---
-      if (response.user.role !== "admin") {
-        setError("Akses ditolak. Hanya admin yang dapat masuk.")
-        authService.logout() // Logout paksa jika bukan admin
-        return
-      }
-      
+      await authService.login({ email: identifier, password })
       navigate({ to: "/dashboard" })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login gagal")
@@ -141,16 +133,6 @@ function AdminLoginPage() {
           {isLoading ? "Memproses..." : "Masuk Dashboard"}
         </button>
       </form>
-
-      {/* Footer (Layout disamakan, konten disesuaikan untuk Admin) */}
-      <div className="mt-8 pt-6 border-t border-general-30 text-center space-y-4">
-        <p className="body-sm text-general-60">
-          Mengalami kendala akses?{" "}
-          <span className="text-blue-100 font-bold cursor-help hover:text-orange-100 transition-colors duration-300">
-            Hubungi Super Admin
-          </span>
-        </p>
-      </div>
     </AuthLayout>
   )
 }

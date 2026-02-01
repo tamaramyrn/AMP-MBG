@@ -3,8 +3,8 @@ import { Hono } from "hono"
 import admin from "../routes/admin"
 import { createTestApp, testRequest } from "./setup"
 import { db } from "../db"
-import { users, reports, mbgSchedules, kitchenNeeds, kitchenNeedsRequests } from "../db/schema"
-import { eq, and } from "drizzle-orm"
+import { publics, admins, members, reports, mbgSchedules, kitchenNeeds, kitchenNeedsRequests } from "../db/schema"
+import { eq } from "drizzle-orm"
 import { randomBytes } from "crypto"
 import { signToken } from "../lib/jwt"
 import { hashPassword } from "../lib/password"
@@ -15,11 +15,11 @@ describe("Admin Flow - Dashboard", () => {
   let adminToken: string
 
   beforeAll(async () => {
-    const adminUser = await db.query.users.findFirst({
-      where: and(eq(users.role, "admin"), eq(users.email, "admin@ampmbg.id")),
+    const adminUser = await db.query.admins.findFirst({
+      where: eq(admins.email, "admin@ampmbg.id"),
     })
     if (adminUser) {
-      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, role: "admin" })
+      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, type: "admin" })
     }
   })
 
@@ -47,27 +47,26 @@ describe("Admin Flow - User Management", () => {
   let testUserId: string
 
   beforeAll(async () => {
-    const adminUser = await db.query.users.findFirst({
-      where: and(eq(users.role, "admin"), eq(users.email, "admin@ampmbg.id")),
+    const adminUser = await db.query.admins.findFirst({
+      where: eq(admins.email, "admin@ampmbg.id"),
     })
     if (adminUser) {
-      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, role: "admin" })
+      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, type: "admin" })
     }
 
     // Create test user for management
     const hashedPassword = await hashPassword("Test1234")
-    const [user] = await db.insert(users).values({
+    const [user] = await db.insert(publics).values({
       email: `admin-test-${randomBytes(4).toString("hex")}@example.com`,
       password: hashedPassword,
       name: "Admin Test User",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
     }).returning()
     testUserId = user.id
   })
 
   afterAll(async () => {
-    if (testUserId) await db.delete(users).where(eq(users.id, testUserId))
+    if (testUserId) await db.delete(publics).where(eq(publics.id, testUserId))
   })
 
   test("GET /api/admin/users returns paginated list", async () => {
@@ -79,15 +78,9 @@ describe("Admin Flow - User Management", () => {
     expect(json.pagination).toBeDefined()
   })
 
-  test("GET /api/admin/users with role filter", async () => {
+  test("GET /api/admin/users with signupMethod filter", async () => {
     if (!adminToken) return
-    const res = await testRequest(app, "GET", "/api/admin/users?role=public", { token: adminToken })
-    expect(res.status).toBe(200)
-  })
-
-  test("GET /api/admin/users with isActive filter", async () => {
-    if (!adminToken) return
-    const res = await testRequest(app, "GET", "/api/admin/users?isActive=true", { token: adminToken })
+    const res = await testRequest(app, "GET", "/api/admin/users?signupMethod=manual", { token: adminToken })
     expect(res.status).toBe(200)
   })
 
@@ -100,32 +93,20 @@ describe("Admin Flow - User Management", () => {
   test("GET /api/admin/users/:id returns user detail", async () => {
     if (!adminToken || !testUserId) return
     const res = await testRequest(app, "GET", `/api/admin/users/${testUserId}`, { token: adminToken })
-    // May return 200 or 500 due to drizzle relation complexity
     expect([200, 500]).toContain(res.status)
-  })
-
-  test("PATCH /api/admin/users/:id updates user status", async () => {
-    if (!adminToken || !testUserId) return
-    const res = await testRequest(app, "PATCH", `/api/admin/users/${testUserId}`, {
-      token: adminToken,
-      body: { isActive: false },
-    })
-    expect(res.status).toBe(200)
   })
 })
 
 describe("Admin Flow - Report Management", () => {
   let adminToken: string
-  let adminUserId: string
   let testReportId: string
 
   beforeAll(async () => {
-    const adminUser = await db.query.users.findFirst({
-      where: and(eq(users.role, "admin"), eq(users.email, "admin@ampmbg.id")),
+    const adminUser = await db.query.admins.findFirst({
+      where: eq(admins.email, "admin@ampmbg.id"),
     })
     if (adminUser) {
-      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, role: "admin" })
-      adminUserId = adminUser.id
+      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, type: "admin" })
     }
 
     const report = await db.query.reports.findFirst()
@@ -182,11 +163,11 @@ describe("Admin Flow - MBG Schedule Management", () => {
   let scheduleId: string
 
   beforeAll(async () => {
-    const adminUser = await db.query.users.findFirst({
-      where: and(eq(users.role, "admin"), eq(users.email, "admin@ampmbg.id")),
+    const adminUser = await db.query.admins.findFirst({
+      where: eq(admins.email, "admin@ampmbg.id"),
     })
     if (adminUser) {
-      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, role: "admin" })
+      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, type: "admin" })
     }
   })
 
@@ -241,31 +222,41 @@ describe("Admin Flow - MBG Schedule Management", () => {
 
 describe("Admin Flow - Member Management", () => {
   let adminToken: string
+  let adminId: string
   let memberId: string
+  let memberUserId: string
 
   beforeAll(async () => {
-    const adminUser = await db.query.users.findFirst({
-      where: and(eq(users.role, "admin"), eq(users.email, "admin@ampmbg.id")),
+    const adminUser = await db.query.admins.findFirst({
+      where: eq(admins.email, "admin@ampmbg.id"),
     })
     if (adminUser) {
-      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, role: "admin" })
+      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, type: "admin" })
+      adminId = adminUser.id
     }
 
-    // Create test member
-    const [member] = await db.insert(users).values({
+    // Create test user for member
+    const [user] = await db.insert(publics).values({
       email: `member-test-${randomBytes(4).toString("hex")}@example.com`,
-      name: "Test Member",
+      name: "Test Member User",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "member",
+    }).returning()
+    memberUserId = user.id
+
+    // Create member linked to user
+    const [member] = await db.insert(members).values({
+      publicId: user.id,
       memberType: "foundation",
       organizationName: "Test Foundation",
       isVerified: false,
+      appliedAt: new Date(),
     }).returning()
     memberId = member.id
   })
 
   afterAll(async () => {
-    if (memberId) await db.delete(users).where(eq(users.id, memberId))
+    if (memberId) await db.delete(members).where(eq(members.id, memberId)).catch(() => {})
+    if (memberUserId) await db.delete(publics).where(eq(publics.id, memberUserId)).catch(() => {})
   })
 
   test("GET /api/admin/members returns list", async () => {
@@ -278,7 +269,7 @@ describe("Admin Flow - Member Management", () => {
 
   test("GET /api/admin/members with filters", async () => {
     if (!adminToken) return
-    const res = await testRequest(app, "GET", "/api/admin/members?memberType=foundation&isVerified=false", { token: adminToken })
+    const res = await testRequest(app, "GET", "/api/admin/members?memberType=foundation&status=pending", { token: adminToken })
     expect(res.status).toBe(200)
   })
 
@@ -309,16 +300,16 @@ describe("Admin Flow - Admin Management", () => {
   let newAdminId: string
 
   beforeAll(async () => {
-    const adminUser = await db.query.users.findFirst({
-      where: and(eq(users.role, "admin"), eq(users.email, "admin@ampmbg.id")),
+    const adminUser = await db.query.admins.findFirst({
+      where: eq(admins.email, "admin@ampmbg.id"),
     })
     if (adminUser) {
-      superAdminToken = await signToken({ sub: adminUser.id, email: adminUser.email, role: "admin" })
+      superAdminToken = await signToken({ sub: adminUser.id, email: adminUser.email, type: "admin" })
     }
   })
 
   afterAll(async () => {
-    if (newAdminId) await db.delete(users).where(eq(users.id, newAdminId))
+    if (newAdminId) await db.delete(admins).where(eq(admins.id, newAdminId))
   })
 
   test("GET /api/admin/admins returns admin list", async () => {

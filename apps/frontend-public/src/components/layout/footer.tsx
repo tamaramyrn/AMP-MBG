@@ -1,20 +1,32 @@
-import { memo } from "react"
-import { Link } from "@tanstack/react-router"
+import { memo, useCallback } from "react"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { Phone, Mail } from "lucide-react"
 
 const LEFT_LINKS = [
-  { to: "/", label: "Beranda" },
-  { to: "/cara-kerja", label: "Cara Kerja" },
-  { to: "/lapor", label: "Lapor" },
+  { to: "/", label: "Beranda", protected: false },
+  { to: "/cara-kerja", label: "Cara Kerja", protected: false },
+  { to: "/lapor", label: "Lapor", protected: true },
 ] as const
 
 const RIGHT_LINKS = [
-  { to: "/kebutuhan-dapur", label: "Kebutuhan Dapur" }, // <-- DITAMBAHKAN DI SINI
-  { to: "/data-laporan", label: "Data Laporan" },
-  { to: "/tentang-kami", label: "Tentang Kami" },
+  { to: "/kebutuhan-dapur", label: "Kebutuhan Dapur", protected: false },
+  { to: "/data-laporan", label: "Data Laporan", protected: false },
+  { to: "/tentang-kami", label: "Tentang Kami", protected: false },
 ] as const
 
 function FooterComponent() {
+  const navigate = useNavigate()
+
+  const handleProtectedNavigation = useCallback((e: React.MouseEvent, _to: string, isProtected: boolean) => {
+    if (isProtected) {
+      const user = localStorage.getItem("public_currentUser")
+      if (!user) {
+        e.preventDefault()
+        navigate({ to: "/auth/login" })
+      }
+    }
+  }, [navigate])
+
   return (
     <footer className="bg-blue-100 text-general-20 border-t border-blue-90">
       {/* UPDATE: 
@@ -44,6 +56,7 @@ function FooterComponent() {
                 <Link
                   key={link.to}
                   to={link.to}
+                  onClick={(e) => handleProtectedNavigation(e, link.to, link.protected)}
                   className="body-sm text-blue-20 hover:text-general-20 hover:translate-x-1 transition-all block"
                 >
                   {link.label}
@@ -56,6 +69,7 @@ function FooterComponent() {
                 <Link
                   key={link.to}
                   to={link.to}
+                  onClick={(e) => handleProtectedNavigation(e, link.to, link.protected)}
                   className="body-sm text-blue-20 hover:text-general-20 hover:translate-x-1 transition-all block"
                 >
                   {link.label}

@@ -20,15 +20,6 @@ describe("Admin Routes", () => {
     })
   })
 
-  describe("PATCH /api/admin/users/:id", () => {
-    test("returns 401 without token", async () => {
-      const res = await testRequest(app, "PATCH", "/api/admin/users/test-id", {
-        body: { isActive: false },
-      })
-      expect(res.status).toBe(401)
-    })
-  })
-
   describe("DELETE /api/admin/users/:id", () => {
     test("returns 401 without token", async () => {
       const res = await testRequest(app, "DELETE", "/api/admin/users/test-id")

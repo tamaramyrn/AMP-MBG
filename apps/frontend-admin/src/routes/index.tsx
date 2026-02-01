@@ -10,8 +10,8 @@ function IndexPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const user = authService.getCurrentUser()
-    if (user && user.role === "admin") {
+    const admin = authService.getCurrentUser()
+    if (admin) {
       navigate({ to: "/dashboard" })
     } else {
       navigate({ to: "/auth/login" })

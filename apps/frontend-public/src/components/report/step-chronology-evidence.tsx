@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo } from "react"
 import type React from "react"
 import type { ReportFormData } from "./report-form"
-import { Upload, X, ImageIcon, AlertCircle } from "lucide-react"
+import { Upload, X, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface StepChronologyEvidenceProps {

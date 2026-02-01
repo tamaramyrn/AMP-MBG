@@ -3,7 +3,7 @@ import { Hono } from "hono"
 import profile from "../routes/profile"
 import { createTestApp, testRequest } from "./setup"
 import { db } from "../db"
-import { users, reports, sessions } from "../db/schema"
+import { publics, reports, sessions } from "../db/schema"
 import { eq } from "drizzle-orm"
 import { randomBytes } from "crypto"
 import { signToken } from "../lib/jwt"
@@ -18,19 +18,18 @@ describe("Profile Flow - User Operations", () => {
 
   beforeAll(async () => {
     const hashedPassword = await hashPassword("Test1234")
-    const [user] = await db.insert(users).values({
+    const [user] = await db.insert(publics).values({
       email: `profile-${randomBytes(4).toString("hex")}@example.com`,
       password: hashedPassword,
       name: "Profile Test User",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
     }).returning()
     userId = user.id
-    userToken = await signToken({ sub: user.id, email: user.email, role: "public" })
+    userToken = await signToken({ sub: user.id, email: user.email, type: "user" })
 
     // Create a test report for this user
     const [report] = await db.insert(reports).values({
-      userId: user.id,
+      publicId: user.id,
       category: "poisoning",
       title: "Test Report for Profile",
       description: "Test description for profile testing purposes that is long enough",
@@ -46,7 +45,7 @@ describe("Profile Flow - User Operations", () => {
 
   afterAll(async () => {
     if (reportId) await db.delete(reports).where(eq(reports.id, reportId))
-    if (userId) await db.delete(users).where(eq(users.id, userId))
+    if (userId) await db.delete(publics).where(eq(publics.id, userId))
   })
 
   test("GET /api/profile returns user with stats", async () => {
@@ -114,20 +113,19 @@ describe("Profile Flow - Password Change", () => {
 
   beforeAll(async () => {
     const hashedPassword = await hashPassword("Test1234")
-    const [user] = await db.insert(users).values({
+    const [user] = await db.insert(publics).values({
       email: `password-${randomBytes(4).toString("hex")}@example.com`,
       password: hashedPassword,
       name: "Password Test User",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
     }).returning()
     userId = user.id
-    userToken = await signToken({ sub: user.id, email: user.email, role: "public" })
+    userToken = await signToken({ sub: user.id, email: user.email, type: "user" })
   })
 
   afterAll(async () => {
-    await db.delete(sessions).where(eq(sessions.userId, userId))
-    if (userId) await db.delete(users).where(eq(users.id, userId))
+    await db.delete(sessions).where(eq(sessions.publicId, userId))
+    if (userId) await db.delete(publics).where(eq(publics.id, userId))
   })
 
   test("PUT /api/profile/password changes password with correct current", async () => {
@@ -161,26 +159,26 @@ describe("Profile Flow - Account Deactivation", () => {
 
   beforeAll(async () => {
     const hashedPassword = await hashPassword("Test1234")
-    const [user] = await db.insert(users).values({
+    const [user] = await db.insert(publics).values({
       email: `deactivate-${randomBytes(4).toString("hex")}@example.com`,
       password: hashedPassword,
       name: "Deactivate Test User",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
     }).returning()
     userId = user.id
-    userToken = await signToken({ sub: user.id, email: user.email, role: "public" })
+    userToken = await signToken({ sub: user.id, email: user.email, type: "user" })
   })
 
   afterAll(async () => {
-    await db.delete(sessions).where(eq(sessions.userId, userId))
-    if (userId) await db.delete(users).where(eq(users.id, userId))
+    await db.delete(sessions).where(eq(sessions.publicId, userId)).catch(() => {})
+    if (userId) await db.delete(publics).where(eq(publics.id, userId)).catch(() => {})
   })
 
-  test("DELETE /api/profile deactivates account", async () => {
+  test("DELETE /api/profile deletes account", async () => {
     const res = await testRequest(app, "DELETE", "/api/profile", { token: userToken })
     expect(res.status).toBe(200)
     const json = await res.json()
-    expect(json.message).toContain("dinonaktifkan")
+    expect(json.message).toContain("dihapus")
+    userId = "" // Prevent afterAll from trying to delete
   })
 })

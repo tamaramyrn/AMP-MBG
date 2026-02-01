@@ -3,7 +3,7 @@ import { Hono } from "hono"
 import reports from "../routes/reports"
 import { createTestApp, testRequest, testData } from "./setup"
 import { db } from "../db"
-import { users, reports as reportsTable, reportFiles } from "../db/schema"
+import { publics, reports as reportsTable, reportFiles } from "../db/schema"
 import { eq } from "drizzle-orm"
 import { randomBytes } from "crypto"
 import { signToken } from "../lib/jwt"
@@ -18,15 +18,14 @@ describe("Reports Flow - Create Report", () => {
 
   beforeAll(async () => {
     const hashedPassword = await hashPassword("Test1234")
-    const [user] = await db.insert(users).values({
+    const [user] = await db.insert(publics).values({
       email: `report-${randomBytes(4).toString("hex")}@example.com`,
       password: hashedPassword,
       name: "Report Test User",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
     }).returning()
     userId = user.id
-    userToken = await signToken({ sub: user.id, email: user.email, role: "public" })
+    userToken = await signToken({ sub: user.id, email: user.email, type: "user" })
   })
 
   afterAll(async () => {
@@ -34,7 +33,7 @@ describe("Reports Flow - Create Report", () => {
       await db.delete(reportFiles).where(eq(reportFiles.reportId, reportId))
       await db.delete(reportsTable).where(eq(reportsTable.id, reportId))
     }
-    if (userId) await db.delete(users).where(eq(users.id, userId))
+    if (userId) await db.delete(publics).where(eq(publics.id, userId))
   })
 
   test("POST /api/reports creates report successfully", async () => {

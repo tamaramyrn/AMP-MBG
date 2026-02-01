@@ -119,7 +119,7 @@ function KitchenNeedsHistoryComponent() {
 
       {/* Mobile Layout (Cards Style - Modern & Responsive) */}
       <div className="md:hidden flex flex-col gap-4 p-4 bg-general-20/30">
-        {requests.map((req, index) => {
+        {requests.map((req) => {
           const statusStyle = getStatusStyle(req.status)
 
           return (

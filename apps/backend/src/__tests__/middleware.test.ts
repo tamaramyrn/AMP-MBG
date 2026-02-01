@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test"
 import { Hono } from "hono"
-import { authMiddleware, adminMiddleware, reporterMiddleware, optionalAuthMiddleware, requireRole } from "../middleware/auth"
+import { authMiddleware, adminMiddleware, reporterMiddleware, optionalAuthMiddleware } from "../middleware/auth"
 import { signToken } from "../lib/jwt"
 
 describe("Auth Middleware", () => {
@@ -32,8 +32,8 @@ describe("Auth Middleware", () => {
       expect(res.status).toBe(401)
     })
 
-    test("passes with valid token", async () => {
-      const token = await signToken({ sub: "user-123", email: "test@example.com", role: "public" })
+    test("passes with valid user token", async () => {
+      const token = await signToken({ sub: "user-123", email: "test@example.com", type: "user" })
       const res = await app.fetch(
         new Request("http://localhost/protected", {
           headers: { Authorization: `Bearer ${token}` },
@@ -43,7 +43,17 @@ describe("Auth Middleware", () => {
       const json = await res.json()
       expect(json.user.id).toBe("user-123")
       expect(json.user.email).toBe("test@example.com")
-      expect(json.user.role).toBe("public")
+      expect(json.user.type).toBe("user")
+    })
+
+    test("returns 401 with admin token on user middleware", async () => {
+      const token = await signToken({ sub: "admin-123", email: "admin@example.com", type: "admin" })
+      const res = await app.fetch(
+        new Request("http://localhost/protected", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      )
+      expect(res.status).toBe(401)
     })
   })
 
@@ -63,7 +73,7 @@ describe("Auth Middleware", () => {
     })
 
     test("sets user with valid token", async () => {
-      const token = await signToken({ sub: "user-123", email: "test@example.com", role: "public" })
+      const token = await signToken({ sub: "user-123", email: "test@example.com", type: "user" })
       const res = await app.fetch(
         new Request("http://localhost/optional", {
           headers: { Authorization: `Bearer ${token}` },
@@ -89,7 +99,7 @@ describe("Auth Middleware", () => {
   describe("adminMiddleware", () => {
     const app = new Hono()
     app.use("/admin", adminMiddleware)
-    app.get("/admin", (c) => c.json({ user: c.get("user") }))
+    app.get("/admin", (c) => c.json({ admin: c.get("admin") }))
 
     test("returns 401 without token", async () => {
       const res = await app.fetch(new Request("http://localhost/admin"))
@@ -105,8 +115,8 @@ describe("Auth Middleware", () => {
       expect(res.status).toBe(401)
     })
 
-    test("returns 403 for non-admin user", async () => {
-      const token = await signToken({ sub: "user-123", email: "test@example.com", role: "public" })
+    test("returns 403 for user token on admin endpoint", async () => {
+      const token = await signToken({ sub: "user-123", email: "test@example.com", type: "user" })
       const res = await app.fetch(
         new Request("http://localhost/admin", {
           headers: { Authorization: `Bearer ${token}` },
@@ -115,8 +125,8 @@ describe("Auth Middleware", () => {
       expect(res.status).toBe(403)
     })
 
-    test("passes for admin user", async () => {
-      const token = await signToken({ sub: "admin-123", email: "admin@example.com", role: "admin" })
+    test("passes for admin token", async () => {
+      const token = await signToken({ sub: "admin-123", email: "admin@example.com", type: "admin" })
       const res = await app.fetch(
         new Request("http://localhost/admin", {
           headers: { Authorization: `Bearer ${token}` },
@@ -124,7 +134,7 @@ describe("Auth Middleware", () => {
       )
       expect(res.status).toBe(200)
       const json = await res.json()
-      expect(json.user.role).toBe("admin")
+      expect(json.admin.type).toBe("admin")
     })
   })
 
@@ -151,7 +161,7 @@ describe("Auth Middleware", () => {
     })
 
     test("returns 403 for admin trying to submit report", async () => {
-      const token = await signToken({ sub: "admin-123", email: "admin@example.com", role: "admin" })
+      const token = await signToken({ sub: "admin-123", email: "admin@example.com", type: "admin" })
       const res = await app.fetch(
         new Request("http://localhost/report", {
           method: "POST",
@@ -163,8 +173,8 @@ describe("Auth Middleware", () => {
       expect(json.error).toContain("Admin tidak dapat")
     })
 
-    test("passes for public user", async () => {
-      const token = await signToken({ sub: "user-123", email: "user@example.com", role: "public" })
+    test("passes for user token", async () => {
+      const token = await signToken({ sub: "user-123", email: "user@example.com", type: "user" })
       const res = await app.fetch(
         new Request("http://localhost/report", {
           method: "POST",
@@ -173,70 +183,7 @@ describe("Auth Middleware", () => {
       )
       expect(res.status).toBe(200)
       const json = await res.json()
-      expect(json.user.role).toBe("public")
-    })
-
-    test("passes for member user", async () => {
-      const token = await signToken({ sub: "member-123", email: "member@example.com", role: "member" })
-      const res = await app.fetch(
-        new Request("http://localhost/report", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        })
-      )
-      expect(res.status).toBe(200)
-      const json = await res.json()
-      expect(json.user.role).toBe("member")
-    })
-  })
-
-  describe("requireRole", () => {
-    const app = new Hono()
-    app.use("/admin-or-member", requireRole("admin", "member"))
-    app.get("/admin-or-member", (c) => c.json({ user: c.get("user") }))
-
-    test("returns 401 without token", async () => {
-      const res = await app.fetch(new Request("http://localhost/admin-or-member"))
-      expect(res.status).toBe(401)
-    })
-
-    test("returns 401 with invalid token", async () => {
-      const res = await app.fetch(
-        new Request("http://localhost/admin-or-member", {
-          headers: { Authorization: "Bearer invalid" },
-        })
-      )
-      expect(res.status).toBe(401)
-    })
-
-    test("returns 403 for user without required role", async () => {
-      const token = await signToken({ sub: "user-123", email: "user@example.com", role: "public" })
-      const res = await app.fetch(
-        new Request("http://localhost/admin-or-member", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-      )
-      expect(res.status).toBe(403)
-    })
-
-    test("passes for admin role", async () => {
-      const token = await signToken({ sub: "admin-123", email: "admin@example.com", role: "admin" })
-      const res = await app.fetch(
-        new Request("http://localhost/admin-or-member", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-      )
-      expect(res.status).toBe(200)
-    })
-
-    test("passes for member role", async () => {
-      const token = await signToken({ sub: "member-123", email: "member@example.com", role: "member" })
-      const res = await app.fetch(
-        new Request("http://localhost/admin-or-member", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-      )
-      expect(res.status).toBe(200)
+      expect(json.user.type).toBe("user")
     })
   })
 })

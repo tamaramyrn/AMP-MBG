@@ -1,31 +1,25 @@
 import { useState, useEffect, useCallback } from "react"
-import { authService, type User } from "@/services/auth"
+import { authService, type Admin } from "@/services/auth"
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(authService.getCurrentUser())
+  const [admin, setAdmin] = useState<Admin | null>(authService.getCurrentUser())
   const [isLoading, setIsLoading] = useState(true)
 
   const checkAuth = useCallback(async () => {
     if (!authService.isLoggedIn()) {
-      setUser(null)
+      setAdmin(null)
       setIsLoading(false)
       return
     }
 
     try {
       const response = await authService.getMe()
-      // Admin dashboard only allows admin role
-      if (response.user.role !== "admin") {
-        await authService.logout()
-        setUser(null)
-        return
-      }
-      setUser(response.user)
-      localStorage.setItem("currentUser", JSON.stringify(response.user))
+      setAdmin(response.admin)
+      localStorage.setItem("admin_currentUser", JSON.stringify(response.admin))
     } catch {
-      setUser(null)
-      localStorage.removeItem("currentUser")
-      localStorage.removeItem("token")
+      setAdmin(null)
+      localStorage.removeItem("admin_currentUser")
+      localStorage.removeItem("admin_token")
     } finally {
       setIsLoading(false)
     }
@@ -37,7 +31,7 @@ export function useAuth() {
 
   useEffect(() => {
     const handleLoginEvent = () => {
-      setUser(authService.getCurrentUser())
+      setAdmin(authService.getCurrentUser())
     }
     window.addEventListener("user-login", handleLoginEvent)
     return () => window.removeEventListener("user-login", handleLoginEvent)
@@ -45,14 +39,14 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     await authService.logout()
-    setUser(null)
+    setAdmin(null)
   }, [])
 
   return {
-    user,
+    admin,
     isLoading,
-    isLoggedIn: !!user,
-    isAdmin: user?.role === "admin",
+    isLoggedIn: !!admin,
+    isAdmin: !!admin,
     logout,
     refresh: checkAuth,
   }

@@ -5,32 +5,31 @@ import { eq, desc, sql, like, and, or, gte, lte, inArray } from "drizzle-orm"
 import { db, schema } from "../db"
 import { adminMiddleware } from "../middleware/auth"
 import { hashPassword } from "../lib/password"
-import type { AuthUser } from "../types"
+import type { AuthAdmin } from "../types"
 
-type Variables = { user: AuthUser }
+type Variables = { admin: AuthAdmin }
 
 const admin = new Hono<{ Variables: Variables }>()
 
 admin.use("*", adminMiddleware)
 
+// PUBLIC USERS management
 const userQuerySchema = z.object({
   page: z.string().optional().transform((val) => parseInt(val || "1")),
   limit: z.string().optional().transform((val) => parseInt(val || "10")),
-  role: z.enum(["admin", "public"]).optional(),
   search: z.string().optional(),
-  isActive: z.enum(["true", "false"]).optional().transform((val) => val === "true" ? true : val === "false" ? false : undefined),
+  signupMethod: z.enum(["manual", "google"]).optional(),
 })
 
 admin.get("/users", zValidator("query", userQuerySchema), async (c) => {
-  const { page, limit, role, search, isActive } = c.req.valid("query")
+  const { page, limit, search, signupMethod } = c.req.valid("query")
   const offset = (page - 1) * limit
 
   const conditions = []
-  if (role) conditions.push(eq(schema.users.role, role))
-  if (isActive !== undefined) conditions.push(eq(schema.users.isActive, isActive))
+  if (signupMethod) conditions.push(eq(schema.publics.signupMethod, signupMethod))
   if (search) {
     conditions.push(
-      or(like(schema.users.name, `%${search}%`), like(schema.users.email, `%${search}%`))
+      or(like(schema.publics.name, `%${search}%`), like(schema.publics.email, `%${search}%`))
     )
   }
 
@@ -38,25 +37,24 @@ admin.get("/users", zValidator("query", userQuerySchema), async (c) => {
 
   const [data, countResult] = await Promise.all([
     db.select({
-      id: schema.users.id,
-      name: schema.users.name,
-      email: schema.users.email,
-      phone: schema.users.phone,
-      role: schema.users.role,
-      isVerified: schema.users.isVerified,
-      isActive: schema.users.isActive,
-      reportCount: schema.users.reportCount,
-      verifiedReportCount: schema.users.verifiedReportCount,
-      lastLoginAt: schema.users.lastLoginAt,
-      createdAt: schema.users.createdAt,
-    }).from(schema.users).where(whereClause).limit(limit).offset(offset).orderBy(desc(schema.users.createdAt)),
-    db.select({ count: sql<number>`count(*)` }).from(schema.users).where(whereClause),
+      id: schema.publics.id,
+      name: schema.publics.name,
+      email: schema.publics.email,
+      phone: schema.publics.phone,
+      signupMethod: schema.publics.signupMethod,
+      googleId: schema.publics.googleId,
+      reportCount: schema.publics.reportCount,
+      verifiedReportCount: schema.publics.verifiedReportCount,
+      lastLoginAt: schema.publics.lastLoginAt,
+      createdAt: schema.publics.createdAt,
+    }).from(schema.publics).where(whereClause).limit(limit).offset(offset).orderBy(desc(schema.publics.createdAt)),
+    db.select({ count: sql<number>`count(*)` }).from(schema.publics).where(whereClause),
   ])
 
   const total = Number(countResult[0]?.count || 0)
 
   return c.json({
-    data,
+    data: data.map((u) => ({ ...u, isGoogleLinked: !!u.googleId })),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   })
 })
@@ -64,67 +62,44 @@ admin.get("/users", zValidator("query", userQuerySchema), async (c) => {
 admin.get("/users/:id", async (c) => {
   const id = c.req.param("id")
 
-  const user = await db.query.users.findFirst({
-    where: eq(schema.users.id, id),
+  const user = await db.query.publics.findFirst({
+    where: eq(schema.publics.id, id),
     columns: { password: false },
-    with: { reports: { limit: 10, orderBy: [desc(schema.reports.createdAt)] } },
+    with: {
+      reports: { limit: 10, orderBy: [desc(schema.reports.createdAt)] },
+      member: true,
+    },
   })
 
   if (!user) return c.json({ error: "User tidak ditemukan" }, 404)
 
-  return c.json({ data: user })
-})
-
-const updateUserSchema = z.object({
-  role: z.enum(["admin", "public"]).optional(),
-  isVerified: z.boolean().optional(),
-  isActive: z.boolean().optional(),
-})
-
-admin.patch("/users/:id", zValidator("json", updateUserSchema), async (c) => {
-  const id = c.req.param("id")
-  const data = c.req.valid("json")
-  const currentUser = c.get("user")
-
-  const user = await db.query.users.findFirst({ where: eq(schema.users.id, id) })
-  if (!user) return c.json({ error: "User tidak ditemukan" }, 404)
-
-  // Prevent demoting own role
-  if (data.role && currentUser.id === id && data.role !== user.role) {
-    return c.json({ error: "Tidak dapat mengubah role sendiri" }, 400)
-  }
-
-  const [updated] = await db.update(schema.users)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(schema.users.id, id))
-    .returning({ id: schema.users.id, role: schema.users.role, isVerified: schema.users.isVerified, isActive: schema.users.isActive })
-
-  return c.json({ data: updated, message: "User berhasil diperbarui" })
+  return c.json({
+    data: {
+      ...user,
+      hasPassword: !!user.password,
+      isGoogleLinked: !!user.googleId,
+      isMember: !!user.member,
+    }
+  })
 })
 
 admin.delete("/users/:id", async (c) => {
   const id = c.req.param("id")
-  const currentUser = c.get("user")
 
-  if (currentUser.id === id) return c.json({ error: "Tidak dapat menghapus akun sendiri" }, 400)
-
-  const user = await db.query.users.findFirst({ where: eq(schema.users.id, id) })
+  const user = await db.query.publics.findFirst({ where: eq(schema.publics.id, id) })
   if (!user) return c.json({ error: "User tidak ditemukan" }, 404)
 
-  await db.delete(schema.users).where(eq(schema.users.id, id))
+  await db.delete(schema.publics).where(eq(schema.publics.id, id))
 
   return c.json({ message: "User berhasil dihapus" })
 })
 
+// Dashboard
 admin.get("/dashboard", async (c) => {
-  // Optimized: Combine counts into single queries
-  const [userAggregates, reportAggregates, byStatus, byCategory, recentReports] = await Promise.all([
-    db.select({
-      total: sql<number>`count(*)`,
-      adminCount: sql<number>`count(*) filter (where ${schema.users.role} = 'admin')`,
-      memberCount: sql<number>`count(*) filter (where ${schema.users.role} = 'member')`,
-      publicCount: sql<number>`count(*) filter (where ${schema.users.role} = 'public')`,
-    }).from(schema.users),
+  const [adminCount, userCount, memberCount, reportAggregates, byStatus, byCategory, recentReports] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(schema.admins),
+    db.select({ count: sql<number>`count(*)` }).from(schema.publics),
+    db.select({ count: sql<number>`count(*)` }).from(schema.members),
     db.select({
       total: sql<number>`count(*)`,
       pending: sql<number>`count(*) filter (where ${schema.reports.status} = 'pending')`,
@@ -136,17 +111,17 @@ admin.get("/dashboard", async (c) => {
       columns: { id: true, title: true, category: true, status: true, createdAt: true },
       limit: 5,
       orderBy: [desc(schema.reports.createdAt)],
-      with: { province: true, city: true, user: { columns: { name: true } } },
+      with: { province: true, city: true, public: { columns: { name: true } } },
     }),
   ])
 
   return c.json({
     users: {
-      total: Number(userAggregates[0]?.total || 0),
+      total: Number(userCount[0]?.count || 0),
       byRole: [
-        { role: "admin", count: Number(userAggregates[0]?.adminCount || 0) },
-        { role: "member", count: Number(userAggregates[0]?.memberCount || 0) },
-        { role: "public", count: Number(userAggregates[0]?.publicCount || 0) },
+        { role: "admin", count: Number(adminCount[0]?.count || 0) },
+        { role: "member", count: Number(memberCount[0]?.count || 0) },
+        { role: "public", count: Number(userCount[0]?.count || 0) },
       ],
     },
     reports: {
@@ -163,13 +138,13 @@ admin.get("/dashboard", async (c) => {
       status: r.status,
       province: r.province?.name || "",
       city: r.city?.name || "",
-      reporter: r.user?.name || "Anonim",
+      reporter: r.public?.name || "Anonim",
       createdAt: r.createdAt,
     })),
   })
 })
 
-// Get report status history
+// Report status history
 admin.get("/reports/:id/history", async (c) => {
   const id = c.req.param("id")
 
@@ -179,7 +154,7 @@ admin.get("/reports/:id/history", async (c) => {
   const history = await db.query.reportStatusHistory.findMany({
     where: eq(schema.reportStatusHistory.reportId, id),
     orderBy: [desc(schema.reportStatusHistory.createdAt)],
-    with: { changedByUser: { columns: { name: true, email: true } } },
+    with: { changedByAdmin: { columns: { name: true, email: true } } },
   })
 
   return c.json({
@@ -188,13 +163,13 @@ admin.get("/reports/:id/history", async (c) => {
       fromStatus: h.fromStatus,
       toStatus: h.toStatus,
       notes: h.notes,
-      changedBy: h.changedByUser?.name || h.changedByUser?.email || "Unknown",
+      changedBy: h.changedByAdmin?.name || h.changedByAdmin?.email || "Unknown",
       createdAt: h.createdAt,
     })),
   })
 })
 
-// Get all reports with admin-specific data
+// Reports management
 const adminReportsQuerySchema = z.object({
   page: z.string().optional().transform((val) => parseInt(val || "1")),
   limit: z.string().optional().transform((val) => parseInt(val || "10")),
@@ -241,7 +216,7 @@ admin.get("/reports", zValidator("query", adminReportsQuerySchema), async (c) =>
       offset,
       orderBy: [desc(schema.reports.createdAt)],
       with: {
-        user: { columns: { name: true, email: true, phone: true } },
+        public: { columns: { name: true, email: true, phone: true } },
         province: true,
         city: true,
         district: true,
@@ -273,9 +248,9 @@ admin.get("/reports", zValidator("query", adminReportsQuerySchema), async (c) =>
       incidentDate: r.incidentDate,
       relation: r.relation,
       relationDetail: r.relationDetail,
-      reporter: r.user?.name || "Anonim",
-      reporterEmail: r.user?.email,
-      reporterPhone: r.user?.phone,
+      reporter: r.public?.name || "Anonim",
+      reporterEmail: r.public?.email,
+      reporterPhone: r.public?.phone,
       verifiedBy: r.verifier?.name,
       verifiedAt: r.verifiedAt,
       adminNotes: r.adminNotes,
@@ -286,14 +261,50 @@ admin.get("/reports", zValidator("query", adminReportsQuerySchema), async (c) =>
   })
 })
 
-// Get single report detail for admin
+// Export reports
+admin.get("/reports/export", zValidator("query", z.object({
+  format: z.enum(["csv", "json"]).default("json"),
+  status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+})), async (c) => {
+  const { format, status, startDate, endDate } = c.req.valid("query")
+
+  const conditions = []
+  if (status) conditions.push(eq(schema.reports.status, status))
+  if (startDate) conditions.push(gte(schema.reports.createdAt, new Date(startDate)))
+  if (endDate) conditions.push(lte(schema.reports.createdAt, new Date(endDate + "T23:59:59")))
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined
+
+  const data = await db.query.reports.findMany({
+    where: whereClause,
+    orderBy: [desc(schema.reports.createdAt)],
+    with: { province: true, city: true, district: true, public: { columns: { name: true } } },
+  })
+
+  if (format === "csv") {
+    const headers = "ID,Judul,Kategori,Status,Provinsi,Kota,Tanggal Kejadian,Skor,Kredibilitas,Dibuat\n"
+    const rows = data.map((r) =>
+      `"${r.id}","${r.title}","${r.category}","${r.status}","${r.province?.name || ""}","${r.city?.name || ""}","${r.incidentDate.toISOString()}","${r.totalScore}","${r.credibilityLevel}","${r.createdAt.toISOString()}"`
+    ).join("\n")
+
+    c.header("Content-Type", "text/csv")
+    c.header("Content-Disposition", "attachment; filename=reports.csv")
+    return c.body(headers + rows)
+  }
+
+  return c.json({ data })
+})
+
+// Single report detail
 admin.get("/reports/:id", async (c) => {
   const id = c.req.param("id")
 
   const report = await db.query.reports.findFirst({
     where: eq(schema.reports.id, id),
     with: {
-      user: { columns: { id: true, name: true, email: true, phone: true } },
+      public: { columns: { id: true, name: true, email: true, phone: true } },
       province: true,
       city: true,
       district: true,
@@ -301,7 +312,7 @@ admin.get("/reports/:id", async (c) => {
       files: true,
       statusHistory: {
         orderBy: [desc(schema.reportStatusHistory.createdAt)],
-        with: { changedByUser: { columns: { name: true, email: true } } },
+        with: { changedByAdmin: { columns: { name: true, email: true } } },
       },
     },
   })
@@ -315,10 +326,10 @@ admin.get("/reports/:id", async (c) => {
       city: report.city?.name || "",
       district: report.district?.name || "",
       reporter: {
-        id: report.user?.id,
-        name: report.user?.name || "Anonim",
-        email: report.user?.email,
-        phone: report.user?.phone,
+        id: report.public?.id,
+        name: report.public?.name || "Anonim",
+        email: report.public?.email,
+        phone: report.public?.phone,
       },
       verifier: report.verifier ? {
         name: report.verifier.name,
@@ -329,7 +340,7 @@ admin.get("/reports/:id", async (c) => {
         fromStatus: h.fromStatus,
         toStatus: h.toStatus,
         notes: h.notes,
-        changedBy: h.changedByUser?.name || h.changedByUser?.email || "Unknown",
+        changedBy: h.changedByAdmin?.name || h.changedByAdmin?.email || "Unknown",
         createdAt: h.createdAt,
       })),
     },
@@ -346,7 +357,7 @@ const updateReportStatusSchema = z.object({
 admin.patch("/reports/:id/status", zValidator("json", updateReportStatusSchema), async (c) => {
   const id = c.req.param("id")
   const { status, credibilityLevel, notes } = c.req.valid("json")
-  const user = c.get("user")
+  const currentAdmin = c.get("admin")
 
   const report = await db.query.reports.findFirst({ where: eq(schema.reports.id, id) })
   if (!report) return c.json({ error: "Laporan tidak ditemukan" }, 404)
@@ -357,9 +368,8 @@ admin.patch("/reports/:id/status", zValidator("json", updateReportStatusSchema),
   if (notes) updateData.adminNotes = notes
   if (credibilityLevel) updateData.credibilityLevel = credibilityLevel
 
-  // Set verifiedBy/At when first reviewed (moving from pending)
   if (previousStatus === "pending" && status !== "pending") {
-    updateData.verifiedBy = user.id
+    updateData.verifiedBy = currentAdmin.id
     updateData.verifiedAt = new Date()
   }
 
@@ -372,7 +382,7 @@ admin.patch("/reports/:id/status", zValidator("json", updateReportStatusSchema),
     reportId: id,
     fromStatus: previousStatus,
     toStatus: status,
-    changedBy: user.id,
+    changedBy: currentAdmin.id,
     notes: notes || null,
   }).catch(() => {})
 
@@ -388,9 +398,8 @@ const bulkUpdateSchema = z.object({
 
 admin.patch("/reports/bulk-status", zValidator("json", bulkUpdateSchema), async (c) => {
   const { reportIds, status, notes } = c.req.valid("json")
-  const user = c.get("user")
+  const currentAdmin = c.get("admin")
 
-  // Get current status for history
   const reports = await db.query.reports.findMany({
     where: inArray(schema.reports.id, reportIds),
   })
@@ -402,18 +411,16 @@ admin.patch("/reports/bulk-status", zValidator("json", bulkUpdateSchema), async 
   const updateData: Record<string, unknown> = { status, updatedAt: new Date() }
   if (notes) updateData.adminNotes = notes
 
-  // Set verifiedBy/At when reviewed (not pending anymore)
   if (status !== "pending") {
-    updateData.verifiedBy = user.id
+    updateData.verifiedBy = currentAdmin.id
     updateData.verifiedAt = new Date()
   }
 
-  // Parallel: Update reports and insert history
   const historyRecords = reports.map((r) => ({
     reportId: r.id,
     fromStatus: r.status,
     toStatus: status,
-    changedBy: user.id,
+    changedBy: currentAdmin.id,
     notes: notes || null,
   }))
 
@@ -442,7 +449,7 @@ admin.delete("/reports/:id", async (c) => {
   return c.json({ message: "Laporan berhasil dihapus" })
 })
 
-// Analytics endpoint
+// Analytics
 const analyticsQuerySchema = z.object({
   year: z.string().optional().transform((val) => val ? parseInt(val) : new Date().getFullYear()),
   month: z.string().optional().transform((val) => val ? parseInt(val) : 0),
@@ -451,7 +458,6 @@ const analyticsQuerySchema = z.object({
 admin.get("/analytics", zValidator("query", analyticsQuerySchema), async (c) => {
   const { year, month } = c.req.valid("query")
 
-  // Build trend query based on month filter
   const trendQuery = month > 0
     ? db.select({
         day: sql<number>`extract(day from ${schema.reports.createdAt})`,
@@ -489,8 +495,8 @@ admin.get("/analytics", zValidator("query", analyticsQuerySchema), async (c) => 
     }).from(schema.reports),
     db.select({
       total: sql<number>`count(*)`,
-      active: sql<number>`count(*) filter (where ${schema.users.isActive} = true)`,
-    }).from(schema.users),
+      withGoogle: sql<number>`count(*) filter (where ${schema.publics.googleId} is not null)`,
+    }).from(schema.publics),
     trendQuery,
     db.select({
       provinceId: schema.reports.provinceId,
@@ -521,7 +527,6 @@ admin.get("/analytics", zValidator("query", analyticsQuerySchema), async (c) => 
       .limit(5),
   ])
 
-  // Get location names
   const provinceIds = [...new Set([
     ...topProvinces.map((p) => p.provinceId),
     ...topCities.map((c) => c.provinceId),
@@ -548,12 +553,10 @@ admin.get("/analytics", zValidator("query", analyticsQuerySchema), async (c) => 
   const cityMap = new Map(cities.map((c) => [c.id, c.name]))
   const districtMap = new Map(districts.map((d) => [d.id, d.name]))
 
-  // Build trend data based on filter type
   const monthLabels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"]
 
   let formattedTrends: { label: string; count: number }[]
   if (month > 0) {
-    // Daily data for specific month
     const daysInMonth = new Date(year, month, 0).getDate()
     formattedTrends = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1
@@ -561,7 +564,6 @@ admin.get("/analytics", zValidator("query", analyticsQuerySchema), async (c) => 
       return { label: String(day), count: Number(found?.count || 0) }
     })
   } else {
-    // Monthly data for whole year
     formattedTrends = monthLabels.map((label, idx) => {
       const found = (trendData as Array<{ monthNum?: number; count: number }>).find((r) => Number(r.monthNum) === idx + 1)
       return { label, count: Number(found?.count || 0) }
@@ -603,7 +605,7 @@ admin.get("/analytics", zValidator("query", analyticsQuerySchema), async (c) => 
   })
 })
 
-// Sessions management
+// User sessions management
 admin.get("/sessions", zValidator("query", z.object({
   page: z.string().optional().transform((val) => parseInt(val || "1")),
   limit: z.string().optional().transform((val) => parseInt(val || "20")),
@@ -613,7 +615,7 @@ admin.get("/sessions", zValidator("query", z.object({
   const offset = (page - 1) * limit
 
   const conditions = []
-  if (userId) conditions.push(eq(schema.sessions.userId, userId))
+  if (userId) conditions.push(eq(schema.sessions.publicId, userId))
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
@@ -623,7 +625,7 @@ admin.get("/sessions", zValidator("query", z.object({
       limit,
       offset,
       orderBy: [desc(schema.sessions.createdAt)],
-      with: { user: { columns: { name: true, email: true } } },
+      with: { public: { columns: { name: true, email: true } } },
     }),
     db.select({ count: sql<number>`count(*)` }).from(schema.sessions).where(whereClause),
   ])
@@ -633,9 +635,9 @@ admin.get("/sessions", zValidator("query", z.object({
   return c.json({
     data: data.map((s) => ({
       id: s.id,
-      userId: s.userId,
-      userName: s.user?.name,
-      userEmail: s.user?.email,
+      userId: s.publicId,
+      userName: s.public?.name,
+      userEmail: s.public?.email,
       userAgent: s.userAgent,
       ipAddress: s.ipAddress,
       isRevoked: s.isRevoked,
@@ -650,12 +652,12 @@ admin.get("/sessions", zValidator("query", z.object({
 admin.post("/sessions/:userId/revoke-all", async (c) => {
   const userId = c.req.param("userId")
 
-  const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) })
+  const user = await db.query.publics.findFirst({ where: eq(schema.publics.id, userId) })
   if (!user) return c.json({ error: "User tidak ditemukan" }, 404)
 
   await db.update(schema.sessions)
     .set({ isRevoked: true })
-    .where(eq(schema.sessions.userId, userId))
+    .where(eq(schema.sessions.publicId, userId))
 
   return c.json({ message: "Semua sesi user berhasil dicabut" })
 })
@@ -779,43 +781,7 @@ admin.delete("/mbg-schedules/:id", async (c) => {
   return c.json({ message: "Jadwal MBG berhasil dihapus" })
 })
 
-// Export reports data for admin
-admin.get("/reports/export", zValidator("query", z.object({
-  format: z.enum(["csv", "json"]).default("json"),
-  status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-})), async (c) => {
-  const { format, status, startDate, endDate } = c.req.valid("query")
-
-  const conditions = []
-  if (status) conditions.push(eq(schema.reports.status, status))
-  if (startDate) conditions.push(gte(schema.reports.createdAt, new Date(startDate)))
-  if (endDate) conditions.push(lte(schema.reports.createdAt, new Date(endDate + "T23:59:59")))
-
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined
-
-  const data = await db.query.reports.findMany({
-    where: whereClause,
-    orderBy: [desc(schema.reports.createdAt)],
-    with: { province: true, city: true, district: true, user: { columns: { name: true } } },
-  })
-
-  if (format === "csv") {
-    const headers = "ID,Judul,Kategori,Status,Provinsi,Kota,Tanggal Kejadian,Skor,Kredibilitas,Dibuat\n"
-    const rows = data.map((r) =>
-      `"${r.id}","${r.title}","${r.category}","${r.status}","${r.province?.name || ""}","${r.city?.name || ""}","${r.incidentDate.toISOString()}","${r.totalScore}","${r.credibilityLevel}","${r.createdAt.toISOString()}"`
-    ).join("\n")
-
-    c.header("Content-Type", "text/csv")
-    c.header("Content-Disposition", "attachment; filename=reports.csv")
-    return c.body(headers + rows)
-  }
-
-  return c.json({ data })
-})
-
-// Credibility scoring breakdown
+// Report scoring breakdown
 admin.get("/reports/:id/scoring", async (c) => {
   const id = c.req.param("id")
 
@@ -839,28 +805,35 @@ admin.get("/reports/:id/scoring", async (c) => {
   })
 })
 
-// Admin accounts management
+// ADMIN ACCOUNTS management (from admins table)
 const adminQuerySchema = z.object({
-  status: z.enum(["verified", "pending", "all"]).optional().default("all"),
+  search: z.string().optional(),
+  isActive: z.enum(["true", "false"]).optional().transform((val) => val === "true" ? true : val === "false" ? false : undefined),
 })
 
 admin.get("/admins", zValidator("query", adminQuerySchema), async (c) => {
-  const { status } = c.req.valid("query")
+  const { search, isActive } = c.req.valid("query")
 
-  const conditions = [eq(schema.users.role, "admin")]
-  if (status === "verified") conditions.push(eq(schema.users.isVerified, true))
-  if (status === "pending") conditions.push(eq(schema.users.isVerified, false))
+  const conditions = []
+  if (isActive !== undefined) conditions.push(eq(schema.admins.isActive, isActive))
+  if (search) {
+    conditions.push(
+      or(like(schema.admins.name, `%${search}%`), like(schema.admins.email, `%${search}%`))
+    )
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
   const data = await db.select({
-    id: schema.users.id,
-    name: schema.users.name,
-    email: schema.users.email,
-    phone: schema.users.phone,
-    role: schema.users.role,
-    adminRole: schema.users.adminRole,
-    isVerified: schema.users.isVerified,
-    createdAt: schema.users.createdAt,
-  }).from(schema.users).where(and(...conditions)).orderBy(desc(schema.users.createdAt))
+    id: schema.admins.id,
+    name: schema.admins.name,
+    email: schema.admins.email,
+    phone: schema.admins.phone,
+    adminRole: schema.admins.adminRole,
+    isActive: schema.admins.isActive,
+    lastLoginAt: schema.admins.lastLoginAt,
+    createdAt: schema.admins.createdAt,
+  }).from(schema.admins).where(whereClause).orderBy(desc(schema.admins.createdAt))
 
   return c.json({ data })
 })
@@ -879,214 +852,291 @@ const createAdminSchema = z.object({
 admin.post("/admins", zValidator("json", createAdminSchema), async (c) => {
   const { name, email, password, adminRole } = c.req.valid("json")
 
-  const existing = await db.query.users.findFirst({ where: eq(schema.users.email, email) })
+  const existing = await db.query.admins.findFirst({ where: eq(schema.admins.email, email) })
   if (existing) return c.json({ error: "Email sudah terdaftar" }, 400)
 
   const hashedPassword = await hashPassword(password)
 
-  const [newAdmin] = await db.insert(schema.users).values({
+  const [newAdmin] = await db.insert(schema.admins).values({
     name,
     email,
     password: hashedPassword,
-    role: "admin",
     adminRole,
-    isVerified: true,
     isActive: true,
-  }).returning()
+  }).returning({ id: schema.admins.id, name: schema.admins.name, email: schema.admins.email, adminRole: schema.admins.adminRole })
 
   return c.json({ data: newAdmin, message: "Admin berhasil ditambahkan" }, 201)
 })
 
+admin.patch("/admins/:id", zValidator("json", z.object({
+  name: z.string().min(3).max(255).optional(),
+  adminRole: z.string().min(2).max(100).optional(),
+  isActive: z.boolean().optional(),
+})), async (c) => {
+  const id = c.req.param("id")
+  const data = c.req.valid("json")
+  const currentAdmin = c.get("admin")
+
+  const adminUser = await db.query.admins.findFirst({ where: eq(schema.admins.id, id) })
+  if (!adminUser) return c.json({ error: "Admin tidak ditemukan" }, 404)
+
+  // Prevent self-deactivation
+  if (data.isActive === false && currentAdmin.id === id) {
+    return c.json({ error: "Tidak dapat menonaktifkan akun sendiri" }, 400)
+  }
+
+  const [updated] = await db.update(schema.admins)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(schema.admins.id, id))
+    .returning({ id: schema.admins.id, name: schema.admins.name, adminRole: schema.admins.adminRole, isActive: schema.admins.isActive })
+
+  return c.json({ data: updated, message: "Admin berhasil diperbarui" })
+})
+
 admin.delete("/admins/:id", async (c) => {
   const id = c.req.param("id")
-  const currentUser = c.get("user")
+  const currentAdmin = c.get("admin")
 
-  if (currentUser.id === id) return c.json({ error: "Tidak dapat menghapus akun sendiri" }, 400)
+  if (currentAdmin.id === id) return c.json({ error: "Tidak dapat menghapus akun sendiri" }, 400)
 
-  const user = await db.query.users.findFirst({
-    where: and(eq(schema.users.id, id), eq(schema.users.role, "admin")),
-  })
-  if (!user) return c.json({ error: "Admin tidak ditemukan" }, 404)
+  const adminUser = await db.query.admins.findFirst({ where: eq(schema.admins.id, id) })
+  if (!adminUser) return c.json({ error: "Admin tidak ditemukan" }, 404)
 
-  await db.delete(schema.users).where(eq(schema.users.id, id))
+  await db.delete(schema.admins).where(eq(schema.admins.id, id))
   return c.json({ message: "Admin berhasil dihapus" })
 })
 
-// Member accounts management (anggota MBG)
+// MEMBER management (from members + users tables)
 const memberQuerySchema = z.object({
   status: z.enum(["verified", "pending", "all"]).optional().default("all"),
+  memberType: z.enum(["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"]).optional(),
+  search: z.string().optional(),
 })
 
 admin.get("/members", zValidator("query", memberQuerySchema), async (c) => {
-  const { status } = c.req.valid("query")
+  const { status, memberType, search } = c.req.valid("query")
 
-  const conditions = [eq(schema.users.role, "member")]
-  if (status === "verified") conditions.push(eq(schema.users.isVerified, true))
-  if (status === "pending") conditions.push(eq(schema.users.isVerified, false))
+  const conditions = []
+  if (status === "verified") conditions.push(eq(schema.members.isVerified, true))
+  if (status === "pending") conditions.push(eq(schema.members.isVerified, false))
+  if (memberType) conditions.push(eq(schema.members.memberType, memberType))
 
-  const data = await db.select({
-    id: schema.users.id,
-    name: schema.users.name,
-    email: schema.users.email,
-    phone: schema.users.phone,
-    role: schema.users.role,
-    memberType: schema.users.memberType,
-    organizationName: schema.users.organizationName,
-    organizationEmail: schema.users.organizationEmail,
-    organizationPhone: schema.users.organizationPhone,
-    roleInOrganization: schema.users.roleInOrganization,
-    organizationMbgRole: schema.users.organizationMbgRole,
-    appliedAt: schema.users.appliedAt,
-    verifiedAt: schema.users.verifiedAt,
-    isVerified: schema.users.isVerified,
-    isActive: schema.users.isActive,
-    createdAt: schema.users.createdAt,
-    updatedAt: schema.users.updatedAt,
-  }).from(schema.users).where(and(...conditions)).orderBy(desc(schema.users.createdAt))
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
-  // Format data with organizationInfo
-  const formattedData = data.map((user) => ({
-    ...user,
-    organizationInfo: {
-      name: user.organizationName || "",
-      email: user.organizationEmail || "",
-      phone: user.organizationPhone || "",
-      roleDescription: user.roleInOrganization || "",
-      mbgDescription: user.organizationMbgRole || "",
-    }
-  }))
+  const data = await db.query.members.findMany({
+    where: whereClause,
+    orderBy: [desc(schema.members.createdAt)],
+    with: {
+      public: { columns: { id: true, name: true, email: true, phone: true } },
+      verifier: { columns: { name: true } },
+    },
+  })
 
-  return c.json({ data: formattedData })
+  // Filter by search on user name/email if provided
+  let filteredData = data
+  if (search) {
+    const searchLower = search.toLowerCase()
+    filteredData = data.filter((m) =>
+      m.public?.name?.toLowerCase().includes(searchLower) ||
+      m.public?.email?.toLowerCase().includes(searchLower) ||
+      m.organizationName.toLowerCase().includes(searchLower)
+    )
+  }
+
+  return c.json({
+    data: filteredData.map((m) => ({
+      id: m.id,
+      userId: m.publicId,
+      name: m.public?.name || "",
+      email: m.public?.email || "",
+      phone: m.public?.phone || "",
+      memberType: m.memberType,
+      organizationName: m.organizationName,
+      organizationEmail: m.organizationEmail,
+      organizationPhone: m.organizationPhone,
+      roleInOrganization: m.roleInOrganization,
+      organizationMbgRole: m.organizationMbgRole,
+      isVerified: m.isVerified,
+      verifiedAt: m.verifiedAt,
+      verifiedBy: m.verifier?.name || null,
+      appliedAt: m.appliedAt,
+      createdAt: m.createdAt,
+      organizationInfo: {
+        name: m.organizationName,
+        email: m.organizationEmail || "",
+        phone: m.organizationPhone || "",
+        roleDescription: m.roleInOrganization || "",
+        mbgDescription: m.organizationMbgRole || "",
+      }
+    }))
+  })
+})
+
+// Create member (creates user + member)
+const createMemberSchema = z.object({
+  name: z.string().min(3).max(255),
+  email: z.string().email(),
+  phone: z.string().min(10).max(20),
+  memberType: z.enum(["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"]),
+  organizationName: z.string().min(3).max(255).optional(),
+  organizationEmail: z.string().email().optional(),
+  organizationPhone: z.string().optional(),
+  roleInOrganization: z.string().optional(),
+  organizationMbgRole: z.string().optional(),
+})
+
+admin.post("/members", zValidator("json", createMemberSchema), async (c) => {
+  const data = c.req.valid("json")
+  const admin = c.get("admin")
+
+  // Format phone number
+  let formattedPhone = data.phone
+  if (formattedPhone.startsWith("08")) {
+    formattedPhone = "+62" + formattedPhone.slice(1)
+  } else if (!formattedPhone.startsWith("+")) {
+    formattedPhone = "+62" + formattedPhone
+  }
+
+  // Check if email already exists
+  const existingEmail = await db.query.publics.findFirst({
+    where: eq(schema.publics.email, data.email),
+  })
+  if (existingEmail) {
+    return c.json({ error: "Email sudah terdaftar" }, 400)
+  }
+
+  // Check if phone already exists
+  const existingPhone = await db.query.publics.findFirst({
+    where: eq(schema.publics.phone, formattedPhone),
+  })
+  if (existingPhone) {
+    return c.json({ error: "Nomor telepon sudah terdaftar" }, 400)
+  }
+
+  // Create user first
+  const [user] = await db.insert(schema.publics).values({
+    name: data.name,
+    email: data.email,
+    phone: formattedPhone,
+  }).returning()
+
+  // Create member linked to user
+  const [member] = await db.insert(schema.members).values({
+    publicId: user.id,
+    memberType: data.memberType,
+    organizationName: data.organizationName || data.name,
+    organizationEmail: data.organizationEmail,
+    organizationPhone: data.organizationPhone,
+    roleInOrganization: data.roleInOrganization,
+    organizationMbgRole: data.organizationMbgRole,
+    isVerified: true,
+    verifiedAt: new Date(),
+    verifiedBy: admin.id,
+    appliedAt: new Date(),
+  }).returning()
+
+  return c.json({
+    data: { ...member, userId: user.id },
+    message: "Member berhasil ditambahkan",
+  }, 201)
 })
 
 // Get single member detail
 admin.get("/members/:id", async (c) => {
   const id = c.req.param("id")
 
-  const user = await db.query.users.findFirst({
-    where: and(eq(schema.users.id, id), eq(schema.users.role, "member")),
-    columns: { password: false },
+  const member = await db.query.members.findFirst({
+    where: eq(schema.members.id, id),
+    with: {
+      public: { columns: { id: true, name: true, email: true, phone: true, createdAt: true } },
+      verifier: { columns: { name: true, email: true } },
+    },
   })
 
-  if (!user) return c.json({ error: "Anggota tidak ditemukan" }, 404)
-
-  const organizationInfo = {
-    name: user.organizationName || "",
-    email: user.organizationEmail || "",
-    phone: user.organizationPhone || "",
-    roleDescription: user.roleInOrganization || "",
-    mbgDescription: user.organizationMbgRole || "",
-  }
+  if (!member) return c.json({ error: "Anggota tidak ditemukan" }, 404)
 
   return c.json({
     data: {
-      ...user,
-      organizationInfo,
-      appliedAt: user.appliedAt,
+      id: member.id,
+      userId: member.publicId,
+      name: member.public?.name || "",
+      email: member.public?.email || "",
+      phone: member.public?.phone || "",
+      memberType: member.memberType,
+      organizationName: member.organizationName,
+      organizationEmail: member.organizationEmail,
+      organizationPhone: member.organizationPhone,
+      roleInOrganization: member.roleInOrganization,
+      organizationMbgRole: member.organizationMbgRole,
+      isVerified: member.isVerified,
+      verifiedAt: member.verifiedAt,
+      verifiedBy: member.verifier?.name || null,
+      appliedAt: member.appliedAt,
+      createdAt: member.createdAt,
+      organizationInfo: {
+        name: member.organizationName,
+        email: member.organizationEmail || "",
+        phone: member.organizationPhone || "",
+        roleDescription: member.roleInOrganization || "",
+        mbgDescription: member.organizationMbgRole || "",
+      }
     }
   })
 })
 
-const createMemberSchema = z.object({
-  name: z.string().min(3).max(255),
-  email: z.string().email().max(255),
-  phone: z.string().min(10).max(15),
-  memberType: z.enum(["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"]),
-})
-
-admin.post("/members", zValidator("json", createMemberSchema), async (c) => {
-  const { name, email, phone: rawPhone, memberType } = c.req.valid("json")
-
-  // Convert phone format
-  let phone = rawPhone
-  if (phone.startsWith("08")) {
-    phone = "+62" + phone.slice(1)
-  } else if (!phone.startsWith("+62")) {
-    phone = "+62" + phone
-  }
-
-  const existingEmail = await db.query.users.findFirst({ where: eq(schema.users.email, email) })
-  if (existingEmail) return c.json({ error: "Email sudah terdaftar" }, 400)
-
-  const existingPhone = await db.query.users.findFirst({ where: eq(schema.users.phone, phone) })
-  if (existingPhone) return c.json({ error: "Nomor telepon sudah terdaftar" }, 400)
-
-  // Members don't have passwords (not login accounts)
-  const [newMember] = await db.insert(schema.users).values({
-    name,
-    email,
-    phone,
-    role: "member",
-    memberType,
-    isVerified: true,
-    isActive: true,
-  }).returning()
-
-  return c.json({ data: newMember, message: "Anggota berhasil ditambahkan" }, 201)
-})
-
+// Verify member
 admin.patch("/members/:id/verify", async (c) => {
   const id = c.req.param("id")
+  const currentAdmin = c.get("admin")
 
-  const user = await db.query.users.findFirst({
-    where: and(eq(schema.users.id, id), eq(schema.users.role, "member")),
-  })
-  if (!user) return c.json({ error: "Anggota tidak ditemukan" }, 404)
+  const member = await db.query.members.findFirst({ where: eq(schema.members.id, id) })
+  if (!member) return c.json({ error: "Anggota tidak ditemukan" }, 404)
 
   const now = new Date()
-  await db.update(schema.users)
-    .set({ isVerified: true, verifiedAt: now, updatedAt: now })
-    .where(eq(schema.users.id, id))
+  await db.update(schema.members)
+    .set({ isVerified: true, verifiedAt: now, verifiedBy: currentAdmin.id, updatedAt: now })
+    .where(eq(schema.members.id, id))
 
   return c.json({ message: "Anggota berhasil diverifikasi" })
 })
 
-// Update member status (verify/reject)
+// Update member status
 const updateMemberStatusSchema = z.object({
   isVerified: z.boolean().optional(),
-  isActive: z.boolean().optional(),
 })
 
 admin.patch("/members/:id/status", zValidator("json", updateMemberStatusSchema), async (c) => {
   const id = c.req.param("id")
-  const { isVerified, isActive } = c.req.valid("json")
+  const { isVerified } = c.req.valid("json")
+  const currentAdmin = c.get("admin")
 
-  const user = await db.query.users.findFirst({
-    where: and(eq(schema.users.id, id), eq(schema.users.role, "member")),
-  })
-  if (!user) return c.json({ error: "Anggota tidak ditemukan" }, 404)
+  const member = await db.query.members.findFirst({ where: eq(schema.members.id, id) })
+  if (!member) return c.json({ error: "Anggota tidak ditemukan" }, 404)
 
   const now = new Date()
-  const updateData: Record<string, unknown> = { updatedAt: now }
+
+  // Update member verification status
   if (isVerified !== undefined) {
-    updateData.isVerified = isVerified
-    if (isVerified) updateData.verifiedAt = now
+    const memberUpdate: Record<string, unknown> = { isVerified, updatedAt: now }
+    if (isVerified) {
+      memberUpdate.verifiedAt = now
+      memberUpdate.verifiedBy = currentAdmin.id
+    }
+    await db.update(schema.members).set(memberUpdate).where(eq(schema.members.id, id))
   }
-  if (isActive !== undefined) updateData.isActive = isActive
 
-  const [updated] = await db.update(schema.users)
-    .set(updateData)
-    .where(eq(schema.users.id, id))
-    .returning({
-      id: schema.users.id,
-      isVerified: schema.users.isVerified,
-      isActive: schema.users.isActive,
-      verifiedAt: schema.users.verifiedAt,
-      updatedAt: schema.users.updatedAt,
-    })
-
-  return c.json({ data: updated, message: "Status anggota berhasil diperbarui" })
+  return c.json({ message: "Status anggota berhasil diperbarui" })
 })
 
+// Delete member
 admin.delete("/members/:id", async (c) => {
   const id = c.req.param("id")
 
-  const user = await db.query.users.findFirst({
-    where: and(eq(schema.users.id, id), eq(schema.users.role, "member")),
-  })
-  if (!user) return c.json({ error: "Anggota tidak ditemukan" }, 404)
+  const member = await db.query.members.findFirst({ where: eq(schema.members.id, id) })
+  if (!member) return c.json({ error: "Anggota tidak ditemukan" }, 404)
 
-  await db.delete(schema.users).where(eq(schema.users.id, id))
+  // Delete member record (user account remains)
+  await db.delete(schema.members).where(eq(schema.members.id, id))
 
   return c.json({ message: "Anggota berhasil dihapus" })
 })

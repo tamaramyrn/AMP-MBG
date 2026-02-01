@@ -38,7 +38,7 @@ function CaraKerjaPage() {
   const navigate = useNavigate()
 
   const handleLaporClick = () => {
-    const user = localStorage.getItem("currentUser")
+    const user = localStorage.getItem("public_currentUser")
     if (user) {
       navigate({ to: "/lapor" })
     } else {

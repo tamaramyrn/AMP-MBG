@@ -3,8 +3,8 @@ import { Hono } from "hono"
 import kitchenNeeds from "../routes/kitchen-needs"
 import { createTestApp, testRequest, testData, generateTestToken } from "./setup"
 import { db } from "../db"
-import { users, kitchenNeeds as kitchenNeedsTable } from "../db/schema"
-import { eq, and } from "drizzle-orm"
+import { publics, admins, kitchenNeeds as kitchenNeedsTable } from "../db/schema"
+import { eq } from "drizzle-orm"
 
 const app = createTestApp(new Hono().route("/kitchen-needs", kitchenNeeds))
 
@@ -13,15 +13,17 @@ let adminToken: string
 let testKitchenNeedId: string
 
 beforeAll(async () => {
-  const publicUser = await db.query.users.findFirst({
-    where: and(eq(users.role, "public"), eq(users.email, "budi@example.com")),
+  // Get seeded public user
+  const publicUser = await db.query.publics.findFirst({
+    where: eq(publics.email, "budi@example.com"),
   })
   if (publicUser) {
-    publicToken = await generateTestToken(publicUser.id, publicUser.email, "public")
+    publicToken = await generateTestToken(publicUser.id, publicUser.email, "user")
   }
 
-  const adminUser = await db.query.users.findFirst({
-    where: and(eq(users.role, "admin"), eq(users.email, "admin@ampmbg.id")),
+  // Get seeded admin from admins table
+  const adminUser = await db.query.admins.findFirst({
+    where: eq(admins.email, "admin@ampmbg.id"),
   })
   if (adminUser) {
     adminToken = await generateTestToken(adminUser.id, adminUser.email, "admin")

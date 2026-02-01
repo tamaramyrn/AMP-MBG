@@ -1,23 +1,31 @@
-import { describe, test, expect, beforeAll } from "bun:test"
+import { describe, test, expect, beforeAll, afterAll } from "bun:test"
 import { Hono } from "hono"
 import profile from "../routes/profile"
 import { createTestApp, testRequest, generateTestToken } from "./setup"
 import { db } from "../db"
-import { users } from "../db/schema"
-import { eq, and } from "drizzle-orm"
+import { publics } from "../db/schema"
+import { eq } from "drizzle-orm"
 
 const app = createTestApp(new Hono().route("/profile", profile))
 
 let publicToken: string
 let publicUserId: string
+const originalName = "Budi Santoso"
+const originalPhone = "+62812000001"
 
 beforeAll(async () => {
-  const publicUser = await db.query.users.findFirst({
-    where: and(eq(users.role, "public"), eq(users.email, "budi@example.com")),
+  const publicUser = await db.query.publics.findFirst({
+    where: eq(publics.email, "budi@example.com"),
   })
   if (publicUser) {
     publicUserId = publicUser.id
-    publicToken = await generateTestToken(publicUser.id, publicUser.email, "public")
+    publicToken = await generateTestToken(publicUser.id, publicUser.email, "user")
+  }
+})
+
+afterAll(async () => {
+  if (publicUserId) {
+    await db.update(publics).set({ name: originalName, phone: originalPhone }).where(eq(publics.id, publicUserId))
   }
 })
 

@@ -4,6 +4,7 @@ import { logger } from "hono/logger"
 import { compress } from "hono/compress"
 import { serveStatic } from "hono/bun"
 import { timing } from "hono/timing"
+import { HTTPException } from "hono/http-exception"
 import routes from "./routes"
 
 const app = new Hono()
@@ -57,6 +58,9 @@ app.notFound((c) => {
 })
 
 app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    return c.json({ error: err.message }, err.status)
+  }
   console.error(err)
   return c.json({ error: "Internal server error" }, 500)
 })

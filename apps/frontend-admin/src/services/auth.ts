@@ -1,112 +1,71 @@
 import { api, setToken, removeToken } from "@/lib/api"
 import { queryClient } from "@/lib/query-client"
 
-export type UserRole = "admin" | "member" | "public"
+// App-specific storage key
+const ADMIN_KEY = "admin_currentUser"
 
-export interface User {
+export interface Admin {
   id: string
   email: string
-  phone: string
   name: string
-  role: UserRole
-  isVerified?: boolean
-  reportCount?: number
-  verifiedReportCount?: number
-  createdAt?: string
+  phone?: string
+  adminRole?: string
 }
 
-export interface LoginRequest {
-  identifier: string
-  password: string
-}
-
-export interface SignupRequest {
+export interface AdminLoginRequest {
   email: string
   password: string
-  passwordConfirmation: string
-  name: string
-  phone: string
 }
 
-export interface AuthResponse {
+export interface AdminAuthResponse {
   message: string
-  user: User
+  admin: Admin
   token: string
 }
 
-export interface MeResponse {
-  user: User
+export interface AdminMeResponse {
+  admin: Admin
 }
 
 export const authService = {
-  async login(data: LoginRequest): Promise<AuthResponse> {
-    // Clear all cached data before login
+  async login(data: AdminLoginRequest): Promise<AdminAuthResponse> {
     queryClient.clear()
-    const response = await api.post<AuthResponse>("/auth/login", { ...data, appType: "admin" })
+    const response = await api.post<AdminAuthResponse>("/auth/admin/login", data)
     setToken(response.token)
-    localStorage.setItem("currentUser", JSON.stringify(response.user))
+    localStorage.setItem(ADMIN_KEY, JSON.stringify(response.admin))
     window.dispatchEvent(new Event("user-login"))
     return response
   },
 
-  async signup(data: SignupRequest): Promise<{ message: string }> {
-    // Registration only creates account, does NOT auto-login
-    const response = await api.post<AuthResponse>("/auth/signup", data)
-    return { message: response.message }
-  },
-
-  async getMe(): Promise<MeResponse> {
-    return api.get<MeResponse>("/auth/me")
+  async getMe(): Promise<AdminMeResponse> {
+    return api.get<AdminMeResponse>("/auth/admin/me")
   },
 
   async logout(): Promise<void> {
     try {
-      await api.post("/auth/logout")
+      await api.post("/auth/admin/logout")
     } finally {
       removeToken()
-      localStorage.removeItem("currentUser")
+      localStorage.removeItem(ADMIN_KEY)
       queryClient.clear()
       window.dispatchEvent(new Event("user-login"))
     }
   },
 
-  async updateProfile(data: { name?: string; phone?: string }): Promise<{ user: User; message: string }> {
-    return api.put("/auth/profile", data)
-  },
-
-  async changePassword(data: { currentPassword: string; newPassword: string; confirmPassword: string }): Promise<{ message: string }> {
-    return api.put("/auth/change-password", data)
-  },
-
-  async forgotPassword(email: string): Promise<{ message: string }> {
-    return api.post("/auth/forgot-password", { email })
-  },
-
-  async resetPassword(data: { token: string; password: string; passwordConfirmation: string }): Promise<{ message: string }> {
-    return api.post("/auth/reset-password", data)
-  },
-
-  getCurrentUser(): User | null {
-    const stored = localStorage.getItem("currentUser")
+  getCurrentUser(): Admin | null {
+    const stored = localStorage.getItem(ADMIN_KEY)
     return stored ? JSON.parse(stored) : null
   },
 
   isLoggedIn(): boolean {
-    return !!localStorage.getItem("token")
+    return !!localStorage.getItem("admin_token")
   },
 
   isAdmin(): boolean {
-    const user = this.getCurrentUser()
-    return user?.role === "admin"
-  },
-
-  isMember(): boolean {
-    const user = this.getCurrentUser()
-    return user?.role === "member"
+    return this.isLoggedIn() && !!this.getCurrentUser()
   },
 
   canAccessDashboard(): boolean {
-    const user = this.getCurrentUser()
-    return user?.role === "admin"
+    return this.isAdmin()
   },
 }

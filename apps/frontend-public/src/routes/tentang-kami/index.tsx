@@ -1,8 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
-import { Users, ArrowUp, RefreshCw, Scale, Goal, Target, Building2, Search } from "lucide-react"
+import { Users, ArrowUp, RefreshCw, Scale, Goal, Target, Building2, Search, Loader2 } from "lucide-react"
 import { useState } from "react"
+import { reportsService } from "@/services/reports"
 
 export const Route = createFileRoute("/tentang-kami/")({
   component: TentangKamiPage,
@@ -31,36 +33,21 @@ const coreValues = [
   },
 ]
 
-// --- DUMMY DATA YAYASAN (Bisa ditambah sampai banyak) ---
-const registeredFoundations = [
-  { id: 1, name: "Yayasan Peduli Gizi" },
-  { id: 2, name: "Yayasan Tunas Harapan" },
-  { id: 3, name: "Yayasan Anak Sehat" },
-  { id: 4, name: "Yayasan Bina Mandiri" },
-  { id: 5, name: "Yayasan Pangan Nusantara" },
-  { id: 6, name: "Yayasan Generasi Emas" },
-  { id: 7, name: "Yayasan Cahaya Pelita" },
-  { id: 8, name: "Yayasan Bakti Pertiwi" },
-  { id: 9, name: "Yayasan Harapan Ibu" },
-  { id: 10, name: "Yayasan Kasih Bunda" },
-  { id: 11, name: "Yayasan Sejahtera Bersama" },
-  { id: 12, name: "Yayasan Pelita Hati" },
-  { id: 13, name: "Yayasan Insan Cendekia" },
-  { id: 14, name: "Yayasan Karya Salemba" },
-  { id: 15, name: "Yayasan Mutiara Bangsa" },
-  { id: 16, name: "Yayasan Lentera Jiwa" },
-  { id: 17, name: "Yayasan Cipta Karya" },
-  { id: 18, name: "Yayasan Bangun Desa" },
-  { id: 19, name: "Yayasan Harmoni Alam" },
-  { id: 20, name: "Yayasan Sinar Mentari" },
-]
 
 function TentangKamiPage() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
 
+  const { data: foundationsData, isLoading } = useQuery({
+    queryKey: ["foundations"],
+    queryFn: () => reportsService.getFoundations(),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const foundations = foundationsData?.data || []
+
   const handleLaporClick = () => {
-    const user = localStorage.getItem("currentUser")
+    const user = localStorage.getItem("public_currentUser")
     if (user) {
       navigate({ to: "/lapor" })
     } else {
@@ -69,7 +56,7 @@ function TentangKamiPage() {
   }
 
   // Filter yayasan berdasarkan search term
-  const filteredFoundations = registeredFoundations.filter((foundation) =>
+  const filteredFoundations = foundations.filter((foundation) =>
     foundation.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
@@ -204,7 +191,7 @@ function TentangKamiPage() {
                   Yayasan yang <span className="text-blue-100">Bergabung</span>
                 </h2>
                 <p className="body-md text-general-60">
-                  {registeredFoundations.length} organisasi telah resmi menjadi bagian dari jaringan kami.
+                  {foundations.length} organisasi telah resmi menjadi bagian dari jaringan kami.
                 </p>
               </div>
               
@@ -224,11 +211,15 @@ function TentangKamiPage() {
             {/* Scrollable Container */}
             <div className="bg-general-20/30 rounded-2xl border border-general-30 p-2">
               <div className="max-h-[400px] overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-general-30 scrollbar-track-transparent">
-                
-                {filteredFoundations.length > 0 ? (
+
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="w-8 h-8 text-blue-100 animate-spin" />
+                  </div>
+                ) : filteredFoundations.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {filteredFoundations.map((foundation) => (
-                      <div 
+                      <div
                         key={foundation.id}
                         className="bg-white rounded-xl p-4 border border-general-30 hover:border-blue-40 transition-all duration-200 flex items-center gap-3 group shadow-sm hover:shadow-md"
                       >
@@ -240,6 +231,12 @@ function TentangKamiPage() {
                         </h4>
                       </div>
                     ))}
+                  </div>
+                ) : foundations.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-general-60 body-sm">
+                      Belum ada yayasan yang terdaftar.
+                    </p>
                   </div>
                 ) : (
                   <div className="text-center py-10">

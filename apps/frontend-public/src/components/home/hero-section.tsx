@@ -7,7 +7,7 @@ function HeroSectionComponent() {
   // Authentication check handler
   // Intercepts the "Report" click to ensure the user is logged in before proceeding
   const handleLaporClick = (e: React.MouseEvent) => {
-    const user = localStorage.getItem("currentUser")
+    const user = localStorage.getItem("public_currentUser")
     if (!user) {
       e.preventDefault()
       navigate({ to: "/auth/login" })

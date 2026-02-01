@@ -43,7 +43,8 @@ function DaftarAnggotaPage() {
     const user = authService.getCurrentUser()
     if (!user) {
       navigate({ to: "/auth/login" })
-    } else if (user.role !== "public") {
+    } else if (user.isMember) {
+      // Already a member, redirect to profile
       navigate({ to: "/profil" })
     } else {
       setIsAuthenticated(true)

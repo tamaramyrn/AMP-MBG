@@ -47,7 +47,7 @@ function AkunAdminPage() {
 
   const { data: adminsData, isLoading } = useQuery({
     queryKey: ["admin", "admins"],
-    queryFn: () => adminAccountService.getAdmins("all"),
+    queryFn: () => adminAccountService.getAdmins(),
   })
 
   const deleteMutation = useMutation({

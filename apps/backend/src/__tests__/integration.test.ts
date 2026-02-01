@@ -8,8 +8,8 @@ import admin from "../routes/admin"
 import locations from "../routes/locations"
 import { createTestApp, testRequest, generateTestToken } from "./setup"
 import { db } from "../db"
-import { users, reports as reportsTable, kitchenNeeds as kitchenNeedsTable, kitchenNeedsRequests } from "../db/schema"
-import { eq, and } from "drizzle-orm"
+import { publics, admins, reports as reportsTable, kitchenNeeds as kitchenNeedsTable, kitchenNeedsRequests } from "../db/schema"
+import { eq } from "drizzle-orm"
 
 // Create app with all routes
 const createFullApp = () => {
@@ -27,7 +27,7 @@ const app = createFullApp()
 
 // Test users from seed data
 let publicUserId: string
-let adminUserId: string
+let adminId: string
 let publicToken: string
 let adminToken: string
 let testReportId: string
@@ -35,20 +35,20 @@ let testKitchenNeedId: string
 
 beforeAll(async () => {
   // Get seeded public user
-  const publicUser = await db.query.users.findFirst({
-    where: and(eq(users.role, "public"), eq(users.email, "budi@example.com")),
+  const publicUser = await db.query.publics.findFirst({
+    where: eq(publics.email, "budi@example.com"),
   })
   if (publicUser) {
     publicUserId = publicUser.id
-    publicToken = await generateTestToken(publicUser.id, publicUser.email, "public")
+    publicToken = await generateTestToken(publicUser.id, publicUser.email, "user")
   }
 
-  // Get seeded admin user
-  const adminUser = await db.query.users.findFirst({
-    where: and(eq(users.role, "admin"), eq(users.email, "admin@ampmbg.id")),
+  // Get seeded admin from admins table
+  const adminUser = await db.query.admins.findFirst({
+    where: eq(admins.email, "admin@ampmbg.id"),
   })
   if (adminUser) {
-    adminUserId = adminUser.id
+    adminId = adminUser.id
     adminToken = await generateTestToken(adminUser.id, adminUser.email, "admin")
   }
 
@@ -422,7 +422,7 @@ describe("Integration Tests - Pagination", () => {
 describe("Integration Tests - Admin Operations", () => {
   test("GET /api/admin/users with filters", async () => {
     if (!adminToken) return
-    const res = await testRequest(app, "GET", "/api/admin/users?role=public&isActive=true", { token: adminToken })
+    const res = await testRequest(app, "GET", "/api/admin/users?signupMethod=manual", { token: adminToken })
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.data).toBeDefined()

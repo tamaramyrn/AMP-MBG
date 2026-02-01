@@ -1,9 +1,9 @@
 import { api } from "@/lib/api"
-import type { User } from "./auth"
+import type { Admin } from "./auth"
 import type { Report, PaginatedResponse, ReportStatus } from "./reports"
 
 export interface ProfileResponse {
-  user: User
+  admin: Admin
   stats: {
     totalReports: number
     pendingReports: number
@@ -34,7 +34,7 @@ export const profileService = {
     return api.get("/profile")
   },
 
-  async updateProfile(data: { name?: string; phone?: string; email?: string }): Promise<{ user: User; message: string }> {
+  async updateProfile(data: { name?: string; phone?: string; email?: string }): Promise<{ admin: Admin; message: string }> {
     return api.patch("/profile", data)
   },
 

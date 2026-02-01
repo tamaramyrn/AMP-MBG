@@ -9,8 +9,8 @@ export function createTestApp(routes: Hono) {
 }
 
 // Generate test JWT token
-export async function generateTestToken(userId: string, email: string, role: "admin" | "public") {
-  return signToken({ sub: userId, email, role })
+export async function generateTestToken(userId: string, email: string, type: "admin" | "user") {
+  return signToken({ sub: userId, email, type })
 }
 
 // Test request helper

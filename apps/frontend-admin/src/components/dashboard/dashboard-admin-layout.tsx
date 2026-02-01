@@ -30,12 +30,12 @@ export function DashboardAnggotaLayout({ children }: DashboardAnggotaLayoutProps
 
   // 1. Cek User (Auth Guard)
   useEffect(() => {
-    const userStr = localStorage.getItem("currentUser")
+    const userStr = localStorage.getItem("admin_currentUser")
     if (userStr) {
-      const user = JSON.parse(userStr)
-      // Pastikan role sesuai kebutuhan sistem Anda (admin/member)
-      if (user.role === "admin" || user.role === "member") {
-        setCurrentUser(user)
+      const admin = JSON.parse(userStr)
+      // Admin dashboard - all users are admins
+      if (admin.id && admin.email) {
+        setCurrentUser({ name: admin.name, role: admin.adminRole || "Admin" })
       } else {
         navigate({ to: "/" })
       }
@@ -50,8 +50,8 @@ export function DashboardAnggotaLayout({ children }: DashboardAnggotaLayoutProps
   }, [location.pathname])
 
   const confirmLogout = () => {
-    localStorage.removeItem("currentUser")
-    localStorage.removeItem("token")
+    localStorage.removeItem("admin_currentUser")
+    localStorage.removeItem("admin_token")
     window.dispatchEvent(new Event("user-login"))
     setShowLogoutConfirm(false)
     navigate({ to: "/auth/login" })
@@ -169,7 +169,7 @@ export function DashboardAnggotaLayout({ children }: DashboardAnggotaLayoutProps
                 {currentUser?.name || "Administrator"}
               </p>
               <p className="text-[10px] uppercase tracking-wider text-general-60 truncate font-bold">
-                {currentUser?.role === 'school' ? 'Pihak Sekolah' : 'Admin Panel'}
+                {currentUser?.role || 'Admin Panel'}
               </p>
             </div>
             <button 

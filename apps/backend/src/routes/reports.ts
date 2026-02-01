@@ -6,13 +6,14 @@ import { db, schema } from "../db"
 import { authMiddleware, adminMiddleware, reporterMiddleware } from "../middleware/auth"
 import { uploadFile, validateFile, deleteFile } from "../lib/storage"
 import { calculateReportScore, recalculateEvidenceScore, updateTotalScore } from "../lib/scoring"
-import type { AuthUser } from "../types"
+import type { AuthUser, AuthAdmin } from "../types"
 
-type Variables = { user: AuthUser }
+type UserVariables = { user: AuthUser }
+type AdminVariables = { admin: AuthAdmin }
 
-const reports = new Hono<{ Variables: Variables }>()
+const reports = new Hono()
 
-// Reusable public-visible status condition (not pending/invalid)
+// Public-visible status condition (not pending/invalid)
 const getPublicVisibleCondition = () => or(
   eq(schema.reports.status, "analyzing"),
   eq(schema.reports.status, "needs_evidence"),
@@ -75,7 +76,6 @@ reports.get("/", zValidator("query", querySchema), async (c) => {
 
   const whereClause = and(...conditions)
 
-  // Optimized: Single query with subquery for count
   const [data, countResult] = await Promise.all([
     db.query.reports.findMany({
       where: whereClause,
@@ -129,9 +129,7 @@ reports.get("/", zValidator("query", querySchema), async (c) => {
 reports.get("/stats", async (c) => {
   const verifiedCondition = getPublicVisibleCondition()
 
-  // Optimized: Combine queries where possible
   const [aggregates, byStatusResult, byCategoryResult, byProvinceResult, provinces] = await Promise.all([
-    // Single query for multiple counts
     db.select({
       total: sql<number>`count(*)`,
       uniqueCities: sql<number>`count(distinct ${schema.reports.cityId})`,
@@ -162,14 +160,12 @@ reports.get("/stats", async (c) => {
   })
 })
 
-// Summary endpoint with correct total vs verified counts
+// Summary endpoint with correct counts from separated tables
 reports.get("/summary", async (c) => {
   const verifiedCondition = getPublicVisibleCondition()
 
-  const [totalCount, aggregates, topCategoryResult, userAggregates] = await Promise.all([
-    // Total ALL reports (not filtered)
+  const [totalCount, aggregates, topCategoryResult, userCount, adminCount, memberStats] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(schema.reports),
-    // Verified stats (filtered by verifiedCondition)
     db.select({
       verified: sql<number>`count(*)`,
       uniqueCities: sql<number>`count(distinct ${schema.reports.cityId})`,
@@ -183,11 +179,12 @@ reports.get("/summary", async (c) => {
       .groupBy(schema.reports.category)
       .orderBy(desc(sql`count(*)`))
       .limit(1),
+    db.select({ count: sql<number>`count(*)` }).from(schema.publics),
+    db.select({ count: sql<number>`count(*)` }).from(schema.admins),
     db.select({
-      totalCommunityUsers: sql<number>`count(*) filter (where ${schema.users.role} = 'public')`,
-      totalAmpMbgUsers: sql<number>`count(*) filter (where ${schema.users.role} in ('admin', 'member'))`,
-      totalFoundations: sql<number>`count(*) filter (where ${schema.users.memberType} = 'foundation')`,
-    }).from(schema.users),
+      total: sql<number>`count(*)`,
+      foundations: sql<number>`count(*) filter (where ${schema.members.memberType} = 'foundation')`,
+    }).from(schema.members).where(eq(schema.members.isVerified, true)),
   ])
 
   return c.json({
@@ -201,9 +198,32 @@ reports.get("/summary", async (c) => {
       category: topCategoryResult[0].category,
       count: Number(topCategoryResult[0].count),
     } : null,
-    totalCommunityUsers: Number(userAggregates[0]?.totalCommunityUsers || 0),
-    totalAmpMbgUsers: Number(userAggregates[0]?.totalAmpMbgUsers || 0),
-    totalFoundations: Number(userAggregates[0]?.totalFoundations || 0),
+    totalCommunityUsers: Number(userCount[0]?.count || 0),
+    totalAmpMbgUsers: Number(adminCount[0]?.count || 0) + Number(memberStats[0]?.total || 0),
+    totalFoundations: Number(memberStats[0]?.foundations || 0),
+  })
+})
+
+// Public endpoint for foundation list (from members table)
+reports.get("/foundations", async (c) => {
+  const foundations = await db.query.members.findMany({
+    where: and(
+      eq(schema.members.memberType, "foundation"),
+      eq(schema.members.isVerified, true)
+    ),
+    columns: {
+      id: true,
+      organizationName: true,
+    },
+    orderBy: (members, { asc }) => [asc(members.organizationName)],
+  })
+
+  return c.json({
+    data: foundations.map((f) => ({
+      id: f.id,
+      name: f.organizationName || "Yayasan Tanpa Nama",
+    })),
+    total: foundations.length,
   })
 })
 
@@ -256,19 +276,19 @@ reports.get("/:id", async (c) => {
 })
 
 // Only logged-in public users can submit reports
-reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), async (c) => {
+const userReports = new Hono<{ Variables: UserVariables }>()
+
+userReports.post("/", reporterMiddleware, zValidator("json", createReportSchema), async (c) => {
   const data = c.req.valid("json")
   const user = c.get("user")
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  // Optimized: Combine related queries
   const [reporter, reportsStats, mbgSchedule] = await Promise.all([
-    db.query.users.findFirst({
-      where: eq(schema.users.id, user.id),
+    db.query.publics.findFirst({
+      where: eq(schema.publics.id, user.id),
       columns: { reportCount: true, verifiedReportCount: true },
     }),
-    // Combined query for similar reports and location history
     db.select({
       similarCount: sql<number>`count(*) filter (where ${schema.reports.createdAt} >= ${thirtyDaysAgo}::timestamp)`,
       totalCount: sql<number>`count(*)`,
@@ -282,7 +302,6 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
     }),
   ])
 
-  // Calculate MBG schedule match
   let mbgScheduleMatch = undefined
   const incidentDateObj = new Date(data.incidentDate)
   if (mbgSchedule) {
@@ -297,7 +316,6 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
 
     mbgScheduleMatch = { exists: true, dayMatches, timeMatches }
   } else {
-    // Check if ANY MBG schedule exists in the city
     const anySchedule = await db.query.mbgSchedules.findFirst({
       where: eq(schema.mbgSchedules.cityId, data.cityId),
     })
@@ -306,7 +324,6 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
     }
   }
 
-  // Calculate scores
   const scoringResult = calculateReportScore({
     relation: data.relation,
     relationDetail: data.relationDetail,
@@ -323,7 +340,6 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
     mbgScheduleMatch,
   })
 
-  // Insert report with scores
   const [report] = await db.insert(schema.reports).values({
     category: data.category,
     title: data.title,
@@ -335,17 +351,16 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
     incidentDate: incidentDateObj,
     relation: data.relation,
     relationDetail: data.relationDetail || null,
-    userId: user.id,
+    publicId: user.id,
     ...scoringResult,
   }).returning()
 
-  // Update reporter's report count
-  await db.update(schema.users)
+  await db.update(schema.publics)
     .set({
-      reportCount: sql`${schema.users.reportCount} + 1`,
+      reportCount: sql`${schema.publics.reportCount} + 1`,
       updatedAt: new Date(),
     })
-    .where(eq(schema.users.id, user.id))
+    .where(eq(schema.publics.id, user.id))
 
   return c.json({
     data: {
@@ -356,7 +371,13 @@ reports.post("/", reporterMiddleware, zValidator("json", createReportSchema), as
   }, 201)
 })
 
-reports.get("/my/reports", authMiddleware, zValidator("query", z.object({
+// Mount user routes for report creation
+reports.route("/", userReports)
+
+// Authenticated user routes
+const authUserReports = new Hono<{ Variables: UserVariables }>()
+
+authUserReports.get("/my/reports", authMiddleware, zValidator("query", z.object({
   page: z.string().optional().transform((val) => parseInt(val || "1")),
   limit: z.string().optional().transform((val) => parseInt(val || "10")),
 })), async (c) => {
@@ -366,13 +387,13 @@ reports.get("/my/reports", authMiddleware, zValidator("query", z.object({
 
   const [data, countResult] = await Promise.all([
     db.query.reports.findMany({
-      where: eq(schema.reports.userId, user.id),
+      where: eq(schema.reports.publicId, user.id),
       limit,
       offset,
       orderBy: [desc(schema.reports.createdAt)],
       with: { province: true, city: true },
     }),
-    db.select({ count: sql<number>`count(*)` }).from(schema.reports).where(eq(schema.reports.userId, user.id)),
+    db.select({ count: sql<number>`count(*)` }).from(schema.reports).where(eq(schema.reports.publicId, user.id)),
   ])
 
   const total = Number(countResult[0]?.count || 0)
@@ -395,7 +416,7 @@ reports.get("/my/reports", authMiddleware, zValidator("query", z.object({
 })
 
 // Only report owner can upload files
-reports.post("/:id/files", authMiddleware, async (c) => {
+authUserReports.post("/:id/files", authMiddleware, async (c) => {
   const id = c.req.param("id")
   const user = c.get("user")
   const report = await db.query.reports.findFirst({
@@ -405,8 +426,8 @@ reports.post("/:id/files", authMiddleware, async (c) => {
 
   if (!report) return c.json({ error: "Laporan tidak ditemukan" }, 404)
 
-  // Only owner or admin can upload files
-  if (report.userId !== user.id && user.role !== "admin") {
+  // Only owner can upload files (admin uses admin routes)
+  if (report.publicId !== user.id) {
     return c.json({ error: "Akses ditolak" }, 403)
   }
 
@@ -434,11 +455,10 @@ reports.post("/:id/files", authMiddleware, async (c) => {
     uploadedFiles.push(inserted)
   }
 
-  // Recalculate evidence score based on new file count
+  // Recalculate evidence score
   const newFileCount = (report.files?.length || 0) + uploadedFiles.length
   const newEvidenceScore = recalculateEvidenceScore(report.description, newFileCount)
 
-  // Update score if changed
   if (newEvidenceScore !== report.scoreEvidence) {
     const updatedScores = updateTotalScore({
       scoreRelation: report.scoreRelation,
@@ -461,15 +481,15 @@ reports.post("/:id/files", authMiddleware, async (c) => {
   return c.json({ data: uploadedFiles, message: "File berhasil diunggah" }, 201)
 })
 
-reports.delete("/:id/files/:fileId", authMiddleware, async (c) => {
+authUserReports.delete("/:id/files/:fileId", authMiddleware, async (c) => {
   const { id, fileId } = c.req.param()
   const user = c.get("user")
 
   const report = await db.query.reports.findFirst({ where: eq(schema.reports.id, id) })
   if (!report) return c.json({ error: "Laporan tidak ditemukan" }, 404)
 
-  // Only owner or admin can delete files
-  if (report.userId !== user.id && user.role !== "admin") {
+  // Only owner can delete files
+  if (report.publicId !== user.id) {
     return c.json({ error: "Forbidden" }, 403)
   }
 
@@ -483,29 +503,32 @@ reports.delete("/:id/files/:fileId", authMiddleware, async (c) => {
   return c.json({ message: "File berhasil dihapus" })
 })
 
+reports.route("/", authUserReports)
+
+// Admin-only routes
+const adminReports = new Hono<{ Variables: AdminVariables }>()
+
 const updateStatusSchema = z.object({
   status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]),
   notes: z.string().optional(),
 })
 
-// Admin only - update report status with history tracking
-reports.patch("/:id/status", adminMiddleware, zValidator("json", updateStatusSchema), async (c) => {
+// Admin only - update report status
+adminReports.patch("/:id/status", adminMiddleware, zValidator("json", updateStatusSchema), async (c) => {
   const id = c.req.param("id")
   const { status, notes } = c.req.valid("json")
-  const user = c.get("user")
+  const admin = c.get("admin")
 
   const report = await db.query.reports.findFirst({ where: eq(schema.reports.id, id) })
   if (!report) return c.json({ error: "Laporan tidak ditemukan" }, 404)
 
   const previousStatus = report.status
 
-  // Update report status
   const updateData: Record<string, unknown> = { status, updatedAt: new Date() }
   if (notes) updateData.adminNotes = notes
 
-  // Set verifier when first reviewed (moving from pending)
   if (previousStatus === "pending" && status !== "pending") {
-    updateData.verifiedBy = user.id
+    updateData.verifiedBy = admin.id
     updateData.verifiedAt = new Date()
   }
 
@@ -514,19 +537,18 @@ reports.patch("/:id/status", adminMiddleware, zValidator("json", updateStatusSch
     .where(eq(schema.reports.id, id))
     .returning()
 
-  // Record status change in history
   await db.insert(schema.reportStatusHistory).values({
     reportId: id,
     fromStatus: previousStatus,
     toStatus: status,
-    changedBy: user.id,
+    changedBy: admin.id,
     notes: notes || null,
   })
 
   return c.json({ data: updated, message: "Status laporan berhasil diperbarui" })
 })
 
-reports.delete("/:id", adminMiddleware, async (c) => {
+adminReports.delete("/:id", adminMiddleware, async (c) => {
   const id = c.req.param("id")
 
   const report = await db.query.reports.findFirst({ where: eq(schema.reports.id, id) })
@@ -536,5 +558,7 @@ reports.delete("/:id", adminMiddleware, async (c) => {
 
   return c.json({ message: "Laporan berhasil dihapus" })
 })
+
+reports.route("/", adminReports)
 
 export default reports

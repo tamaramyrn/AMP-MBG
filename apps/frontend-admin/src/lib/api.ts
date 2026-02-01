@@ -18,24 +18,27 @@ class ApiError extends Error {
   }
 }
 
+// App-specific storage key
+const TOKEN_KEY = "admin_token"
+
 // Cache token to avoid localStorage reads
 let cachedToken: string | null = null
 
 function getToken(): string | null {
   if (cachedToken === null) {
-    cachedToken = localStorage.getItem("token")
+    cachedToken = localStorage.getItem(TOKEN_KEY)
   }
   return cachedToken
 }
 
 export function setToken(token: string): void {
   cachedToken = token
-  localStorage.setItem("token", token)
+  localStorage.setItem(TOKEN_KEY, token)
 }
 
 export function removeToken(): void {
   cachedToken = null
-  localStorage.removeItem("token")
+  localStorage.removeItem(TOKEN_KEY)
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {

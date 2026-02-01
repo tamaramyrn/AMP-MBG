@@ -3,7 +3,7 @@ import { Hono } from "hono"
 import kitchenNeeds from "../routes/kitchen-needs"
 import { createTestApp, testRequest } from "./setup"
 import { db } from "../db"
-import { users, kitchenNeeds as kitchenNeedsTable, kitchenNeedsRequests } from "../db/schema"
+import { publics, admins, kitchenNeeds as kitchenNeedsTable, kitchenNeedsRequests } from "../db/schema"
 import { eq } from "drizzle-orm"
 import { randomBytes } from "crypto"
 import { signToken } from "../lib/jwt"
@@ -20,15 +20,14 @@ describe("Kitchen Needs Flow - Public User Requests", () => {
   beforeAll(async () => {
     // Create test user
     const hashedPassword = await hashPassword("Test1234")
-    const [user] = await db.insert(users).values({
+    const [user] = await db.insert(publics).values({
       email: `kitchen-${randomBytes(4).toString("hex")}@example.com`,
       password: hashedPassword,
       name: "Kitchen Test User",
       phone: `+62812${randomBytes(4).toString("hex").slice(0, 7)}`,
-      role: "public",
     }).returning()
     userId = user.id
-    userToken = await signToken({ sub: user.id, email: user.email, role: "public" })
+    userToken = await signToken({ sub: user.id, email: user.email, type: "user" })
 
     // Get existing kitchen need
     const kn = await db.query.kitchenNeeds.findFirst()
@@ -39,7 +38,7 @@ describe("Kitchen Needs Flow - Public User Requests", () => {
     if (requestId) {
       await db.delete(kitchenNeedsRequests).where(eq(kitchenNeedsRequests.id, requestId))
     }
-    if (userId) await db.delete(users).where(eq(users.id, userId))
+    if (userId) await db.delete(publics).where(eq(publics.id, userId))
   })
 
   test("POST /api/kitchen-needs/requests creates request", async () => {
@@ -77,11 +76,12 @@ describe("Kitchen Needs Flow - Admin Operations", () => {
   let testRequestId: string
 
   beforeAll(async () => {
-    const adminUser = await db.query.users.findFirst({
-      where: eq(users.email, "admin@ampmbg.id"),
+    // Get admin from admins table
+    const admin = await db.query.admins.findFirst({
+      where: eq(admins.email, "admin@ampmbg.id"),
     })
-    if (adminUser) {
-      adminToken = await signToken({ sub: adminUser.id, email: adminUser.email, role: "admin" })
+    if (admin) {
+      adminToken = await signToken({ sub: admin.id, email: admin.email, type: "admin" })
     }
 
     // Get existing request for status update

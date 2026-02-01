@@ -17,6 +17,7 @@ import { Route as KebutuhanDapurIndexRouteImport } from './routes/kebutuhan-dapu
 import { Route as DataLaporanIndexRouteImport } from './routes/data-laporan/index'
 import { Route as DaftarAnggotaIndexRouteImport } from './routes/daftar-anggota/index'
 import { Route as CaraKerjaIndexRouteImport } from './routes/cara-kerja/index'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
@@ -61,6 +62,11 @@ const CaraKerjaIndexRoute = CaraKerjaIndexRouteImport.update({
   path: '/cara-kerja/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRegisterRoute = AuthRegisterRouteImport.update({
   id: '/auth/register',
   path: '/auth/register',
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/cara-kerja': typeof CaraKerjaIndexRoute
   '/daftar-anggota': typeof DaftarAnggotaIndexRoute
   '/data-laporan': typeof DataLaporanIndexRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/cara-kerja': typeof CaraKerjaIndexRoute
   '/daftar-anggota': typeof DaftarAnggotaIndexRoute
   '/data-laporan': typeof DataLaporanIndexRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/cara-kerja/': typeof CaraKerjaIndexRoute
   '/daftar-anggota/': typeof DaftarAnggotaIndexRoute
   '/data-laporan/': typeof DataLaporanIndexRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
+    | '/auth/reset-password'
     | '/cara-kerja'
     | '/daftar-anggota'
     | '/data-laporan'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
+    | '/auth/reset-password'
     | '/cara-kerja'
     | '/daftar-anggota'
     | '/data-laporan'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
+    | '/auth/reset-password'
     | '/cara-kerja/'
     | '/daftar-anggota/'
     | '/data-laporan/'
@@ -164,6 +176,7 @@ export interface RootRouteChildren {
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthRegisterRoute: typeof AuthRegisterRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   CaraKerjaIndexRoute: typeof CaraKerjaIndexRoute
   DaftarAnggotaIndexRoute: typeof DaftarAnggotaIndexRoute
   DataLaporanIndexRoute: typeof DataLaporanIndexRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CaraKerjaIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/register': {
       id: '/auth/register'
       path: '/auth/register'
@@ -260,6 +280,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthRegisterRoute: AuthRegisterRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
   CaraKerjaIndexRoute: CaraKerjaIndexRoute,
   DaftarAnggotaIndexRoute: DaftarAnggotaIndexRoute,
   DataLaporanIndexRoute: DataLaporanIndexRoute,
