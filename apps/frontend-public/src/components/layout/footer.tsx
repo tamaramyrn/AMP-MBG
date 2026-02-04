@@ -1,6 +1,6 @@
 import { memo, useCallback } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Phone, Mail } from "lucide-react"
+import { MessageCircle, Mail } from "lucide-react"
 
 const LEFT_LINKS = [
   { to: "/", label: "Beranda", protected: false },
@@ -82,18 +82,20 @@ function FooterComponent() {
           <div className="flex flex-col gap-2 items-start md:items-end">
             <h4 className="text-xs uppercase tracking-widest text-blue-30 font-semibold mb-1">Hubungi Kami</h4>
             <a
-              href="tel:+6281200000000"
+              href="https://wa.me/6281316423424"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-2 text-blue-20 hover:text-general-20 transition-colors body-sm"
             >
-              <Phone className="w-4 h-4" />
-              <span>+62 812 0000 0000</span>
+              <MessageCircle className="w-4 h-4" />
+              <span>081316423424</span>
             </a>
             <a
-              href="mailto:ampmbg@gmail.com"
+              href="mailto:ampmbg.id@gmail.com"
               className="flex items-center gap-2 text-blue-20 hover:text-general-20 transition-colors body-sm"
             >
               <Mail className="w-4 h-4" />
-              <span>ampmbg@gmail.com</span>
+              <span>ampmbg.id@gmail.com</span>
             </a>
           </div>
         </div>

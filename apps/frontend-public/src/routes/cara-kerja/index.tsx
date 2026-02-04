@@ -78,7 +78,7 @@ function CaraKerjaPage() {
                     
                     <div className="w-full sm:w-auto mb-8">
                       <a
-                        href="https://wa.me/6281234567890"
+                        href="https://wa.me/6281316423424"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-green-60 hover:bg-green-70 text-white font-bold rounded-lg transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 body-sm w-full sm:w-auto"
