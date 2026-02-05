@@ -18,7 +18,11 @@ import {
   User,
   FileText,
   Save,
-  Check
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react"
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -154,6 +158,10 @@ function AkunAnggotaPage() {
   const [filterRole, setFilterRole] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
 
+  // --- STATE PAGINATION ---
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
   // State Modals
   const [showAddModal, setShowAddModal] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -169,14 +177,18 @@ function AkunAnggotaPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "members"] })
       setDeleteId(null)
+      // Mundur halaman jika item terakhir dihapus
+      if (currentMembers.length === 1 && currentPage > 1) {
+        setCurrentPage(p => p - 1)
+      }
     },
     onError: (err) => {
       alert("Gagal menghapus: " + err.message)
     }
   })
 
-  // LOGIKA UTAMA: Filter & Sorting (A-Z)
-  const members: Member[] = useMemo(() => {
+  // LOGIKA UTAMA: Filter & Sorting
+  const allMembers: Member[] = useMemo(() => {
     if (!membersData?.data) return []
 
     // 1. Filter
@@ -189,14 +201,13 @@ function AkunAnggotaPage() {
         m.name.toLowerCase().includes(searchTerm.toLowerCase())
       
       const matchRole = !filterRole || m.memberType === filterRole
-      
       const statusInfo = getStatusInfo(m.isVerified)
       const matchStatus = !filterStatus || statusInfo.key === filterStatus
       
       return matchSearch && matchRole && matchStatus
     })
 
-    // 2. Sort A-Z (Berdasarkan Nama Organisasi, jika kosong pakai Nama User)
+    // 2. Sort A-Z
     return filtered.sort((a, b) => {
       const nameA = (a.organizationInfo?.name || a.name).toLowerCase()
       const nameB = (b.organizationInfo?.name || b.name).toLowerCase()
@@ -205,9 +216,52 @@ function AkunAnggotaPage() {
 
   }, [membersData, searchTerm, filterRole, filterStatus])
 
-  const confirmDelete = () => {
-    if (deleteId) deleteMutation.mutate(deleteId)
-  }
+  // --- LOGIKA PAGINATION SLICING ---
+  const totalPages = Math.ceil(allMembers.length / itemsPerPage) || 1
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentMembers = allMembers.slice(indexOfFirstItem, indexOfLastItem)
+
+  // Reset page saat filter berubah
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterRole, filterStatus])
+
+  // --- LOGIKA SMART PAGINATION (1 2 ... Last) ---
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 3) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    const pages = new Set([1, 2, totalPages]);
+    
+    if (currentPage > 2 && currentPage < totalPages) {
+      pages.add(currentPage);
+    }
+
+    const sortedPages = Array.from(pages).sort((a, b) => a - b);
+    const finalItems: (number | string)[] = [];
+
+    for (let i = 0; i < sortedPages.length; i++) {
+      const page = sortedPages[i];
+      if (i > 0) {
+        if (page - sortedPages[i - 1] > 1) {
+          finalItems.push("...");
+        }
+      }
+      finalItems.push(page);
+    }
+
+    return finalItems;
+  }, [currentPage, totalPages]);
+
+  // Handlers
+  const confirmDelete = () => { if (deleteId) deleteMutation.mutate(deleteId) }
+  const goToFirst = () => setCurrentPage(1)
+  const goToLast = () => setCurrentPage(totalPages)
+  const goToPrev = () => setCurrentPage(p => Math.max(1, p - 1))
+  const goToNext = () => setCurrentPage(p => Math.min(totalPages, p + 1))
+  const goToPage = (p: number) => setCurrentPage(p)
 
   return (
     <DashboardAnggotaLayout>
@@ -231,7 +285,7 @@ function AkunAnggotaPage() {
           </button>
         </div>
 
-        {/* Filters - Overflow Visible untuk Dropdown */}
+        {/* Filters */}
         <div className="bg-general-20 border border-general-30 rounded-xl p-5 shadow-sm overflow-visible relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
             {/* Search */}
@@ -274,13 +328,13 @@ function AkunAnggotaPage() {
         </div>
 
         {/* Content Table */}
-        <div className="bg-general-20 border border-general-30 rounded-xl overflow-hidden shadow-sm relative z-0">
+        <div className="bg-general-20 border border-general-30 rounded-xl overflow-hidden shadow-sm relative z-0 flex flex-col">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-24 space-y-4">
               <Loader2 className="w-10 h-10 animate-spin text-blue-100" />
               <p className="body-sm text-general-60 animate-pulse">Memuat data anggota...</p>
             </div>
-          ) : members.length === 0 ? (
+          ) : allMembers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
               <div className="w-20 h-20 bg-general-30/30 rounded-full flex items-center justify-center mb-4">
                 <Users className="w-10 h-10 text-general-50" />
@@ -305,16 +359,17 @@ function AkunAnggotaPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {members.map((member, idx) => {
+                  {currentMembers.map((member, idx) => {
                     const statusInfo = getStatusInfo(member.isVerified)
                     const orgName = member.organizationInfo?.name || member.name
                     const orgEmail = member.organizationInfo?.email || member.email
                     const orgPhone = member.organizationInfo?.phone || member.phone
+                    const itemNumber = (currentPage - 1) * itemsPerPage + idx + 1
 
                     return (
                       <tr key={member.id} className="border-b border-general-30 hover:bg-general-30/20 transition-colors group">
                         <td className="p-4 text-center body-sm text-general-60 border-r border-general-30 group-hover:text-general-80">
-                          {idx + 1}
+                          {itemNumber}
                         </td>
 
                         <td className="p-4 border-r border-general-30">
@@ -366,6 +421,84 @@ function AkunAnggotaPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* --- PAGINATION CONTROLS --- */}
+          {allMembers.length > 0 && (
+            <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-general-30 text-general-60 body-sm bg-general-20 mt-auto">
+              <span className="text-xs sm:text-sm text-center sm:text-left">
+                Menampilkan <span className="font-medium text-general-100">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, allMembers.length)}</span> dari {allMembers.length} data
+              </span>
+              
+              <div className="flex items-center gap-1 select-none">
+                
+                {/* First Page (<<) : HIDDEN ON MOBILE */}
+                <button 
+                  onClick={goToFirst} 
+                  disabled={currentPage === 1}
+                  className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+
+                {/* Prev Page (<) */}
+                <button 
+                  onClick={goToPrev} 
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {/* Page Numbers Mapping */}
+                <div className="flex gap-1 mx-2">
+                  {paginationItems.map((item, idx) => {
+                    if (item === "...") {
+                      return (
+                        <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-general-60 font-medium">
+                          ...
+                        </span>
+                      )
+                    }
+
+                    const pageNum = item as number
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => goToPage(pageNum)}
+                        className={`
+                          w-8 h-8 flex items-center justify-center rounded transition-colors body-sm font-medium
+                          ${currentPage === pageNum 
+                            ? 'bg-blue-100 text-general-20 font-bold shadow-sm' 
+                            : 'hover:bg-general-30 text-general-80'}
+                        `}
+                      >
+                        {pageNum}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Next Page (>) */}
+                <button 
+                  onClick={goToNext} 
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Last Page (>>) : HIDDEN ON MOBILE */}
+                <button 
+                  onClick={goToLast} 
+                  disabled={currentPage === totalPages}
+                  className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+
+              </div>
             </div>
           )}
         </div>

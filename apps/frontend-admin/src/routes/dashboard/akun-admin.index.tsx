@@ -15,7 +15,11 @@ import {
   CheckCircle2,
   AlertCircle,
   AlertTriangle,
-  Check // Icon untuk CustomSelect
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react"
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -49,7 +53,7 @@ interface CustomSelectProps {
   disabled?: boolean
   loading?: boolean
   placeholder?: string
-  isError?: boolean // Prop tambahan untuk validasi form
+  isError?: boolean
 }
 
 function CustomSelect({ label, value, options, onChange, disabled, loading, placeholder, isError }: CustomSelectProps) {
@@ -132,10 +136,11 @@ function AkunAdminPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterRole, setFilterRole] = useState("")
   
-  // State untuk Modal Tambah
-  const [showAddModal, setShowAddModal] = useState(false)
+  // --- STATE PAGINATION ---
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
-  // State untuk Modal Hapus
+  const [showAddModal, setShowAddModal] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const { data: adminsData, isLoading } = useQuery({
@@ -147,18 +152,21 @@ function AkunAdminPage() {
     mutationFn: (id: string) => adminAccountService.deleteAdmin(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "admins"] })
-      setDeleteId(null) // Tutup modal hapus
+      setDeleteId(null)
+      // Jika item terakhir di halaman dihapus, mundur 1 halaman
+      if (currentAdmins.length === 1 && currentPage > 1) {
+        setCurrentPage(p => p - 1)
+      }
     },
     onError: (err) => {
         alert("Gagal menghapus: " + err.message)
     }
   })
 
-  // LOGIKA UTAMA: Filter & Sorting (A-Z)
-  const admins: Admin[] = useMemo(() => {
+  // LOGIKA UTAMA: Filter & Sorting
+  const allAdmins: Admin[] = useMemo(() => {
     if (!adminsData?.data) return []
 
-    // 1. Filter
     const filtered = adminsData.data.filter((a: Admin) => {
       const matchSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -166,24 +174,58 @@ function AkunAdminPage() {
       return matchSearch && matchRole
     })
 
-    // 2. Sort A-Z Berdasarkan Nama
     return filtered.sort((a, b) => a.name.localeCompare(b.name))
-
   }, [adminsData, searchTerm, filterRole])
 
-  const handleDeleteClick = (id: string) => {
-    setDeleteId(id)
-  }
+  // --- LOGIKA PAGINATION SLICING ---
+  const totalPages = Math.ceil(allAdmins.length / itemsPerPage) || 1
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentAdmins = allAdmins.slice(indexOfFirstItem, indexOfLastItem)
 
-  const confirmDelete = () => {
-    if (deleteId) {
-      deleteMutation.mutate(deleteId)
+  // Reset page saat filter berubah
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterRole])
+
+  // --- LOGIKA SMART PAGINATION (1 2 ... Last) ---
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 3) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
-  }
+    
+    const pages = new Set([1, 2, totalPages]);
+    
+    if (currentPage > 2 && currentPage < totalPages) {
+      pages.add(currentPage);
+    }
 
-  const getRoleStyle = (_role: string) => {
-    return "bg-blue-20 text-blue-100 border-blue-30"
-  }
+    const sortedPages = Array.from(pages).sort((a, b) => a - b);
+    const finalItems: (number | string)[] = [];
+
+    for (let i = 0; i < sortedPages.length; i++) {
+      const page = sortedPages[i];
+      if (i > 0) {
+        if (page - sortedPages[i - 1] > 1) {
+          finalItems.push("...");
+        }
+      }
+      finalItems.push(page);
+    }
+
+    return finalItems;
+  }, [currentPage, totalPages]);
+
+  // Handlers
+  const handleDeleteClick = (id: string) => setDeleteId(id)
+  const confirmDelete = () => { if (deleteId) deleteMutation.mutate(deleteId) }
+  const getRoleStyle = (_role: string) => "bg-blue-20 text-blue-100 border-blue-30"
+
+  const goToFirst = () => setCurrentPage(1)
+  const goToLast = () => setCurrentPage(totalPages)
+  const goToPrev = () => setCurrentPage(p => Math.max(1, p - 1))
+  const goToNext = () => setCurrentPage(p => Math.min(totalPages, p + 1))
+  const goToPage = (p: number) => setCurrentPage(p)
 
   return (
     <DashboardAnggotaLayout>
@@ -194,7 +236,7 @@ function AkunAdminPage() {
           <div>
             <h1 className="h4 text-general-100 font-heading">Manajemen Akun Admin</h1>
             <p className="body-sm text-general-60 mt-2 max-w-2xl">
-              Kelola daftar administrator yang memiliki akses ke dashboard AMP MBG. Tambahkan peran sesuai divisi.
+              Kelola daftar administrator yang memiliki akses ke dashboard AMP MBG.
             </p>
           </div>
 
@@ -208,10 +250,8 @@ function AkunAdminPage() {
         </div>
 
         {/* Filters Section */}
-        {/* PENTING: overflow-visible agar dropdown tidak terpotong */}
         <div className="bg-general-20 border border-general-30 rounded-xl p-5 shadow-sm overflow-visible relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
-            {/* Search Input */}
             <div className="md:col-span-7 lg:col-span-8 relative z-0">
               <label className="block body-xs font-semibold text-general-80 mb-2 uppercase tracking-wide">Pencarian</label>
               <div className="relative group">
@@ -226,7 +266,6 @@ function AkunAdminPage() {
               </div>
             </div>
 
-            {/* Role Filter (Custom Select) */}
             <div className="md:col-span-5 lg:col-span-4 relative z-20">
               <CustomSelect 
                 label="Filter Peran"
@@ -246,7 +285,7 @@ function AkunAdminPage() {
               <Loader2 className="w-10 h-10 animate-spin text-blue-100" />
               <p className="body-sm text-general-60 animate-pulse">Memuat data admin...</p>
             </div>
-          ) : admins.length === 0 ? (
+          ) : allAdmins.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
               <div className="w-20 h-20 bg-general-30/30 rounded-full flex items-center justify-center mb-4">
                 <UserCog className="w-10 h-10 text-general-50" />
@@ -257,58 +296,137 @@ function AkunAdminPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-general-20 border-b border-general-30 text-general-100 body-sm font-heading font-semibold">
-                    <th className="p-4 w-12 text-center border-r border-general-30">No</th>
-                    <th className="p-4 min-w-[200px] border-r border-general-30">Informasi Admin</th>
-                    <th className="p-4 min-w-[150px] border-r border-general-30">Peran / Divisi</th>
-                    <th className="p-4 w-32 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {admins.map((admin, idx) => (
-                    <tr key={admin.id} className="border-b border-general-30 hover:bg-general-30/20 transition-colors group">
-                      <td className="p-4 text-center body-sm text-general-60 border-r border-general-30 group-hover:text-general-80">
-                        {idx + 1}
-                      </td>
-
-                      <td className="p-4 border-r border-general-30">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-general-100 body-sm mb-0.5">{admin.name}</span>
-                          <div className="flex items-center gap-1.5 text-general-60">
-                            <Mail className="w-3.5 h-3.5" />
-                            <span className="text-xs">{admin.email}</span>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="p-4 align-middle border-r border-general-30">
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${getRoleStyle(admin.adminRole || "admin")}`}>
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                          <span className="text-xs font-semibold whitespace-nowrap">
-                            {admin.adminRole || "Admin"}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="p-4 align-middle text-center">
-                        <div className="flex justify-center">
-                          <button
-                            onClick={() => handleDeleteClick(admin.id)}
-                            className="p-2 bg-red-20 text-red-100 hover:bg-red-30 border border-red-30 rounded-lg transition-colors shadow-sm disabled:opacity-50"
-                            title="Hapus Akun Admin"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-general-20 border-b border-general-30 text-general-100 body-sm font-heading font-semibold">
+                      <th className="p-4 w-12 text-center border-r border-general-30">No</th>
+                      <th className="p-4 min-w-[200px] border-r border-general-30">Informasi Admin</th>
+                      <th className="p-4 min-w-[150px] border-r border-general-30">Peran / Divisi</th>
+                      <th className="p-4 w-32 text-center">Aksi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {currentAdmins.map((admin, idx) => (
+                      <tr key={admin.id} className="border-b border-general-30 hover:bg-general-30/20 transition-colors group">
+                        <td className="p-4 text-center body-sm text-general-60 border-r border-general-30 group-hover:text-general-80">
+                          {indexOfFirstItem + idx + 1}
+                        </td>
+
+                        <td className="p-4 border-r border-general-30">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-general-100 body-sm mb-0.5">{admin.name}</span>
+                            <div className="flex items-center gap-1.5 text-general-60">
+                              <Mail className="w-3.5 h-3.5" />
+                              <span className="text-xs">{admin.email}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="p-4 align-middle border-r border-general-30">
+                          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${getRoleStyle(admin.adminRole || "admin")}`}>
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span className="text-xs font-semibold whitespace-nowrap">
+                              {admin.adminRole || "Admin"}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="p-4 align-middle text-center">
+                          <div className="flex justify-center">
+                            <button
+                              onClick={() => handleDeleteClick(admin.id)}
+                              className="p-2 bg-red-20 text-red-100 hover:bg-red-30 border border-red-30 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                              title="Hapus Akun Admin"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* --- PAGINATION CONTROLS --- */}
+              {allAdmins.length > 0 && (
+                <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-general-30 text-general-60 body-sm bg-general-20">
+                  <span className="text-xs sm:text-sm text-center sm:text-left">
+                    Menampilkan <span className="font-medium text-general-100">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, allAdmins.length)}</span> dari {allAdmins.length} data
+                  </span>
+                  
+                  <div className="flex items-center gap-1 select-none">
+                    
+                    {/* First Page (<<) : HIDDEN DI MOBILE */}
+                    <button 
+                      onClick={goToFirst} 
+                      disabled={currentPage === 1}
+                      className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+
+                    {/* Prev Page (<) */}
+                    <button 
+                      onClick={goToPrev} 
+                      disabled={currentPage === 1}
+                      className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex gap-1 mx-2">
+                      {paginationItems.map((item, idx) => {
+                        if (item === "...") {
+                          return (
+                            <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-general-60 font-medium">
+                              ...
+                            </span>
+                          )
+                        }
+                        const pageNum = item as number
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => goToPage(pageNum)}
+                            className={`
+                              w-8 h-8 flex items-center justify-center rounded transition-colors body-sm font-medium
+                              ${currentPage === pageNum 
+                                ? 'bg-blue-100 text-general-20 font-bold shadow-sm' 
+                                : 'hover:bg-general-30 text-general-80'}
+                            `}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Next Page (>) */}
+                    <button 
+                      onClick={goToNext} 
+                      disabled={currentPage === totalPages}
+                      className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+
+                    {/* Last Page (>>) : HIDDEN DI MOBILE */}
+                    <button 
+                      onClick={goToLast} 
+                      disabled={currentPage === totalPages}
+                      className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -336,7 +454,7 @@ function AkunAdminPage() {
   )
 }
 
-// --- KOMPONEN MODAL HAPUS BARU ---
+// --- KOMPONEN MODAL HAPUS ---
 function DeleteConfirmModal({ onClose, onConfirm, isLoading }: { onClose: () => void, onConfirm: () => void, isLoading: boolean }) {
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-general-100/40 backdrop-blur-sm animate-in fade-in duration-300">
@@ -372,7 +490,7 @@ function DeleteConfirmModal({ onClose, onConfirm, isLoading }: { onClose: () => 
     )
 }
 
-// --- KOMPONEN TAMBAH ADMIN (UPDATED) ---
+// --- KOMPONEN TAMBAH ADMIN ---
 function AddAdminModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [formData, setFormData] = useState<CreateAdminData>({
     name: "",
@@ -407,7 +525,6 @@ function AddAdminModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     createMutation.mutate(formData)
   }
 
-  // TAMPILAN SUKSES
   if (isSuccess) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-general-100/40 backdrop-blur-sm animate-in fade-in duration-300">
@@ -428,13 +545,10 @@ function AddAdminModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     )
   }
 
-  // TAMPILAN FORM (UPDATED WITH CUSTOM SELECT)
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-general-100/40 backdrop-blur-sm animate-in fade-in duration-300">
-      {/* Gunakan overflow-visible agar dropdown bisa keluar dari modal */}
       <div className="bg-general-20 rounded-2xl shadow-2xl w-full max-w-lg overflow-visible animate-in zoom-in-95 duration-300 border border-general-30 flex flex-col">
         
-        {/* Header */}
         <div className="px-6 py-5 border-b border-general-30 flex items-center justify-between bg-general-20 rounded-t-2xl">
           <div>
              <h3 className="h5 text-general-100 font-heading">Tambah Admin Baru</h3>
@@ -445,7 +559,6 @@ function AddAdminModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
           </button>
         </div>
 
-        {/* ALERT ERROR VALIDASI */}
         {errorMsg && (
             <div className="mx-6 mt-6 p-3 bg-red-20 border border-red-30 rounded-lg flex items-start gap-3 animate-in slide-in-from-top-2">
                 <AlertCircle className="w-5 h-5 text-red-100 shrink-0 mt-0.5" />
@@ -457,7 +570,6 @@ function AddAdminModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="space-y-4">
             <div>
@@ -483,7 +595,6 @@ function AddAdminModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                 />
               </div>
 
-              {/* Custom Select untuk Divisi */}
               <div className="relative z-50">
                 <CustomSelect 
                   label="Divisi / Peran"

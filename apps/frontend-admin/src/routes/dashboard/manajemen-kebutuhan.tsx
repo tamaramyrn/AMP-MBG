@@ -61,6 +61,38 @@ function ManajemenKebutuhanPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = filteredNeeds.slice(indexOfFirstItem, indexOfLastItem)
 
+  // --- LOGIKA SMART PAGINATION (1 2 ... Last) ---
+  const paginationItems = useMemo(() => {
+    // 1. Jika halaman <= 3, tampilkan semua
+    if (totalPages <= 3) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    // 2. Jika halaman >= 4, gunakan logika gap
+    const pages = new Set([1, 2, totalPages]); // Selalu 1, 2, dan Last
+
+    // Masukkan current page jika di tengah
+    if (currentPage > 2 && currentPage < totalPages) {
+      pages.add(currentPage);
+    }
+
+    const sortedPages = Array.from(pages).sort((a, b) => a - b);
+    const finalItems: (number | string)[] = [];
+
+    for (let i = 0; i < sortedPages.length; i++) {
+      const page = sortedPages[i];
+      if (i > 0) {
+        const prevPage = sortedPages[i - 1];
+        if (page - prevPage > 1) {
+          finalItems.push("...");
+        }
+      }
+      finalItems.push(page);
+    }
+
+    return finalItems;
+  }, [currentPage, totalPages]);
+
   // Handlers
   const handleDetail = (item: KitchenNeedItem) => {
     setEditingItem(item)
@@ -84,6 +116,7 @@ function ManajemenKebutuhanPage() {
   const goToLast = () => setCurrentPage(totalPages)
   const goToPrev = () => setCurrentPage(p => Math.max(1, p - 1))
   const goToNext = () => setCurrentPage(p => Math.min(totalPages, p + 1))
+  const handlePageClick = (page: number) => setCurrentPage(page)
 
   return (
     <DashboardAnggotaLayout>
@@ -201,26 +234,76 @@ function ManajemenKebutuhanPage() {
               {/* Pagination Controls */}
               {filteredNeeds.length > 0 && (
                 <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-general-30 text-general-60 body-sm bg-general-20">
-                  <span className="text-xs sm:text-sm">
+                  <span className="text-xs sm:text-sm text-center sm:text-left">
                     Menampilkan <span className="font-medium text-general-100">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredNeeds.length)}</span> dari {filteredNeeds.length} data
                   </span>
                   
-                  <div className="flex items-center gap-1">
-                    <button onClick={goToFirst} disabled={currentPage === 1} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80">
+                  <div className="flex items-center gap-1 select-none">
+                    
+                    {/* First Page (<<) : HIDDEN DI MOBILE */}
+                    <button 
+                      onClick={goToFirst} 
+                      disabled={currentPage === 1} 
+                      className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                    >
                       <ChevronsLeft className="w-4 h-4" />
                     </button>
-                    <button onClick={goToPrev} disabled={currentPage === 1} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80">
+
+                    {/* Prev Page (<) */}
+                    <button 
+                      onClick={goToPrev} 
+                      disabled={currentPage === 1} 
+                      className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                    >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     
-                    <span className="mx-2 font-medium text-general-100 min-w-[2rem] text-center">{currentPage}</span>
+                    {/* Page Numbers */}
+                    <div className="flex gap-1 mx-2">
+                      {paginationItems.map((item, idx) => {
+                        if (item === "...") {
+                          return (
+                            <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-general-60 font-medium">
+                              ...
+                            </span>
+                          )
+                        }
+                        const pageNum = item as number
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageClick(pageNum)}
+                            className={`
+                              w-8 h-8 flex items-center justify-center rounded transition-colors body-sm font-medium
+                              ${currentPage === pageNum 
+                                ? "bg-blue-100 text-general-20 font-bold shadow-sm" 
+                                : "hover:bg-general-30 text-general-80"}
+                            `}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      })}
+                    </div>
                     
-                    <button onClick={goToNext} disabled={currentPage === totalPages} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80">
+                    {/* Next Page (>) */}
+                    <button 
+                      onClick={goToNext} 
+                      disabled={currentPage === totalPages} 
+                      className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                    >
                       <ChevronRight className="w-4 h-4" />
                     </button>
-                    <button onClick={goToLast} disabled={currentPage === totalPages} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80">
+
+                    {/* Last Page (>>) : HIDDEN DI MOBILE */}
+                    <button 
+                      onClick={goToLast} 
+                      disabled={currentPage === totalPages} 
+                      className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                    >
                       <ChevronsRight className="w-4 h-4" />
                     </button>
+
                   </div>
                 </div>
               )}

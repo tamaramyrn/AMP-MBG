@@ -1,7 +1,7 @@
 import { memo, useMemo, useCallback, useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { 
-  Loader2, FileText, Calendar, AlertCircle, 
+  Loader2, FileText, AlertCircle, 
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight 
 } from "lucide-react"
 import { profileService } from "@/services/profile"
@@ -44,7 +44,7 @@ function ReportHistoryComponent() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
 
-  // 1. Fetch Data Laporan (Limit dinaikkan agar pagination terlihat)
+  // 1. Fetch Data Laporan
   const { data: reportsData, isLoading: isReportsLoading } = useQuery({
     queryKey: ["profile", "reports"],
     queryFn: () => profileService.getReports({ limit: 50 }), 
@@ -67,19 +67,55 @@ function ReportHistoryComponent() {
     return reports.slice(start, start + itemsPerPage)
   }, [currentPage, reports])
 
+  // --- LOGIKA SMART PAGINATION (DIPERBAIKI) ---
+  const paginationItems = useMemo(() => {
+    // 1. Jika halaman CUMA 1, 2, atau 3 -> Tampilkan semua.
+    // TAPI jika 4, masuk ke logika bawah agar jadi 1 2 ... 4
+    if (totalPages <= 3) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    // 2. Jika halaman 4 atau lebih, gunakan logika gap
+    const pages = new Set([1, 2, totalPages]); // Selalu ada 1, 2, dan Last
+
+    // Masukkan current page jika berada di tengah (bukan 1, 2, atau Last)
+    if (currentPage > 2 && currentPage < totalPages) {
+      pages.add(currentPage);
+    }
+
+    // Urutkan angka halaman
+    const sortedPages = Array.from(pages).sort((a, b) => a - b);
+    const finalItems: (number | string)[] = [];
+
+    for (let i = 0; i < sortedPages.length; i++) {
+      const page = sortedPages[i];
+      if (i > 0) {
+        const prevPage = sortedPages[i - 1];
+        // Jika jaraknya lebih dari 1, sisipkan "..."
+        if (page - prevPage > 1) {
+          finalItems.push("...");
+        }
+      }
+      finalItems.push(page);
+    }
+
+    return finalItems;
+  }, [currentPage, totalPages]);
+
   // Reset ke halaman 1 jika data berubah
   useEffect(() => {
     setCurrentPage(1)
   }, [reports.length])
 
-  // Helper Pagination
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page)
     }
   }
 
-  // --- HELPER LAINNYA ---
+  const handleFirstPage = () => setCurrentPage(1)
+  const handleLastPage = () => setCurrentPage(totalPages)
+
   const getCategoryLabel = useCallback((value: string) => {
     if (!categoriesData) return value
     const found = categoriesData.find((c: any) => c.value === value)
@@ -132,7 +168,6 @@ function ReportHistoryComponent() {
           <tbody className="divide-y divide-general-30">
             {currentReports.map((report, index) => {
               const statusStyle = getStatusStyle(report.status)
-              // Hitung nomor urut berdasarkan halaman
               const itemNumber = (currentPage - 1) * itemsPerPage + index + 1
               
               return (
@@ -157,35 +192,41 @@ function ReportHistoryComponent() {
         </table>
       </div>
 
-      {/* Mobile Cards (Responsive) */}
-      <div className="md:hidden divide-y divide-general-30">
+      {/* Mobile Cards */}
+      <div className="md:hidden flex flex-col gap-4 p-4 bg-general-20/30">
         {currentReports.map((report, index) => {
           const statusStyle = getStatusStyle(report.status)
           const itemNumber = (currentPage - 1) * itemsPerPage + index + 1
 
           return (
-            <div key={report.id} className="p-5 hover:bg-general-20/20 transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-general-50 bg-general-20 px-2 py-1 rounded">#{itemNumber}</span>
-                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${statusStyle.className}`}>
+            <div key={report.id} className="bg-white rounded-xl border border-general-30 shadow-sm p-4 hover:shadow-md transition-shadow">
+              
+              {/* Header Kartu: Tanggal & Status */}
+              <div className="flex justify-between items-start mb-3">
+                <div className="text-xs font-medium text-general-50 bg-general-20 px-2 py-1 rounded-lg">
+                  {formatDate(report.createdAt)}
+                </div>
+                <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${statusStyle.className}`}>
                   {statusStyle.label}
                 </span>
               </div>
               
-              <div className="mb-3">
-                <h4 className="font-bold text-general-100 text-sm mb-1">{report.location}</h4>
-                <div className="flex items-center gap-2 text-xs text-general-60">
-                  <Calendar className="w-3 h-3" />
-                  {formatDate(report.createdAt)}
-                </div>
+              {/* Content Utama: Lokasi */}
+              <div className="mb-4">
+                <h4 className="font-heading font-bold text-general-100 text-sm leading-tight">
+                  {report.location}
+                </h4>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-red-20 text-red-100 border border-red-30">
+              {/* Footer Kartu: Kategori & ID */}
+              <div className="flex items-center justify-between pt-3 border-t border-general-30 border-dashed">
+                <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium bg-red-20 text-red-100 border border-red-30">
                   <AlertCircle className="w-3 h-3 mr-1" />
                   {getCategoryLabel(report.category)}
                 </span>
+                <span className="text-xs font-bold text-general-50 bg-general-20 px-2 py-1 rounded">#{itemNumber}</span>
               </div>
+
             </div>
           )
         })}
@@ -193,18 +234,18 @@ function ReportHistoryComponent() {
 
       {/* --- PAGINATION CONTROLS --- */}
       {totalPages > 1 && (
-        <div className="p-4 border-t border-general-30 bg-general-20/30 flex items-center justify-center gap-2 select-none">
+        <div className="p-4 border-t border-general-30 bg-general-20/30 flex items-center justify-center gap-2 select-none mt-auto">
           
-          {/* First Page */}
+          {/* First Page (<<) : HIDDEN ON MOBILE */}
           <button 
-            onClick={() => handlePageChange(1)} 
+            onClick={handleFirstPage} 
             disabled={currentPage === 1}
-            className="p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="hidden sm:flex p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             <ChevronsLeft className="w-4 h-4" />
           </button>
 
-          {/* Prev Page */}
+          {/* Prev Page (<) */}
           <button 
             onClick={() => handlePageChange(currentPage - 1)} 
             disabled={currentPage === 1}
@@ -213,28 +254,37 @@ function ReportHistoryComponent() {
             <ChevronLeft className="w-4 h-4" />
           </button>
 
-          {/* Page Numbers */}
-          <div className="flex gap-1.5 mx-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              // Logic sederhana: Tampilkan semua jika total halaman <= 5.
-              // Jika lebih, bisa dikembangkan logic slice-nya. Di sini kita map semua dulu untuk request 1 2 3
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                className={`
-                  w-8 h-8 rounded-lg text-sm font-bold border transition-all flex items-center justify-center
-                  ${currentPage === page 
-                    ? 'bg-blue-100 border-blue-100 text-white shadow-sm' 
-                    : 'bg-white border-general-30 text-general-60 hover:border-blue-100 hover:text-blue-100'
-                  }
-                `}
-              >
-                {page}
-              </button>
-            ))}
+          {/* Page Numbers Mapping */}
+          <div className="flex gap-1 mx-1 sm:mx-2">
+            {paginationItems.map((item, idx) => {
+              if (item === "...") {
+                return (
+                  <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-general-60 font-bold text-xs sm:text-sm">
+                    ...
+                  </span>
+                )
+              }
+
+              const pageNum = item as number
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => handlePageChange(pageNum)}
+                  className={`
+                    w-8 h-8 rounded-lg text-xs sm:text-sm font-bold border transition-all flex items-center justify-center
+                    ${currentPage === pageNum 
+                      ? 'bg-blue-100 border-blue-100 text-white shadow-sm' 
+                      : 'bg-white border-general-30 text-general-60 hover:border-blue-100 hover:text-blue-100'
+                    }
+                  `}
+                >
+                  {pageNum}
+                </button>
+              )
+            })}
           </div>
 
-          {/* Next Page */}
+          {/* Next Page (>) */}
           <button 
             onClick={() => handlePageChange(currentPage + 1)} 
             disabled={currentPage === totalPages}
@@ -243,11 +293,11 @@ function ReportHistoryComponent() {
             <ChevronRight className="w-4 h-4" />
           </button>
 
-          {/* Last Page */}
+          {/* Last Page (>>) : HIDDEN ON MOBILE */}
           <button 
-            onClick={() => handlePageChange(totalPages)} 
+            onClick={handleLastPage} 
             disabled={currentPage === totalPages}
-            className="p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="hidden sm:flex p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             <ChevronsRight className="w-4 h-4" />
           </button>

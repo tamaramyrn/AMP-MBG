@@ -76,8 +76,21 @@ function KebutuhanDapurPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = filteredNeeds.slice(indexOfFirstItem, indexOfLastItem)
 
+  // --- LOGIKA PAGINATION SESUAI REQUEST ---
+  const paginationItems = useMemo(() => {
+    // Jika halaman sedikit (<= 3), tampilkan semua (1 2 3)
+    if (totalPages <= 3) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    // Jika halaman > 3, paksa format: 1 2 ... Last
+    // Contoh: 1 2 ... 8 atau 1 2 ... 10
+    return [1, 2, "...", totalPages];
+  }, [totalPages]);
+
   const goToNextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages))
   const goToPrevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1))
+  const goToPage = (page: number) => setCurrentPage(page)
 
   // Reset page ke 1 jika user melakukan pencarian
   useEffect(() => {
@@ -183,25 +196,54 @@ function KebutuhanDapurPage() {
              </div>
           )}
 
-          {/* --- PAGINATION CONTROLS --- */}
+          {/* --- PAGINATION CONTROLS (UPDATED) --- */}
           {filteredNeeds.length > itemsPerPage && (
-            <div className="mt-12 flex justify-center items-center gap-4">
+            <div className="mt-12 flex justify-center items-center gap-2 select-none">
+              
+              {/* Prev Button */}
               <button 
                 onClick={goToPrevPage} 
                 disabled={currentPage === 1}
-                className="p-3 rounded-xl border border-general-30 bg-white text-general-60 hover:bg-general-20 hover:text-general-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               
-              <span className="text-sm font-bold text-general-80 bg-white px-4 py-2 rounded-lg border border-general-30">
-                Halaman {currentPage} dari {totalPages}
-              </span>
+              {/* Page Numbers */}
+              <div className="flex gap-1 mx-2">
+                {paginationItems.map((item, idx) => {
+                  if (item === "...") {
+                    return (
+                      <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-general-60 font-bold text-xs sm:text-sm">
+                        ...
+                      </span>
+                    )
+                  }
 
+                  const pageNum = item as number
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className={`
+                        w-8 h-8 rounded-lg text-sm font-bold border transition-all flex items-center justify-center
+                        ${currentPage === pageNum 
+                          ? 'bg-blue-100 border-blue-100 text-white shadow-sm' 
+                          : 'bg-white border-general-30 text-general-60 hover:border-blue-100 hover:text-blue-100'
+                        }
+                      `}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Next Button */}
               <button 
                 onClick={goToNextPage} 
                 disabled={currentPage === totalPages}
-                className="p-3 rounded-xl border border-general-30 bg-white text-general-60 hover:bg-general-20 hover:text-general-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -239,8 +281,8 @@ function RequestModal({ need, onClose }: { need: KitchenNeedItem, onClose: () =>
   // --- VALIDASI ---
   const MIN_DETAIL_CHARS = 20
   
-  // 1. Validasi No. Telepon (9-13 digit)
-  const isPhoneValid = /^\d{9,13}$/.test(formData.phoneNumber)
+  // 1. Validasi No. Telepon (9-12 digit)
+  const isPhoneValid = /^\d{9,12}$/.test(formData.phoneNumber)
   
   // 2. Validasi Detail (Minimal 20 karakter)
   const isDetailValid = formData.details.trim().length >= MIN_DETAIL_CHARS
@@ -349,7 +391,7 @@ function RequestModal({ need, onClose }: { need: KitchenNeedItem, onClose: () =>
                     onChange={handlePhoneInput} 
                     type="tel" 
                     placeholder="8xxxxxxxxxx" 
-                    maxLength={13}
+                    maxLength={12}
                     className="flex-1 px-4 py-3.5 bg-transparent outline-none body-sm text-general-100 placeholder:text-general-40" 
                   />
                 </div>
@@ -357,7 +399,7 @@ function RequestModal({ need, onClose }: { need: KitchenNeedItem, onClose: () =>
               <div className="flex justify-between px-1">
                 <p className="text-[10px] text-general-50 italic">Tanpa angka 0 di awal</p>
                 {formData.phoneNumber.length > 0 && !isPhoneValid && (
-                  <p className="text-[10px] text-red-100 font-bold animate-pulse">Wajib 9-13 Angka</p>
+                  <p className="text-[10px] text-red-100 font-bold animate-pulse">Wajib 9-12 Angka</p>
                 )}
               </div>
             </div>

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, memo } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { StatusBadge } from "@/components/ui/status-badge"
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { CATEGORY_LABELS } from "@/hooks/use-categories"
 
 export interface ReportRow {
@@ -69,9 +68,25 @@ function DataTableComponent({ data }: DataTableProps) {
     }
   }, [data, currentPage])
 
+  // --- LOGIKA SMART PAGINATION (1 2 ... Last) ---
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 4) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const items: (number | string)[] = [1];
+    if (totalPages > 1) items.push(2);
+    if (currentPage > 3) items.push("...");
+    if (currentPage > 2 && currentPage < totalPages) items.push(currentPage);
+    if (currentPage < totalPages - 1) items.push("...");
+    if (totalPages > 2) items.push(totalPages);
+    return items;
+  }, [currentPage, totalPages]);
+
   const getCategoryLabel = useCallback((key: string) => CATEGORY_LABELS[key] || key, [])
   const formatDate = useCallback((dateString: string) => new Date(dateString).toLocaleDateString("id-ID", DATE_OPTIONS), [])
 
+  const handleFirstPage = useCallback(() => setCurrentPage(1), [])
+  const handleLastPage = useCallback(() => setCurrentPage(totalPages), [totalPages])
   const handlePrevPage = useCallback(() => setCurrentPage((p) => Math.max(1, p - 1)), [])
   const handleNextPage = useCallback(() => setCurrentPage((p) => Math.min(totalPages, p + 1)), [totalPages])
   const handlePageClick = useCallback((page: number) => setCurrentPage(page), [])
@@ -81,16 +96,16 @@ function DataTableComponent({ data }: DataTableProps) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-blue-30/30 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-blue-30/30 overflow-hidden flex flex-col">
       
-      {/* HEADER: Font disamakan dengan Profile (text-general-100 font-bold) */}
+      {/* HEADER */}
       <div className="p-6 md:p-8 border-b border-general-30">
         <h2 className="text-lg font-bold text-general-100">Daftar Laporan</h2>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          {/* THEAD: Menggunakan font-heading */}
+      {/* TABEL */}
+      <div className="overflow-x-auto w-full">
+        <table className="w-full min-w-[900px]">
           <thead className="bg-blue-20/40 border-b border-blue-30/50">
             <tr>
               <th className="px-6 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider font-heading w-16">No</th>
@@ -106,24 +121,31 @@ function DataTableComponent({ data }: DataTableProps) {
               const statusStyle = getStatusStyle(row.status)
               return (
                 <tr key={row.id} className="hover:bg-blue-20/20 transition-colors">
-                  {/* ISI TABEL: Menggunakan text-general-80 agar sama dengan Profile */}
-                  <td className="px-6 py-5 body-sm text-general-80 font-medium">{startIndex + index + 1}</td>
-                  <td className="px-6 py-5 body-sm text-general-80 whitespace-nowrap">{formatDate(row.date)}</td>
-                  <td className="px-6 py-5 body-sm text-general-80">
+                  <td className="px-6 py-5 body-sm text-general-80 font-medium align-top">
+                    {startIndex + index + 1}
+                  </td>
+                  <td className="px-6 py-5 body-sm text-general-80 whitespace-nowrap align-top">
+                    {formatDate(row.date)}
+                  </td>
+                  <td className="px-6 py-5 body-sm text-general-80 align-top">
                     <div className="flex flex-col">
                       <span className="font-bold text-general-100">{row.district || "-"}</span>
                       <span className="text-xs text-general-60">{row.city}, {row.province}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${statusStyle.className}`}>
+                  <td className="px-6 py-5 align-top">
+                    <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap ${statusStyle.className}`}>
                       {statusStyle.label}
                     </span>
                   </td>
-                  <td className="px-6 py-5">
-                    <StatusBadge variant="danger">{getCategoryLabel(row.category)}</StatusBadge>
+                  <td className="px-6 py-5 align-top">
+                    <span className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl text-xs font-medium bg-red-20 text-red-100 border border-red-30 whitespace-normal text-center h-auto leading-snug w-full min-w-[100px]">
+                        {getCategoryLabel(row.category)}
+                    </span>
                   </td>
-                  <td className="px-6 py-5 body-sm text-general-80 max-w-xs truncate">{row.description}</td>
+                  <td className="px-6 py-5 body-sm text-general-80 max-w-xs truncate align-top">
+                    {row.description}
+                  </td>
                 </tr>
               )
             })}
@@ -131,54 +153,82 @@ function DataTableComponent({ data }: DataTableProps) {
         </table>
       </div>
 
-      {/* PAGINATION */}
-      <div className="px-6 py-6 border-t border-general-30 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* --- PAGINATION --- */}
+      <div className="px-6 py-6 border-t border-general-30 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white mt-auto">
         <p className="body-sm text-general-60 text-center sm:text-left">
           Menampilkan <span className="font-bold text-blue-100">{data.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, data.length)}</span> dari <span className="font-bold text-blue-100">{data.length}</span> laporan
         </p>
         
-        {totalPages > 1 && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrevPage}
-              disabled={currentPage === 1}
-              className="p-2 border border-general-30 rounded-lg hover:bg-general-20 hover:text-blue-100 disabled:opacity-50 disabled:cursor-not-allowed text-general-60 transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+        {/* Gap diatur lebih kecil (gap-1) di HP agar muat */}
+        <div className="flex items-center gap-1 sm:gap-2 select-none justify-center w-full sm:w-auto">
+          
+          {/* First Page (<<) : HIDDEN DI HP */}
+          <button 
+            onClick={handleFirstPage} 
+            disabled={currentPage === 1}
+            className="hidden sm:flex p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronsLeft className="w-4 h-4" />
+          </button>
 
-            <div className="hidden sm:flex gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (page) =>
-                  (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) && (
-                    <button
-                      key={page}
-                      onClick={() => handlePageClick(page)}
-                      className={`w-10 h-10 rounded-lg text-sm font-bold transition-all ${
-                        currentPage === page 
-                          ? "bg-blue-100 text-white shadow-md" 
-                          : "border border-general-30 hover:border-blue-30 hover:text-blue-100 text-general-60"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  )
-              )}
-            </div>
-            
-            <span className="sm:hidden text-sm font-bold text-blue-100">
-                Halaman {currentPage}
-            </span>
+          {/* Prev Page (<) : Selalu Muncul */}
+          <button 
+            onClick={handlePrevPage} 
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
 
-            <button
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-              className="p-2 border border-general-30 rounded-lg hover:bg-general-20 hover:text-blue-100 disabled:opacity-50 disabled:cursor-not-allowed text-general-60 transition-colors"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+          {/* Page Numbers Mapping */}
+          <div className="flex gap-1 mx-1 sm:mx-2">
+            {paginationItems.map((item, idx) => {
+              if (item === "...") {
+                return (
+                  <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-general-60 font-bold text-xs sm:text-sm">
+                    ...
+                  </span>
+                )
+              }
+
+              const pageNum = item as number
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => handlePageClick(pageNum)}
+                  className={`
+                    w-8 h-8 rounded-lg text-xs sm:text-sm font-bold border transition-all flex items-center justify-center
+                    ${currentPage === pageNum 
+                      ? 'bg-blue-100 border-blue-100 text-white shadow-sm' 
+                      : 'bg-white border-general-30 text-general-60 hover:border-blue-100 hover:text-blue-100'
+                    }
+                  `}
+                >
+                  {pageNum}
+                </button>
+              )
+            })}
           </div>
-        )}
+
+          {/* Next Page (>) : Selalu Muncul */}
+          <button 
+            onClick={handleNextPage} 
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
+          {/* Last Page (>>) : HIDDEN DI HP */}
+          <button 
+            onClick={handleLastPage} 
+            disabled={currentPage === totalPages}
+            className="hidden sm:flex p-2 rounded-lg border border-general-30 bg-white text-general-60 hover:bg-blue-20 hover:text-blue-100 hover:border-blue-30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronsRight className="w-4 h-4" />
+          </button>
+
+        </div>
       </div>
     </div>
   )

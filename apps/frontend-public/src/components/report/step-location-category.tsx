@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo, Suspense, lazy } from "react"
-import { ChevronDown, AlertCircle, Loader2 } from "lucide-react"
+import { memo, useCallback, useMemo, Suspense, lazy, useState, useRef, useEffect } from "react"
+import { ChevronDown, AlertCircle, Loader2, Check } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import type { ReportFormData, Timezone } from "./report-form"
 import { categoriesService } from "@/services/categories"
@@ -20,6 +20,102 @@ const TIMEZONES: { value: Timezone; label: string; offset: number }[] = [
   { value: "WITA", label: "WITA", offset: 8 },
   { value: "WIT", label: "WIT", offset: 9 },
 ]
+
+// --- KOMPONEN CUSTOM SELECT (Diadaptasi dari DataFilters) ---
+interface Option {
+  id?: string | number
+  value?: string | number
+  name?: string
+  label?: string
+}
+
+interface CustomSelectProps {
+  value: string
+  options: Option[]
+  onChange: (value: string) => void
+  disabled?: boolean
+  loading?: boolean
+  placeholder?: string
+}
+
+function CustomSelect({ value, options, onChange, disabled, loading, placeholder }: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const selectedLabel = options.find(opt => String(opt.id || opt.value) === value)?.name || 
+                        options.find(opt => String(opt.id || opt.value) === value)?.label || 
+                        placeholder
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`
+          w-full h-[50px] px-4 py-3 text-left bg-white border rounded-xl text-base font-normal
+          flex items-center justify-between transition-all duration-200
+          ${isOpen ? 'border-blue-100 ring-2 ring-blue-100/50' : 'border-general-30 focus:border-blue-100'}
+          ${disabled ? 'bg-general-20 text-general-60 cursor-not-allowed' : 'text-general-100 cursor-pointer'}
+        `}
+      >
+        <span className={`truncate block mr-2 ${!value ? 'text-general-40' : ''}`}>
+          {loading ? "Memuat..." : (value ? selectedLabel : placeholder)}
+        </span>
+        <div className="text-general-60 shrink-0">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />}
+        </div>
+      </button>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-general-30 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 left-0 right-0">
+          {/* Max height disesuaikan agar tampil 5 item */}
+          <div className="max-h-[200px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-general-30 scrollbar-track-transparent">
+            {options.length > 0 ? (
+              options.map((opt) => {
+                const optValue = String(opt.id || opt.value)
+                const optLabel = opt.name || opt.label
+                const isSelected = optValue === value
+
+                return (
+                  <button
+                    key={optValue}
+                    type="button"
+                    onClick={() => {
+                      onChange(optValue)
+                      setIsOpen(false)
+                    }}
+                    className={`
+                      w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-between
+                      ${isSelected ? 'bg-blue-100/10 text-blue-100 font-bold' : 'text-general-80 hover:bg-general-20'}
+                    `}
+                  >
+                    <span className="truncate">{optLabel}</span>
+                    {isSelected && <Check className="w-4 h-4 shrink-0" />}
+                  </button>
+                )
+              })
+            ) : (
+              <div className="px-4 py-3 text-sm text-general-50 text-center italic">
+                Tidak ada data
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function StepLocationCategoryComponent({ formData, updateFormData }: StepLocationCategoryProps) {
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
@@ -70,12 +166,22 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
 
   const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value
-    const wordCount = inputValue.trim().split(/\s+/).filter(Boolean).length
+    const currentWords = inputValue.trim().split(/\s+/).filter(Boolean)
+    const wordCount = currentWords.length
     
-    if (wordCount <= MAX_TITLE_WORDS || (wordCount === MAX_TITLE_WORDS + 1 && !inputValue.endsWith(" "))) {
+    // Cek apakah input terakhir adalah spasi
+    const endsWithSpace = inputValue.endsWith(" ")
+
+    // JIKA sudah 10 kata DAN user mencoba menambah spasi, maka BLOK (jangan update state)
+    if (wordCount >= MAX_TITLE_WORDS && endsWithSpace) {
+      return
+    }
+
+    // Izinkan update jika masih dalam batas kata
+    if (wordCount <= MAX_TITLE_WORDS) {
       updateFormData({ title: inputValue })
     }
-  }, [updateFormData])
+  }, [updateFormData, MAX_TITLE_WORDS])
 
   // FIX: Menambahkan h-[50px] agar input tidak gepeng di mobile
   const commonInputClass = "w-full h-[50px] px-4 py-3 bg-white border rounded-xl text-general-100 placeholder:text-general-40 focus:outline-none focus:ring-2 focus:ring-blue-100/50 focus:border-blue-100 transition-all duration-200 disabled:bg-general-20 disabled:cursor-not-allowed"
@@ -121,18 +227,14 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
       {/* KATEGORI */}
       <div>
         <label htmlFor="category" className={labelClass}>Kategori Masalah <span className="text-red-100">*</span></label>
-        <div className="relative">
-          <select
-            id="category"
+        <div className="relative z-50">
+          <CustomSelect
             value={formData.category}
-            onChange={(e) => updateFormData({ category: e.target.value })}
-            disabled={categoriesLoading}
-            className={cn(commonInputClass, "border-general-30 appearance-none pr-10 cursor-pointer")}
-          >
-            <option value="">{categoriesLoading ? "Memuat..." : "Pilih Kategori"}</option>
-            {categories.map((cat) => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-general-50 pointer-events-none" />
+            onChange={(val) => updateFormData({ category: val })}
+            options={categories}
+            loading={categoriesLoading}
+            placeholder="Pilih Kategori"
+          />
         </div>
       </div>
 
@@ -147,7 +249,6 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
             min={MIN_DATE}
             max={todayInTz}
             onChange={(e) => updateFormData({ date: e.target.value })}
-            // FIX: min-h-[50px] memastikan input date memiliki tinggi yang cukup di mobile untuk menampilkan UI placeholder bawaan browser
             className={cn(commonInputClass, "min-h-[50px]", isDateError ? "border-red-100 focus:ring-red-100/30" : "border-general-30")}
           />
           {isDateError && <p className="text-xs text-red-100 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Tanggal tidak valid</p>}
@@ -162,16 +263,13 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
               onChange={(e) => updateFormData({ time: e.target.value })}
               className={cn(commonInputClass, "min-h-[50px]", isTimeError ? "border-red-100" : "border-general-30")}
             />
-            <div className="relative w-32 shrink-0">
-                <select
-                    id="timezone"
-                    value={formData.timezone}
-                    onChange={(e) => updateFormData({ timezone: e.target.value as Timezone })}
-                    className={cn(commonInputClass, "border-general-30 appearance-none pr-8 cursor-pointer")}
-                >
-                    {TIMEZONES.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-general-50 pointer-events-none" />
+            <div className="relative w-32 shrink-0 z-40">
+              <CustomSelect
+                value={formData.timezone}
+                onChange={(val) => updateFormData({ timezone: val as Timezone })}
+                options={TIMEZONES}
+                placeholder="WIB"
+              />
             </div>
           </div>
         </div>
@@ -181,44 +279,37 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
       <div className="space-y-4 pt-2">
         <p className="text-sm font-bold text-general-100 border-b border-general-30 pb-2">Detail Lokasi</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="relative">
+            <div className="relative z-30">
                 <label className={labelClass}>Provinsi <span className="text-red-100">*</span></label>
-                <select
+                <CustomSelect
                     value={formData.province}
-                    onChange={(e) => updateFormData({ province: e.target.value, city: "", district: "", latitude: undefined, longitude: undefined })}
-                    disabled={provincesLoading}
-                    className={cn(commonInputClass, "border-general-30 appearance-none pr-10 cursor-pointer")}
-                >
-                    <option value="">{provincesLoading ? "Memuat..." : "Pilih Provinsi"}</option>
-                    {provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <ChevronDown className="absolute right-4 top-[42px] w-5 h-5 text-general-50 pointer-events-none" />
+                    onChange={(val) => updateFormData({ province: val, city: "", district: "", latitude: undefined, longitude: undefined })}
+                    options={provinces}
+                    loading={provincesLoading}
+                    placeholder="Pilih Provinsi"
+                />
             </div>
-            <div className="relative">
+            <div className="relative z-20">
                 <label className={labelClass}>Kota/Kabupaten <span className="text-red-100">*</span></label>
-                <select
+                <CustomSelect
                     value={formData.city}
-                    onChange={(e) => updateFormData({ city: e.target.value, district: "", latitude: undefined, longitude: undefined })}
-                    disabled={!formData.province || citiesLoading}
-                    className={cn(commonInputClass, "border-general-30 appearance-none pr-10 cursor-pointer")}
-                >
-                    <option value="">{citiesLoading ? "Memuat..." : "Pilih Kota/Kab"}</option>
-                    {availableCities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <ChevronDown className="absolute right-4 top-[42px] w-5 h-5 text-general-50 pointer-events-none" />
+                    onChange={(val) => updateFormData({ city: val, district: "", latitude: undefined, longitude: undefined })}
+                    options={availableCities}
+                    loading={citiesLoading}
+                    disabled={!formData.province}
+                    placeholder="Pilih Kota/Kab"
+                />
             </div>
-            <div className="relative md:col-span-2">
+            <div className="relative md:col-span-2 z-10">
                 <label className={labelClass}>Kecamatan <span className="text-red-100">*</span></label>
-                <select
+                <CustomSelect
                     value={formData.district}
-                    onChange={(e) => updateFormData({ district: e.target.value, latitude: undefined, longitude: undefined })}
-                    disabled={!formData.city || districtsLoading}
-                    className={cn(commonInputClass, "border-general-30 appearance-none pr-10 cursor-pointer")}
-                >
-                    <option value="">{districtsLoading ? "Memuat..." : "Pilih Kecamatan"}</option>
-                    {availableDistricts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-                <ChevronDown className="absolute right-4 top-[42px] w-5 h-5 text-general-50 pointer-events-none" />
+                    onChange={(val) => updateFormData({ district: val, latitude: undefined, longitude: undefined })}
+                    options={availableDistricts}
+                    loading={districtsLoading}
+                    disabled={!formData.city}
+                    placeholder="Pilih Kecamatan"
+                />
             </div>
         </div>
       </div>

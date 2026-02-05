@@ -10,9 +10,9 @@ import {
   AlertCircle,
   Loader2,
   Eye,
-  Check // Icon baru untuk CustomSelect
+  Check 
 } from "lucide-react"
-import { useState, useEffect, useCallback, memo, useRef } from "react"
+import { useState, useEffect, useCallback, memo, useRef, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { adminService } from "@/services/admin"
 import { locationsService } from "@/services/locations"
@@ -123,30 +123,44 @@ function LaporanPage() {
   const indexOfFirstItem = ((pagination?.page || 1) - 1) * itemsPerPage
   const indexOfLastItem = indexOfFirstItem + (reports.length || 0)
 
+  // --- HANDLERS PAGINATION ---
   const goToFirst = () => setCurrentPage(1)
   const goToLast = () => setCurrentPage(totalPages)
   const goToPrev = () => setCurrentPage(p => Math.max(1, p - 1))
   const goToNext = () => setCurrentPage(p => Math.min(totalPages, p + 1))
+  const handlePageClick = (page: number) => setCurrentPage(page)
 
-  const renderPageNumbers = () => {
-    const pages = []
-    const baseClass = "w-8 h-8 flex items-center justify-center rounded transition-colors body-sm font-medium"
-    const activeClass = "bg-blue-100 text-general-20 font-bold shadow-sm"
-    const inactiveClass = "hover:bg-general-30 text-general-80"
+  // --- LOGIKA SMART PAGINATION (1 2 ... Last) ---
+  const paginationItems = useMemo(() => {
+    // 1. Jika halaman <= 3, tampilkan semua
+    if (totalPages <= 3) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
 
-    pages.push(<button key={1} onClick={() => setCurrentPage(1)} className={`${baseClass} ${currentPage === 1 ? activeClass : inactiveClass}`}>1</button>)
-    if (currentPage > 3) pages.push(<span key="dots-start" className="px-1 text-general-60">...</span>)
-    const startPage = Math.max(2, currentPage - 1)
-    const endPage = Math.min(totalPages - 1, currentPage + 1)
-    for (let i = startPage; i <= endPage; i++) {
-        pages.push(<button key={i} onClick={() => setCurrentPage(i)} className={`${baseClass} ${currentPage === i ? activeClass : inactiveClass}`}>{i}</button>)
+    // 2. Jika halaman >= 4, gunakan logika gap
+    const pages = new Set([1, 2, totalPages]); // Selalu 1, 2, dan Last
+
+    // Masukkan current page jika di tengah
+    if (currentPage > 2 && currentPage < totalPages) {
+      pages.add(currentPage);
     }
-    if (currentPage < totalPages - 2) pages.push(<span key="dots-end" className="px-1 text-general-60">...</span>)
-    if (totalPages > 1) {
-      pages.push(<button key={totalPages} onClick={() => setCurrentPage(totalPages)} className={`${baseClass} ${currentPage === totalPages ? activeClass : inactiveClass}`}>{totalPages}</button>)
+
+    const sortedPages = Array.from(pages).sort((a, b) => a - b);
+    const finalItems: (number | string)[] = [];
+
+    for (let i = 0; i < sortedPages.length; i++) {
+      const page = sortedPages[i];
+      if (i > 0) {
+        const prevPage = sortedPages[i - 1];
+        if (page - prevPage > 1) {
+          finalItems.push("...");
+        }
+      }
+      finalItems.push(page);
     }
-    return pages
-  }
+
+    return finalItems;
+  }, [currentPage, totalPages]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("id-ID", {
@@ -256,15 +270,79 @@ function LaporanPage() {
           </div>
           )}
           
+          {/* PAGINATION */}
           {(pagination?.total || 0) > 0 && (
             <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-general-30 text-general-60 body-sm">
-              <span className="text-xs sm:text-sm">Menampilkan <span className="font-medium text-general-100">{indexOfFirstItem + 1}-{indexOfLastItem}</span> dari {pagination?.total || 0} data</span>
+              <span className="text-xs sm:text-sm text-center sm:text-left">
+                Menampilkan <span className="font-medium text-general-100">{indexOfFirstItem + 1}-{indexOfLastItem}</span> dari {pagination?.total || 0} data
+              </span>
+              
               <div className="flex items-center gap-1">
-                <button onClick={goToFirst} disabled={currentPage === 1} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"><ChevronsLeft className="w-4 h-4" /></button>
-                <button onClick={goToPrev} disabled={currentPage === 1} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"><ChevronLeft className="w-4 h-4" /></button>
-                <div className="flex gap-1 mx-2">{renderPageNumbers()}</div>
-                <button onClick={goToNext} disabled={currentPage === totalPages} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"><ChevronRight className="w-4 h-4" /></button>
-                <button onClick={goToLast} disabled={currentPage === totalPages} className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"><ChevronsRight className="w-4 h-4" /></button>
+                
+                {/* First Page (<<) : HIDDEN DI MOBILE */}
+                <button 
+                  onClick={goToFirst} 
+                  disabled={currentPage === 1} 
+                  className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+
+                {/* Prev Page (<) */}
+                <button 
+                  onClick={goToPrev} 
+                  disabled={currentPage === 1} 
+                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex gap-1 mx-2">
+                  {paginationItems.map((item, idx) => {
+                    if (item === "...") {
+                      return (
+                        <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-general-60 font-medium">
+                          ...
+                        </span>
+                      )
+                    }
+                    const pageNum = item as number
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageClick(pageNum)}
+                        className={`
+                          w-8 h-8 flex items-center justify-center rounded transition-colors body-sm font-medium
+                          ${currentPage === pageNum 
+                            ? "bg-blue-100 text-general-20 font-bold shadow-sm" 
+                            : "hover:bg-general-30 text-general-80"}
+                        `}
+                      >
+                        {pageNum}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Next Page (>) */}
+                <button 
+                  onClick={goToNext} 
+                  disabled={currentPage === totalPages} 
+                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Last Page (>>) : HIDDEN DI MOBILE */}
+                <button 
+                  onClick={goToLast} 
+                  disabled={currentPage === totalPages} 
+                  className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+
               </div>
             </div>
           )}
@@ -337,7 +415,6 @@ function CustomSelect({ label, value, options, onChange, disabled, loading, plac
 
       {isOpen && !disabled && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-general-30 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 left-0 right-0">
-          {/* max-h-[200px] ≈ 5 items */}
           <div className="max-h-[200px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-general-30 scrollbar-track-transparent">
             {options.length > 0 ? (
               options.map((opt) => {
@@ -495,7 +572,7 @@ const DataFiltersComponent = ({ onFilter }: { onFilter: (f: FilterValues) => voi
           <input type="date" value={endDate} min={startDate || minDate} max={today} onChange={handleEndDateChange} className={dateInputClass} />
         </div>
 
-        {/* LOKASI (Z-Index diatur agar tidak tertumpuk) */}
+        {/* LOKASI */}
         <div className="md:col-span-4 relative z-50">
           <CustomSelect 
             label="Provinsi" 

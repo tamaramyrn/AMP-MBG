@@ -1,9 +1,106 @@
-import { memo, useCallback } from "react"
-import { ChevronDown, CheckSquare, Square, UserCircle2 } from "lucide-react"
+import { memo, useCallback, useState, useRef, useEffect } from "react"
+import { ChevronDown, CheckSquare, Square, UserCircle2, Loader2, Check } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import type { ReportFormData } from "./report-form"
 import { categoriesService } from "@/services/categories"
 import { cn } from "@/lib/utils"
+
+// --- KOMPONEN CUSTOM SELECT (Disalin dari StepLocationCategory) ---
+interface Option {
+  id?: string | number
+  value?: string | number
+  name?: string
+  label?: string
+}
+
+interface CustomSelectProps {
+  value: string
+  options: Option[]
+  onChange: (value: string) => void
+  disabled?: boolean
+  loading?: boolean
+  placeholder?: string
+}
+
+function CustomSelect({ value, options, onChange, disabled, loading, placeholder }: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const selectedLabel = options.find(opt => String(opt.id || opt.value) === value)?.name || 
+                        options.find(opt => String(opt.id || opt.value) === value)?.label || 
+                        placeholder
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`
+          w-full h-[50px] px-4 py-3 text-left bg-white border rounded-xl text-base font-normal
+          flex items-center justify-between transition-all duration-200
+          ${isOpen ? 'border-blue-100 ring-2 ring-blue-100/50' : 'border-general-30 focus:border-blue-100'}
+          ${disabled ? 'bg-general-20 text-general-60 cursor-not-allowed' : 'text-general-100 cursor-pointer'}
+        `}
+      >
+        <span className={`truncate block mr-2 ${!value ? 'text-general-40' : ''}`}>
+          {loading ? "Memuat..." : (value ? selectedLabel : placeholder)}
+        </span>
+        <div className="text-general-60 shrink-0">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />}
+        </div>
+      </button>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-general-30 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 left-0 right-0">
+          <div className="max-h-[200px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-general-30 scrollbar-track-transparent">
+            {options.length > 0 ? (
+              options.map((opt) => {
+                const optValue = String(opt.id || opt.value)
+                const optLabel = opt.name || opt.label
+                const isSelected = optValue === value
+
+                return (
+                  <button
+                    key={optValue}
+                    type="button"
+                    onClick={() => {
+                      onChange(optValue)
+                      setIsOpen(false)
+                    }}
+                    className={`
+                      w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-between
+                      ${isSelected ? 'bg-blue-100/10 text-blue-100 font-bold' : 'text-general-80 hover:bg-general-20'}
+                    `}
+                  >
+                    <span className="truncate">{optLabel}</span>
+                    {isSelected && <Check className="w-4 h-4 shrink-0" />}
+                  </button>
+                )
+              })
+            ) : (
+              <div className="px-4 py-3 text-sm text-general-50 text-center italic">
+                Tidak ada data
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- UTAMA ---
 
 interface StepIdentityConfirmationProps {
   formData: ReportFormData
@@ -32,18 +129,16 @@ function StepIdentityConfirmationComponent({ formData, updateFormData }: StepIde
         <label htmlFor="relation" className="block text-sm font-bold text-general-80 mb-2">
           Relasi Anda dengan Program MBG <span className="text-red-100">*</span>
         </label>
-        <div className="relative">
-          <select
-            id="relation"
+        
+        {/* DROPDOWN DIGANTI DENGAN CUSTOM SELECT */}
+        <div className="relative z-50">
+          <CustomSelect
             value={formData.relation}
-            onChange={(e) => updateFormData({ relation: e.target.value })}
-            disabled={relationsLoading}
-            className={cn(commonInputClass, "border-general-30 appearance-none pr-10 cursor-pointer disabled:bg-general-20")}
-          >
-            <option value="">{relationsLoading ? "Memuat..." : "Pilih Relasi"}</option>
-            {relations.map((rel) => <option key={rel.value} value={rel.value}>{rel.label}</option>)}
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-general-50 pointer-events-none" />
+            onChange={(val) => updateFormData({ relation: val })}
+            options={relations}
+            loading={relationsLoading}
+            placeholder="Pilih Relasi"
+          />
         </div>
 
         {formData.relation === "other" && (
@@ -53,7 +148,7 @@ function StepIdentityConfirmationComponent({ formData, updateFormData }: StepIde
                     placeholder="Sebutkan peran spesifik Anda"
                     value={formData.relationDetail || ""} 
                     onChange={(e) => updateFormData({ relationDetail: e.target.value })}
-                    className={cn(commonInputClass, "border-general-30")}
+                    className={cn(commonInputClass, "border-general-30 h-[50px]")}
                 />
             </div>
         )}
@@ -68,7 +163,7 @@ function StepIdentityConfirmationComponent({ formData, updateFormData }: StepIde
 
       <div className="border-t border-general-30 my-6" />
 
-      {/* 2. Report Summary Card */}
+      {/* 2. Report Summary Card (TIDAK BERUBAH) */}
       <div className="bg-gradient-to-br from-general-20 to-white rounded-2xl border border-general-30 overflow-hidden shadow-sm">
         <div className="bg-general-100 px-6 py-4 flex items-center justify-between">
             <h3 className="text-white font-bold text-sm md:text-base">Ringkasan Laporan</h3>
@@ -98,7 +193,7 @@ function StepIdentityConfirmationComponent({ formData, updateFormData }: StepIde
         </div>
       </div>
 
-      {/* 3. Agreement */}
+      {/* 3. Agreement (TIDAK BERUBAH) */}
       <div 
         className={cn(
             "rounded-xl p-5 border-2 cursor-pointer transition-all duration-200 flex gap-4 items-start select-none group",

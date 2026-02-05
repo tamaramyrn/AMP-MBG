@@ -18,8 +18,12 @@ function ProfileFormComponent() {
   })
   const [showPasswordForm, setShowPasswordForm] = useState(false)
 
+  // --- VALIDASI ---
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
-  const isPhoneValid = /^\d{9,15}$/.test(formData.phone)
+  
+  // Validasi Telepon: Hanya angka, min 9, max 12
+  const isPhoneValid = /^\d{9,12}$/.test(formData.phone)
+
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
   const isNewPasswordValid = passwordRegex.test(passwordData.newPassword)
   const isPasswordMatch = passwordData.newPassword === passwordData.confirmPassword && passwordData.confirmPassword !== ""
@@ -34,20 +38,35 @@ function ProfileFormComponent() {
 
   useEffect(() => {
     if (profileData?.user) {
+      // Logic pembersihan nomor telepon agar tidak double +62 di UI
+      let cleanPhone = profileData.user.phone || "";
+      if (cleanPhone.startsWith("+62")) {
+        cleanPhone = cleanPhone.substring(3);
+      } else if (cleanPhone.startsWith("62")) {
+        cleanPhone = cleanPhone.substring(2);
+      } else if (cleanPhone.startsWith("0")) {
+        cleanPhone = cleanPhone.substring(1);
+      }
+
       setFormData({
         name: profileData.user.name || "",
         email: profileData.user.email || "",
-        phone: profileData.user.phone || "",
+        phone: cleanPhone,
       })
     }
   }, [profileData])
 
   const updateProfileMutation = useMutation({
     mutationFn: async () => {
+      // Format ulang ke +62 saat simpan
+      const finalPhone = formData.phone.startsWith("0") 
+        ? `+62${formData.phone.slice(1)}` 
+        : `+62${formData.phone}`;
+
       return profileService.updateProfile({
         name: formData.name,
         email: formData.email,
-        phone: formData.phone,
+        phone: finalPhone,
       })
     },
     onSuccess: () => {
@@ -86,11 +105,14 @@ function ProfileFormComponent() {
 
   const handleSave = useCallback(() => {
     if (isEditing) {
+      if (!isPhoneValid || !isEmailValid || !formData.name) {
+        return; 
+      }
       updateProfileMutation.mutate()
     } else {
       setIsEditing(true)
     }
-  }, [isEditing, updateProfileMutation])
+  }, [isEditing, updateProfileMutation, isPhoneValid, isEmailValid, formData.name])
 
   const handlePasswordSubmit = useCallback(() => {
     if (hasPassword) {
@@ -99,9 +121,15 @@ function ProfileFormComponent() {
       createPasswordMutation.mutate()
     }
   }, [hasPassword, changePasswordMutation, createPasswordMutation])
+
   const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, name: e.target.value })), [])
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, email: e.target.value })), [])
-  const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, phone: e.target.value })), [])
+  
+  const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, "") 
+    setFormData((prev) => ({ ...prev, phone: val }))
+  }, [])
+
   const handleCurrentPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value })), [])
   const handleNewPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPasswordData((prev) => ({ ...prev, newPassword: e.target.value })), [])
   const handleConfirmPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value })), [])
@@ -133,10 +161,10 @@ function ProfileFormComponent() {
         
         <button
           onClick={handleSave}
-          disabled={updateProfileMutation.isPending}
+          disabled={updateProfileMutation.isPending || (isEditing && (!isPhoneValid || !isEmailValid || !formData.name))}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all shadow-sm ${
             isEditing 
-              ? "bg-blue-100 text-white hover:bg-blue-90" 
+              ? "bg-blue-100 text-white hover:bg-blue-90 disabled:opacity-50 disabled:cursor-not-allowed" 
               : "bg-white border border-general-30 text-general-70 hover:text-blue-100 hover:border-blue-100"
           }`}
         >
@@ -195,18 +223,24 @@ function ProfileFormComponent() {
           {/* PHONE */}
           <div>
             <label htmlFor="phone" className="block text-xs font-bold text-general-80 mb-2 uppercase tracking-wide">Nomor Telepon</label>
-            <input
-              type="tel"
-              id="phone"
-              value={formData.phone}
-              onChange={handlePhoneChange}
-              disabled={!isEditing}
-              className={`w-full px-4 py-3 bg-white border rounded-xl focus:ring-2 transition-colors disabled:bg-general-20 disabled:text-general-60 body-sm text-general-100 ${
-                isEditing && formData.phone.length > 0 && !isPhoneValid ? "border-red-100 focus:ring-red-100" : "border-general-30 focus:ring-blue-100 focus:border-blue-100"
-              }`}
-            />
+            <div className={`flex items-center gap-3 bg-white border rounded-xl px-4 py-2.5 transition-all ${
+               isEditing ? "focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-100" : "bg-general-20 border-general-30"
+            } ${
+               isEditing && formData.phone.length > 0 && !isPhoneValid ? "border-red-100 ring-2 ring-red-100/5" : "border-general-30"
+            }`}>
+               <span className="text-general-60 body-sm font-medium border-r border-general-30 pr-3 mr-1 select-none">+62</span>
+               <input
+                 type="tel"
+                 id="phone"
+                 value={formData.phone}
+                 onChange={handlePhoneChange}
+                 disabled={!isEditing}
+                 placeholder="8xxxxxxxx"
+                 className="w-full outline-none text-general-100 placeholder:text-general-30 body-sm bg-transparent font-medium disabled:text-general-60"
+               />
+            </div>
             {isEditing && formData.phone.length > 0 && !isPhoneValid && (
-              <p className="text-[10px] text-red-100 mt-1 font-medium">Min. 9 - Max. 15 angka</p>
+              <p className="text-[10px] text-red-100 mt-1 font-medium">Harus berupa angka (Min. 9 - Max. 12 digit)</p>
             )}
           </div>
         </div>
@@ -235,7 +269,8 @@ function ProfileFormComponent() {
               {hasPassword ? "Ubah Kata Sandi" : "Buat Kata Sandi"}
             </button>
           ) : (
-            <div className="bg-general-20/50 rounded-xl p-5 border border-general-30 max-w-lg">
+            // PERUBAHAN: w-full (Agar lebar penuh mengikuti container parent)
+            <div className="bg-general-20/50 rounded-xl p-5 border border-general-30 w-full">
               <h3 className="font-bold text-general-100 mb-4">{hasPassword ? "Ubah Kata Sandi" : "Buat Kata Sandi"}</h3>
 
               {(changePasswordMutation.isError || createPasswordMutation.isError) && (
@@ -245,7 +280,7 @@ function ProfileFormComponent() {
               )}
 
               <div className="space-y-4">
-                {/* Current Password - Only for users with existing password */}
+                {/* Current Password */}
                 {hasPassword && (
                   <input
                     type="password"

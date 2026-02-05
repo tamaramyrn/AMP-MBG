@@ -13,9 +13,13 @@ import {
   Save,
   X,
   Inbox,
-  Check // Icon baru untuk CustomSelect
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { adminService, type KitchenRequest } from "@/services/admin"
 
@@ -52,7 +56,7 @@ const getStatusStyle = (status: string) => {
   return variantStyles[variant]
 }
 
-// --- KOMPONEN CUSTOM SELECT (UI KHUSUS) ---
+// --- KOMPONEN CUSTOM SELECT ---
 interface Option {
   value: string
   label: string
@@ -143,6 +147,10 @@ function PermintaanKebutuhanDapurPage() {
   const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
+  
+  // --- STATE PAGINATION ---
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   const [detailRequest, setDetailRequest] = useState<KitchenRequest | null>(null)
 
@@ -151,14 +159,71 @@ function PermintaanKebutuhanDapurPage() {
     queryFn: () => adminService.kitchen.getRequests({ status: filterStatus || undefined }),
   })
 
-  // Filter by search term
-  const requests = (requestsData?.data || []).filter((item) => {
+  // Filter Logic
+  const allRequests = (requestsData?.data || []).filter((item) => {
     const matchSearch =
       item.sppgName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.id.toLowerCase().includes(searchTerm.toLowerCase())
     return matchSearch
   })
+
+  // --- LOGIKA PAGINATION SLICING ---
+  const totalPages = Math.ceil(allRequests.length / itemsPerPage)
+  
+  const currentRequests = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return allRequests.slice(start, start + itemsPerPage)
+  }, [currentPage, allRequests])
+
+  // Reset page saat filter berubah
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterStatus])
+
+  // --- LOGIKA SMART PAGINATION (1 2 ... Last) ---
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 3) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const items: (number | string)[] = [1];
+    if (totalPages > 1) items.push(2);
+    
+    // Logic gap
+    if (currentPage > 2 && currentPage < totalPages) {
+      if (currentPage > 3) items.push("...");
+      items.push(currentPage);
+      if (currentPage < totalPages - 1) items.push("...");
+    } else {
+      items.push("...");
+    }
+
+    if (totalPages > 2) items.push(totalPages);
+    
+    // Sort & Unique (Simple approach: rebuild cleanly)
+    // Versi lebih bersih yang pasti urut:
+    const pages = new Set([1, 2, totalPages]);
+    if (currentPage > 2 && currentPage < totalPages) pages.add(currentPage);
+    
+    const sorted = Array.from(pages).sort((a, b) => a - b);
+    const final: (number | string)[] = [];
+    
+    for (let i = 0; i < sorted.length; i++) {
+        const page = sorted[i];
+        if (i > 0) {
+            if (page - sorted[i-1] > 1) final.push("...");
+        }
+        final.push(page);
+    }
+    return final;
+  }, [currentPage, totalPages]);
+
+  // Handlers
+  const goToFirst = () => setCurrentPage(1)
+  const goToLast = () => setCurrentPage(totalPages)
+  const goToPrev = () => setCurrentPage(p => Math.max(1, p - 1))
+  const goToNext = () => setCurrentPage(p => Math.min(totalPages, p + 1))
+  const goToPage = (page: number) => setCurrentPage(page)
 
   return (
     <DashboardAnggotaLayout>
@@ -176,12 +241,12 @@ function PermintaanKebutuhanDapurPage() {
           <div className="hidden md:block">
              <div className="px-4 py-2 bg-blue-20 text-blue-100 rounded-lg text-xs font-bold border border-blue-30 flex items-center gap-2">
                 <Inbox className="w-4 h-4" />
-                Masuk: {requests.length}
+                Masuk: {allRequests.length}
              </div>
           </div>
         </div>
 
-        {/* Filters Section (PENTING: overflow-visible agar dropdown keluar) */}
+        {/* Filters Section */}
         <div className="bg-general-20 border border-general-30 rounded-xl p-5 shadow-sm overflow-visible relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
             {/* Search */}
@@ -199,7 +264,7 @@ function PermintaanKebutuhanDapurPage() {
               </div>
             </div>
 
-            {/* Status Filter (Custom Select) */}
+            {/* Status Filter */}
             <div className="md:col-span-6 lg:col-span-6 relative z-20">
               <CustomSelect 
                 label="Filter Status"
@@ -213,13 +278,13 @@ function PermintaanKebutuhanDapurPage() {
         </div>
 
         {/* Table Content */}
-        <div className="bg-general-20 border border-general-30 rounded-xl overflow-hidden shadow-sm relative z-0">
+        <div className="bg-general-20 border border-general-30 rounded-xl overflow-hidden shadow-sm relative z-0 flex flex-col">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-24 space-y-4">
               <Loader2 className="w-10 h-10 animate-spin text-blue-100" />
               <p className="body-sm text-general-60 animate-pulse">Memuat data permintaan...</p>
             </div>
-          ) : requests.length === 0 ? (
+          ) : allRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
               <div className="w-20 h-20 bg-general-30/30 rounded-full flex items-center justify-center mb-4">
                 <Filter className="w-10 h-10 text-general-50" />
@@ -243,14 +308,16 @@ function PermintaanKebutuhanDapurPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map((req, idx) => {
+                  {currentRequests.map((req, idx) => {
                     const statusClass = getStatusStyle(req.status)
                     const StatusLabel = STATUS_OPTIONS.find(s => s.value === req.status)?.label || req.status
+                    // Hitung nomor urut berdasarkan page
+                    const itemNumber = (currentPage - 1) * itemsPerPage + idx + 1
 
                     return (
                       <tr key={req.id} className="border-b border-general-30 hover:bg-general-30/20 transition-colors group">
                         <td className="p-4 text-center body-sm text-general-60 border-r border-general-30 group-hover:text-general-80">
-                          {idx + 1}
+                          {itemNumber}
                         </td>
 
                         <td className="p-4 border-r border-general-30">
@@ -304,6 +371,86 @@ function PermintaanKebutuhanDapurPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* --- PAGINATION CONTROLS --- */}
+          {totalPages > 1 && (
+            <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-general-30 text-general-60 body-sm bg-white mt-auto">
+              <span className="text-xs sm:text-sm text-center sm:text-left">
+                Menampilkan <span className="font-medium text-general-100">
+                  {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, allRequests.length)}
+                </span> dari {allRequests.length} data
+              </span>
+              
+              <div className="flex items-center gap-1">
+                
+                {/* First Page (<<) : HIDDEN ON MOBILE */}
+                <button 
+                  onClick={goToFirst} 
+                  disabled={currentPage === 1}
+                  className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+
+                {/* Prev Page (<) */}
+                <button 
+                  onClick={goToPrev} 
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {/* Page Numbers Mapping */}
+                <div className="flex gap-1 mx-2">
+                  {paginationItems.map((item, idx) => {
+                    if (item === "...") {
+                      return (
+                        <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-general-60 font-medium">
+                          ...
+                        </span>
+                      )
+                    }
+
+                    const pageNum = item as number
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => goToPage(pageNum)}
+                        className={`
+                          w-8 h-8 flex items-center justify-center rounded transition-colors body-sm font-medium
+                          ${currentPage === pageNum 
+                            ? 'bg-blue-100 text-white font-bold shadow-sm' 
+                            : 'hover:bg-general-30 text-general-80'}
+                        `}
+                      >
+                        {pageNum}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Next Page (>) */}
+                <button 
+                  onClick={goToNext} 
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Last Page (>>) : HIDDEN ON MOBILE */}
+                <button 
+                  onClick={goToLast} 
+                  disabled={currentPage === totalPages}
+                  className="hidden sm:flex w-8 h-8 items-center justify-center rounded hover:bg-general-30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-general-80"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+
+              </div>
             </div>
           )}
         </div>
