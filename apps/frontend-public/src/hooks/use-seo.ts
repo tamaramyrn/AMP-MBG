@@ -5,13 +5,14 @@ interface SEOConfig {
   description: string
   path: string
   noindex?: boolean
+  jsonLd?: Record<string, unknown>[]
 }
 
 const BASE_URL = "https://lapormbg.com"
 const SITE_NAME = "AMP MBG"
 const DEFAULT_OG_IMAGE = `${BASE_URL}/logo_hijau.webp`
 
-export function useSEO({ title, description, path, noindex }: SEOConfig) {
+export function useSEO({ title, description, path, noindex, jsonLd }: SEOConfig) {
   useEffect(() => {
     const fullTitle = `${title} | ${SITE_NAME}`
     const canonical = `${BASE_URL}${path}`
@@ -38,9 +39,7 @@ export function useSEO({ title, description, path, noindex }: SEOConfig) {
     }
 
     for (const [key, value] of Object.entries(tags)) {
-      const isOg = key.startsWith("og:")
-      const isTwitter = key.startsWith("twitter:")
-      const attr = isOg || isTwitter ? "property" : "name"
+      const attr = key.startsWith("og:") ? "property" : "name"
       let el = document.querySelector<HTMLMetaElement>(
         `meta[${attr}="${key}"]`
       )
@@ -61,5 +60,21 @@ export function useSEO({ title, description, path, noindex }: SEOConfig) {
       document.head.appendChild(link)
     }
     link.href = canonical
-  }, [title, description, path, noindex])
+
+    // Inject per-route JSON-LD
+    document.querySelectorAll('script[data-seo="route"]').forEach((el) => el.remove())
+    if (jsonLd) {
+      for (const schema of jsonLd) {
+        const script = document.createElement("script")
+        script.type = "application/ld+json"
+        script.setAttribute("data-seo", "route")
+        script.textContent = JSON.stringify(schema)
+        document.head.appendChild(script)
+      }
+    }
+
+    return () => {
+      document.querySelectorAll('script[data-seo="route"]').forEach((el) => el.remove())
+    }
+  }, [title, description, path, noindex, jsonLd])
 }
