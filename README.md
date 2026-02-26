@@ -6,17 +6,27 @@ Platform pelaporan masyarakat untuk mengawal Program Makan Bergizi Gratis (MBG) 
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React, TypeScript, Vite, TailwindCSS, Shadcn UI, TanStack Router/Query |
-| Backend | Hono, TypeScript, Drizzle ORM |
+| Frontend Public | React 19, TypeScript, Vite, TailwindCSS, Shadcn UI, TanStack Router/Query |
+| Frontend Admin | React 19, TypeScript, Vite, TailwindCSS, Shadcn UI, TanStack Router/Query |
+| Backend | Hono, TypeScript, Drizzle ORM, Zod |
 | Database | PostgreSQL 17 |
-| Runtime | Bun |
+| Runtime | Bun 1.3.9 |
+| Deployment | Cloudflare Pages (frontend), Docker + Dokploy (backend) |
+
+## Project Structure
+
+```
+apps/
+  frontend-public/   # Public-facing site (lapormbg.com)
+  frontend-admin/    # Admin dashboard (panel.lapormbg.com)
+  backend/           # API server (Hono)
+```
 
 ## Quick Start
 
 ```sh
-make setup    # First time setup
-make run      # Start development
-make stop     # Stop all services
+make setup    # Install deps, start DB, push schema, seed data
+make run      # Start all dev servers (public :5173, admin :5174, backend :3000)
 ```
 
 ## Commands
@@ -24,49 +34,34 @@ make stop     # Stop all services
 | Command | Description |
 |---------|-------------|
 | `make setup` | First time setup (install + db + seed) |
-| `make run` | Start frontend + backend |
+| `make setup-fresh` | Clean setup (removes existing data) |
+| `make run` | Start all dev servers |
 | `make stop` | Stop all services |
-| `make build` | Build for production |
-| `make clean` | Remove node_modules and dist |
-| `make db-reset` | Reset database |
+| `make build` | Build all apps |
+| `make test` | Run backend tests |
+| `make clean` | Remove node_modules, dist, uploads |
+| `make db-up` | Start PostgreSQL container |
+| `make db-down` | Stop PostgreSQL container |
+| `make db-push` | Apply Drizzle schema |
+| `make db-seed` | Seed database |
+| `make db-reset` | Reset database (drop + recreate + seed) |
 | `make db-studio` | Open Drizzle Studio |
+| `make mail-up` | Start Stalwart mail server |
+| `make mail-down` | Stop Stalwart mail server |
 
-## URLs
+## Dev URLs
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:5173 |
-| Backend | http://localhost:3000 |
-
-## Test Accounts
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@ampmbg.id | Admin@123! |
-| User | budi@example.com | Test@123! |
-
-## Environment Variables
-
-### Frontend (`apps/frontend/.env`)
-
-```env
-VITE_API_URL=http://localhost:3000
-VITE_APP_TITLE=AMP MBG
-```
-
-### Backend (`apps/backend/.env`)
-```env
-DATABASE_URL=postgresql://ampmbg:ampmbg@localhost:5432/ampmbg_dev
-JWT_SECRET=your-jwt-secret-key
-JWT_EXPIRES_IN=7d
-UPLOAD_DIR=./uploads
-```
+| Frontend Public | http://localhost:5173 |
+| Frontend Admin | http://localhost:5174 |
+| Backend API | http://localhost:3000 |
 
 ## Production
 
 ```sh
-make docker-build   # Build image
-make docker-up      # Start production
+make docker-build   # Build backend image
+make docker-up      # Start production (docker-compose.prod.yml)
 make docker-down    # Stop production
 make docker-logs    # View logs
 ```
