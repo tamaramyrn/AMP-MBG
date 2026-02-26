@@ -67,7 +67,7 @@ export const authMiddleware = createMiddleware<{ Variables: UserVariables }>(asy
   await next()
 })
 
-// Temp token auth only
+// Temp token auth (no session check)
 export const tempAuthMiddleware = createMiddleware<{ Variables: UserVariables }>(async (c, next) => {
   const authHeader = c.req.header("Authorization")
 
@@ -84,10 +84,6 @@ export const tempAuthMiddleware = createMiddleware<{ Variables: UserVariables }>
 
   if (payload.type !== "user") {
     return c.json({ error: "Invalid user token" }, 401)
-  }
-
-  if (await isUserSessionRevoked(token)) {
-    return c.json({ error: "Session revoked" }, 401)
   }
 
   c.set("user", {
