@@ -179,6 +179,6 @@ describe("Profile Flow - Account Deactivation", () => {
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.message).toContain("deleted")
-    userId = "" // Prevent afterAll from trying to delete
+    userId = "" // Prevent afterAll deletion
   })
 })

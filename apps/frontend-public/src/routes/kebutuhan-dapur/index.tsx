@@ -9,12 +9,15 @@ import { queryClient } from "@/lib/query-client"
 import {
   X, CheckCircle2, Send, Loader2, ArrowRight, Search, ChevronLeft, ChevronRight
 } from "lucide-react"
+import { useSEO } from "@/hooks/use-seo"
+import { SEO } from "@/config/seo"
 
 export const Route = createFileRoute("/kebutuhan-dapur/")({
   component: KebutuhanDapurPage,
 })
 
 function KebutuhanDapurPage() {
+  useSEO(SEO.kebutuhanDapur)
   const navigate = useNavigate()
   const [selectedNeed, setSelectedNeed] = useState<KitchenNeedItem | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -133,7 +136,7 @@ function KebutuhanDapurPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-general-40 group-focus-within:text-blue-100 transition-colors" />
           </div>
 
-          {/* DYNAMIC GRID */}
+          {/* Grid */}
           {currentItems.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               {currentItems.map((item) => (

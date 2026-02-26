@@ -211,8 +211,8 @@ describe("Auth Routes", () => {
           organizationName: "Test Org",
           organizationEmail: "org@test.com",
           organizationPhone: "08123456789",
-          roleDescription: "Test role description here",
-          mbgDescription: "Test MBG description here",
+          roleInOrganization: "Test role description here",
+          organizationMbgRole: "Test MBG description here",
         },
       })
       expect(res.status).toBe(401)

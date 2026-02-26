@@ -3,6 +3,7 @@ import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState, useEffect, useCallback } from "react"
 import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react"
 import { authService } from "@/services/auth"
+import { useSEO } from "@/hooks/use-seo"
 
 declare global {
   interface Window {
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/auth/login")({
 })
 
 function LoginPage() {
+  useSEO({ title: "Masuk", description: "Masuk ke akun AMP MBG", path: "/auth/login", noindex: true })
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [identifier, setIdentifier] = useState("")
@@ -123,7 +125,7 @@ function LoginPage() {
 
   return (
     <AuthLayout>
-      {/* HEADER SECTION */}
+      {/* Header */}
       <div className="mb-10 relative">
         <div className="absolute -top-10 -left-10 w-20 h-20 bg-blue-100/10 rounded-full blur-2xl" />
         <h1 className="h3 font-heading font-bold text-general-100 mb-2 relative z-10">

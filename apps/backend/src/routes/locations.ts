@@ -88,9 +88,9 @@ locations.get("/lookup", async (c) => {
   })
 })
 
-// ILIKE location search
+// Location search
 locations.get("/search", async (c) => {
-  const query = c.req.query("q")?.trim() || ""
+  const query = (c.req.query("q")?.trim() || "").slice(0, 100)
   const type = c.req.query("type") || "all"
 
   if (query.length < 2) {

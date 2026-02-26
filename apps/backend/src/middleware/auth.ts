@@ -17,7 +17,8 @@ async function isUserSessionRevoked(token: string): Promise<boolean> {
   const session = await db.query.sessions.findFirst({
     where: eq(schema.sessions.token, hashToken(token)),
   })
-  return session?.isRevoked === true
+  if (!session || session.isRevoked || session.expiresAt < new Date()) return true
+  return false
 }
 
 // Check admin session
@@ -26,7 +27,8 @@ async function isAdminSessionRevoked(token: string): Promise<boolean> {
   const session = await db.query.adminSessions.findFirst({
     where: eq(schema.adminSessions.token, hashToken(token)),
   })
-  return session?.isRevoked === true
+  if (!session || session.isRevoked || session.expiresAt < new Date()) return true
+  return false
 }
 
 // Public user auth

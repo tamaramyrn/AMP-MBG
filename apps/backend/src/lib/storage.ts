@@ -70,7 +70,7 @@ const MAGIC_BYTES: Record<string, number[][]> = {
   "image/jpeg": [[0xFF, 0xD8, 0xFF]],
   "image/png": [[0x89, 0x50, 0x4E, 0x47]],
   "image/gif": [[0x47, 0x49, 0x46, 0x38]],
-  "image/webp": [[0x52, 0x49, 0x46, 0x46]],
+  "image/webp": [[0x52, 0x49, 0x46, 0x46, -1, -1, -1, -1, 0x57, 0x45, 0x42, 0x50]],
   "application/pdf": [[0x25, 0x50, 0x44, 0x46]],
 }
 
@@ -81,7 +81,7 @@ async function validateMagicBytes(file: File): Promise<boolean> {
   const slice = await file.slice(0, 12).arrayBuffer()
   const bytes = new Uint8Array(slice)
   return signatures.some((sig) =>
-    sig.every((byte, i) => bytes[i] === byte)
+    sig.every((byte, i) => byte === -1 || bytes[i] === byte)
   )
 }
 

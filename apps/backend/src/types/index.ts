@@ -1,14 +1,12 @@
-// ============================================
-// AUTH TYPES
-// ============================================
+// Auth types
 
 export type AccountType = "admin" | "user"
 
 export interface JWTPayload {
   sub: string
   email: string
-  type: AccountType // admin or user
-  temp?: boolean // for incomplete Google signup
+  type: AccountType
+  temp?: boolean
   iat: number
   exp: number
 }
@@ -25,9 +23,7 @@ export interface AuthUser {
   type: "user"
 }
 
-// ============================================
-// ADMIN TYPES
-// ============================================
+// Admin types
 
 export interface Admin {
   id: string
@@ -41,9 +37,7 @@ export interface Admin {
   updatedAt: Date
 }
 
-// ============================================
-// USER TYPES (Public users)
-// ============================================
+// User types
 
 export type SignupMethod = "manual" | "google"
 
@@ -60,15 +54,12 @@ export interface User {
   lastLoginAt: Date | null
   createdAt: Date
   updatedAt: Date
-  // Computed
   hasPassword?: boolean
   isGoogleLinked?: boolean
   isMember?: boolean
 }
 
-// ============================================
-// MEMBER TYPES (Extension of User)
-// ============================================
+// Member types
 
 export type MemberType = "supplier" | "caterer" | "school" | "government" | "foundation" | "ngo" | "farmer" | "other"
 
@@ -87,13 +78,10 @@ export interface Member {
   appliedAt: Date
   createdAt: Date
   updatedAt: Date
-  // Relations
   public?: User
 }
 
-// ============================================
-// REPORT TYPES
-// ============================================
+// Report types
 
 export type CredibilityLevel = "high" | "medium" | "low"
 export type ReportStatus = "pending" | "analyzing" | "needs_evidence" | "invalid" | "in_progress" | "resolved"
@@ -150,9 +138,7 @@ export interface ReportFile {
   createdAt: Date
 }
 
-// ============================================
-// LOCATION TYPES
-// ============================================
+// Location types
 
 export interface Province {
   id: string
@@ -171,9 +157,7 @@ export interface District {
   name: string
 }
 
-// ============================================
-// SESSION TYPES
-// ============================================
+// Session types
 
 export interface Session {
   id: string
@@ -197,9 +181,7 @@ export interface AdminSession {
   createdAt: Date
 }
 
-// ============================================
-// API RESPONSE TYPES
-// ============================================
+// API response types
 
 export interface ApiResponse<T = unknown> {
   data?: T
@@ -218,9 +200,7 @@ export interface PaginatedApiResponse<T> {
   }
 }
 
-// ============================================
-// DASHBOARD TYPES
-// ============================================
+// Dashboard types
 
 export interface DashboardStats {
   users: {
@@ -247,9 +227,7 @@ export interface DashboardStats {
   }>
 }
 
-// ============================================
-// ENV TYPES
-// ============================================
+// Environment types
 
 export interface Env {
   DATABASE_URL: string

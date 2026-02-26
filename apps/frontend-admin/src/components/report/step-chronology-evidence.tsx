@@ -73,7 +73,7 @@ function StepChronologyEvidenceComponent({ formData, updateFormData }: StepChron
         )}
       </div>
 
-      {/* FILE UPLOAD */}
+      {/* File upload */}
       <div>
         <label className="block body-sm font-medium text-general-80 mb-2">Unggah Bukti Foto</label>
         

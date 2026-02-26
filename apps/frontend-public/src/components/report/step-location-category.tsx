@@ -86,7 +86,6 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
     }
   }, [updateFormData, MAX_TITLE_WORDS])
 
-  // Fixed mobile input height
   const commonInputClass ="w-full h-[50px] px-4 py-3 bg-white border rounded-xl text-general-100 placeholder:text-general-40 focus:outline-none focus:ring-2 focus:ring-blue-100/50 focus:border-blue-100 transition-all duration-200 disabled:bg-general-20 disabled:cursor-not-allowed"
   const labelClass = "block text-sm font-bold text-general-80 mb-2"
 
@@ -98,7 +97,7 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
 
   return (
     <div className="space-y-6">
-      {/* REPORT TITLE */}
+      {/* Title */}
       <div>
         <div className="flex justify-between items-end mb-2">
           <label htmlFor="title" className={labelClass}>Judul Laporan <span className="text-red-100">*</span></label>
@@ -127,7 +126,7 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
         )}
       </div>
 
-      {/* CATEGORY */}
+      {/* Category */}
       <div>
         <label htmlFor="category" className={labelClass}>Kategori Masalah <span className="text-red-100">*</span></label>
         <div className="relative z-50">
@@ -141,7 +140,7 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
         </div>
       </div>
 
-      {/* DATE & TIME */}
+      {/* Date and time */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label htmlFor="date" className={labelClass}>Tanggal Kejadian <span className="text-red-100">*</span></label>
@@ -178,9 +177,50 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
         </div>
       </div>
 
-      {/* REGION */}
+      {/* Location */}
       <div className="space-y-4 pt-2">
         <p className="text-sm font-bold text-general-100 border-b border-general-30 pb-2">Detail Lokasi</p>
+
+        <div>
+          <div className="flex justify-between items-end mb-2">
+              <label htmlFor="location" className={labelClass}>Lokasi Spesifik <span className="text-red-100">*</span></label>
+              <span className="text-xs text-general-60 font-medium">{currentLength}/{MAX_LOCATION_LENGTH}</span>
+          </div>
+          <input
+            type="text"
+            id="location"
+            value={formData.location}
+            onChange={(e) => e.target.value.length <= MAX_LOCATION_LENGTH && updateFormData({ location: e.target.value })}
+            placeholder="Nama Sekolah / Gedung / Jalan"
+            className={cn(commonInputClass, "border-general-30")}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>Cari di Peta</label>
+          <p className="text-xs text-general-50 mb-2">Cari lokasi di peta untuk mengisi provinsi, kota, dan kecamatan secara otomatis.</p>
+          <Suspense fallback={<div className="h-[400px] bg-general-20 rounded-xl flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-blue-100" /></div>}>
+              <LocationMapPreview
+                  provinceName={locationNames.province}
+                  cityName={locationNames.city}
+                  districtName={locationNames.district}
+                  specificLocation={formData.location}
+                  onCoordinatesChange={(lat, lng) => updateFormData({ latitude: lat, longitude: lng })}
+                  onAddressResolved={async (addr: ResolvedAddress) => {
+                    const result = await locationsService.lookupByName(
+                      addr.state, addr.city || addr.county, addr.suburb || addr.village
+                    )
+                    const d = result.data
+                    const updates: Partial<ReportFormData> = {}
+                    if (d.provinceId) updates.province = d.provinceId
+                    if (d.cityId) updates.city = d.cityId
+                    if (d.districtId) updates.district = d.districtId
+                    if (Object.keys(updates).length > 0) updateFormData(updates)
+                  }}
+              />
+          </Suspense>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="relative z-30">
                 <label className={labelClass}>Provinsi <span className="text-red-100">*</span></label>
@@ -215,47 +255,6 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
                 />
             </div>
         </div>
-      </div>
-
-      {/* SPECIFIC LOCATION */}
-      <div>
-        <div className="flex justify-between items-end mb-2">
-            <label htmlFor="location" className={labelClass}>Lokasi Spesifik <span className="text-red-100">*</span></label>
-            <span className="text-xs text-general-60 font-medium">{currentLength}/{MAX_LOCATION_LENGTH}</span>
-        </div>
-        <input
-          type="text"
-          id="location"
-          value={formData.location}
-          onChange={(e) => e.target.value.length <= MAX_LOCATION_LENGTH && updateFormData({ location: e.target.value })}
-          placeholder="Nama Sekolah / Gedung / Jalan"
-          className={cn(commonInputClass, "border-general-30")}
-        />
-      </div>
-
-      {/* MAP PREVIEW */}
-      <div className="pt-2">
-          <label className={labelClass}>Titik Peta (Opsional)</label>
-          <Suspense fallback={<div className="h-[400px] bg-general-20 rounded-xl flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-blue-100" /></div>}>
-              <LocationMapPreview
-                  provinceName={locationNames.province}
-                  cityName={locationNames.city}
-                  districtName={locationNames.district}
-                  specificLocation={formData.location}
-                  onCoordinatesChange={(lat, lng) => updateFormData({ latitude: lat, longitude: lng })}
-                  onAddressResolved={async (addr: ResolvedAddress) => {
-                    const result = await locationsService.lookupByName(
-                      addr.state, addr.city || addr.county, addr.suburb || addr.village
-                    )
-                    const d = result.data
-                    const updates: Partial<ReportFormData> = {}
-                    if (d.provinceId) updates.province = d.provinceId
-                    if (d.cityId) updates.city = d.cityId
-                    if (d.districtId) updates.district = d.districtId
-                    if (Object.keys(updates).length > 0) updateFormData(updates)
-                  }}
-              />
-          </Suspense>
       </div>
     </div>
   )

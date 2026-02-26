@@ -3,12 +3,14 @@ import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState, useEffect } from "react"
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck, XCircle } from "lucide-react"
 import { authService } from "@/services/auth"
+import { useSEO } from "@/hooks/use-seo"
 
 export const Route = createFileRoute('/auth/reset-password')({
   component: ResetPasswordPage,
 })
 
 function ResetPasswordPage() {
+  useSEO({ title: "Reset Kata Sandi", description: "Buat kata sandi baru akun AMP MBG", path: "/auth/reset-password", noindex: true })
   const navigate = useNavigate()
   const [token, setToken] = useState("")
   const [password, setPassword] = useState("")

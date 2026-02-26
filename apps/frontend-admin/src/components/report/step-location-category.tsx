@@ -122,7 +122,7 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
   return (
     <div className="space-y-6">
       
-      {/* REPORT TITLE */}
+      {/* Title */}
       <div>
         <div className="flex justify-between items-center mb-2">
           <label htmlFor="title" className="block body-sm font-medium text-general-80">
@@ -182,7 +182,7 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
         </div>
       </div>
 
-      {/* DATE & TIME */}
+      {/* Date and time */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
             <label htmlFor="date" className="block body-sm font-medium text-general-80 mb-2">
@@ -249,7 +249,7 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
         </div>
       </div>
 
-      {/* REGION */}
+      {/* Region */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
           <label htmlFor="province" className="block body-sm font-medium text-general-80 mb-2">
@@ -351,7 +351,7 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
         </div>
       </div>
 
-      {/* SPECIFIC LOCATION */}
+      {/* Specific location */}
       <div>
         <div className="flex justify-between items-center mb-2">
           <label htmlFor="location" className="block body-sm font-medium text-general-80">

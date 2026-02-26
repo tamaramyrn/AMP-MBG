@@ -2,12 +2,16 @@ import { createFileRoute } from "@tanstack/react-router"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
 import { ReportForm } from "@/components/report/report-form"
+import { useSEO } from "@/hooks/use-seo"
+import { SEO } from "@/config/seo"
 
 export const Route = createFileRoute("/lapor/")({
   component: LaporPage,
 })
 
 function LaporPage() {
+  useSEO(SEO.lapor)
+
   return (
     <div className="min-h-screen flex flex-col bg-general-20 font-sans">
       <Navbar />

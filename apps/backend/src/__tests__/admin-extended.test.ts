@@ -302,7 +302,7 @@ describe("Admin Extended - Member Management", () => {
     let deleteTestUserId: string
 
     beforeAll(async () => {
-      // Create a user first, then a member
+      // Create user then member
       const [user] = await db.insert(publics).values({
         email: `delete-member-${randomBytes(4).toString("hex")}@example.com`,
         name: "Delete Test Member",

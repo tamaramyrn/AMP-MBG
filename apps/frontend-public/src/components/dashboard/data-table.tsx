@@ -98,7 +98,7 @@ function DataTableComponent({ data }: DataTableProps) {
   return (
     <div className="bg-white rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-blue-30/30 overflow-hidden flex flex-col">
       
-      {/* HEADER */}
+      {/* Header */}
       <div className="p-6 md:p-8 border-b border-general-30">
         <h2 className="text-lg font-bold text-general-100">Daftar Laporan</h2>
       </div>

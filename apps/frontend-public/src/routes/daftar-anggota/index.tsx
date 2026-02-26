@@ -5,6 +5,8 @@ import { useState, useEffect } from "react"
 import { ChevronDown, CheckCircle2, Loader2, ArrowLeft, Building2 } from "lucide-react"
 import { authService } from "@/services/auth"
 import { api } from "@/lib/api"
+import { useSEO } from "@/hooks/use-seo"
+import { SEO } from "@/config/seo"
 
 export const Route = createFileRoute("/daftar-anggota/")({
   component: DaftarAnggotaPage,
@@ -22,6 +24,7 @@ const MEMBER_TYPES = [
 ]
 
 function DaftarAnggotaPage() {
+  useSEO(SEO.daftarAnggota)
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -35,8 +38,8 @@ function DaftarAnggotaPage() {
     organizationName: "",
     organizationEmail: "",
     organizationPhone: "",
-    roleDescription: "",
-    mbgDescription: "",
+    roleInOrganization: "",
+    organizationMbgRole: "",
   })
 
   useEffect(() => {
@@ -52,8 +55,8 @@ function DaftarAnggotaPage() {
   const isPhoneValid = /^\d{9,12}$/.test(formData.organizationPhone)
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.organizationEmail)
   const isNameValid = formData.organizationName.trim().length >= 3
-  const isRoleDescValid = formData.roleDescription.trim().length >= 10
-  const isMbgDescValid = formData.mbgDescription.trim().length >= 10
+  const isRoleDescValid = formData.roleInOrganization.trim().length >= 10
+  const isMbgDescValid = formData.organizationMbgRole.trim().length >= 10
 
   const isValid =
     formData.memberType !== "" &&
@@ -254,7 +257,7 @@ function DaftarAnggotaPage() {
                     {/* Role description */}
                     <div className="space-y-1">
                     <div className={`group relative bg-white border rounded-xl px-4 pb-2.5 pt-1.5 transition-all duration-300 ${
-                        formData.roleDescription.length > 0 && !isRoleDescValid
+                        formData.roleInOrganization.length > 0 && !isRoleDescValid
                         ? "border-red-100 ring-2 ring-red-100/5"
                         : "border-general-30 focus-within:border-blue-100 focus-within:ring-4 focus-within:ring-blue-100/10 hover:border-blue-100/50"
                     }`}>
@@ -262,8 +265,8 @@ function DaftarAnggotaPage() {
                         Deskripsi Peran Anda
                         </label>
                         <textarea
-                        name="roleDescription"
-                        value={formData.roleDescription}
+                        name="roleInOrganization"
+                        value={formData.roleInOrganization}
                         onChange={handleChange}
                         placeholder="Jelaskan peran dan tanggung jawab Anda..."
                         rows={3}
@@ -271,9 +274,9 @@ function DaftarAnggotaPage() {
                         disabled={isLoading}
                         />
                     </div>
-                    {formData.roleDescription.length > 0 && !isRoleDescValid && (
+                    {formData.roleInOrganization.length > 0 && !isRoleDescValid && (
                         <p className="text-[10px] text-red-100 font-medium px-1 text-right">
-                        {formData.roleDescription.trim().length}/10 Karakter
+                        {formData.roleInOrganization.trim().length}/10 Karakter
                         </p>
                     )}
                     </div>
@@ -281,7 +284,7 @@ function DaftarAnggotaPage() {
                     {/* MBG description */}
                     <div className="space-y-1">
                     <div className={`group relative bg-white border rounded-xl px-4 pb-2.5 pt-1.5 transition-all duration-300 ${
-                        formData.mbgDescription.length > 0 && !isMbgDescValid
+                        formData.organizationMbgRole.length > 0 && !isMbgDescValid
                         ? "border-red-100 ring-2 ring-red-100/5"
                         : "border-general-30 focus-within:border-blue-100 focus-within:ring-4 focus-within:ring-blue-100/10 hover:border-blue-100/50"
                     }`}>
@@ -289,8 +292,8 @@ function DaftarAnggotaPage() {
                         Kontribusi Terkait MBG
                         </label>
                         <textarea
-                        name="mbgDescription"
-                        value={formData.mbgDescription}
+                        name="organizationMbgRole"
+                        value={formData.organizationMbgRole}
                         onChange={handleChange}
                         placeholder="Jelaskan keterlibatan organisasi Anda dalam program MBG..."
                         rows={3}
@@ -298,9 +301,9 @@ function DaftarAnggotaPage() {
                         disabled={isLoading}
                         />
                     </div>
-                    {formData.mbgDescription.length > 0 && !isMbgDescValid && (
+                    {formData.organizationMbgRole.length > 0 && !isMbgDescValid && (
                         <p className="text-[10px] text-red-100 font-medium px-1 text-right">
-                        {formData.mbgDescription.trim().length}/10 Karakter
+                        {formData.organizationMbgRole.trim().length}/10 Karakter
                         </p>
                     )}
                     </div>

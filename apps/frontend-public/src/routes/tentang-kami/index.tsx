@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { useSEO } from "@/hooks/use-seo"
+import { SEO } from "@/config/seo"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
 import { Users, ArrowUp, RefreshCw, Scale, Goal, Target, Search, Loader2 } from "lucide-react"
@@ -35,6 +37,7 @@ const coreValues = [
 
 
 function TentangKamiPage() {
+  useSEO(SEO.tentangKami)
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
 

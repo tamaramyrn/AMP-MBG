@@ -6,6 +6,7 @@ import { db, schema } from "../db"
 import { authMiddleware } from "../middleware/auth"
 import { hashPassword, verifyPassword } from "../lib/password"
 import type { AuthUser } from "../types"
+import { formatPhoneNumber } from "../lib/validation"
 
 type Variables = { user: AuthUser }
 
@@ -63,13 +64,6 @@ profile.get("/", async (c) => {
   })
 })
 
-const formatPhone = (rawPhone: string): string => {
-  const cleaned = rawPhone.replace(/\D/g, "")
-  if (cleaned.startsWith("62")) return "+" + cleaned
-  if (cleaned.startsWith("08")) return "+62" + cleaned.slice(1)
-  if (cleaned.startsWith("8")) return "+62" + cleaned
-  return "+62" + cleaned
-}
 
 const updateProfileSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi").optional(),
@@ -81,7 +75,7 @@ profile.patch("/", zValidator("json", updateProfileSchema), async (c) => {
   const authUser = c.get("user")
   const { name, phone: rawPhone, email } = c.req.valid("json")
 
-  const phone = rawPhone ? formatPhone(rawPhone) : undefined
+  const phone = rawPhone ? formatPhoneNumber(rawPhone) : undefined
 
   if (phone) {
     const existingPhone = await db.query.publics.findFirst({
@@ -200,8 +194,8 @@ profile.post("/password", zValidator("json", setPasswordSchema), async (c) => {
 })
 
 const reportHistorySchema = z.object({
-  page: z.string().optional().transform((val) => parseInt(val || "1")),
-  limit: z.string().optional().transform((val) => parseInt(val || "10")),
+  page: z.string().optional().transform((val) => Math.max(1, parseInt(val || "1"))),
+  limit: z.string().optional().transform((val) => Math.min(100, Math.max(1, parseInt(val || "10")))),
   status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]).optional(),
 })
 

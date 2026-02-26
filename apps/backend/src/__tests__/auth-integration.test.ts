@@ -66,7 +66,7 @@ describe("Auth Integration - Full Signup/Login", () => {
     const res = await testRequest(app, "POST", "/api/auth/login", {
       body: { identifier: uniquePhone, password: "Test1234" },
     })
-    // Phone may or may not match format
+    // Phone format may vary
     expect([200, 401]).toContain(res.status)
   })
 
@@ -280,8 +280,8 @@ describe("Auth Integration - Apply Member", () => {
         organizationName: `Test Org ${randomBytes(4).toString("hex")}`,
         organizationEmail: `org-${randomBytes(4).toString("hex")}@test.com`,
         organizationPhone: "08123456789",
-        roleDescription: "Test role description for the organization",
-        mbgDescription: "Test MBG related description for member",
+        roleInOrganization: "Test role description for the organization",
+        organizationMbgRole: "Test MBG related description for member",
       },
     })
     expect(res.status).toBe(200)
@@ -299,8 +299,8 @@ describe("Auth Integration - Apply Member", () => {
         organizationName: member.organizationName,
         organizationEmail: member.organizationEmail || "org@test.com",
         organizationPhone: "08123456789",
-        roleDescription: "Test role description for the organization",
-        mbgDescription: "Test MBG related description for member",
+        roleInOrganization: "Test role description for the organization",
+        organizationMbgRole: "Test MBG related description for member",
       },
     })
     expect(res.status).toBe(400)
@@ -342,7 +342,7 @@ describe("Auth Integration - Admin Login", () => {
     const res = await testRequest(app, "POST", "/api/auth/admin/login", {
       body: { email: "admin@ampmbg.id", password: "admin123" },
     })
-    // May succeed or fail depending on seed password
+    // Depends on seed password
     expect([200, 401]).toContain(res.status)
   })
 
@@ -419,7 +419,7 @@ describe("Auth Integration - Google Complete Phone", () => {
   })
 
   test("rejects when phone already set", async () => {
-    // User already has phone from first test
+    // Phone set from first test
     const tempToken = await signToken({
       sub: tempUserId,
       email: "test@example.com",

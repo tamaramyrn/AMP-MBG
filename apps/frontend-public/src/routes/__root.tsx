@@ -1,6 +1,12 @@
-import { createRootRoute, Outlet } from "@tanstack/react-router"
-import { lazy, Suspense } from "react"
+import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router"
+import { lazy, Suspense, useEffect } from "react"
 import { NotFound } from "@/components/not-found"
+
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void
+  }
+}
 
 const TanStackRouterDevtools =
   import.meta.env.DEV
@@ -17,6 +23,17 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+
+  useEffect(() => {
+    if (window.gtag) {
+      window.gtag("event", "page_view", {
+        page_path: pathname,
+        page_title: document.title,
+      })
+    }
+  }, [pathname])
+
   return (
     <>
       <Outlet />

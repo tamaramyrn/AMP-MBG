@@ -682,13 +682,13 @@ function MemberDetailModal({
               <div>
                 <label className="block text-xs text-general-60 mb-1">Peran di Organisasi/Komunitas</label>
                 <p className="body-sm text-general-80 bg-general-20 p-3 rounded-lg border border-general-30">
-                  {orgInfo?.roleDescription || "Perwakilan Organisasi"}
+                  {orgInfo?.roleInOrganization || "Perwakilan Organisasi"}
                 </p>
               </div>
               <div>
                 <label className="block text-xs text-general-60 mb-1">Peran Organisasi dalam Program MBG</label>
                 <p className="body-sm text-general-80 bg-general-20 p-3 rounded-lg border border-general-30">
-                  {orgInfo?.mbgDescription || "Mitra Program MBG"}
+                  {orgInfo?.organizationMbgRole || "Mitra Program MBG"}
                 </p>
               </div>
             </div>

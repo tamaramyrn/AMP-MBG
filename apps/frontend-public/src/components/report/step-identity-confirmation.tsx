@@ -66,7 +66,7 @@ function StepIdentityConfirmationComponent({ formData, updateFormData }: StepIde
 
       <div className="border-t border-general-30 my-6" />
 
-      {/* REPORT SUMMARY */}
+      {/* Report summary */}
       <div className="bg-gradient-to-br from-general-20 to-white rounded-2xl border border-general-30 overflow-hidden shadow-sm">
         <div className="bg-general-100 px-6 py-4 flex items-center justify-between">
             <h3 className="text-white font-bold text-sm md:text-base">Ringkasan Laporan</h3>
@@ -96,7 +96,7 @@ function StepIdentityConfirmationComponent({ formData, updateFormData }: StepIde
         </div>
       </div>
 
-      {/* AGREEMENT */}
+      {/* Agreement */}
       <div 
         className={cn(
             "rounded-xl p-5 border-2 cursor-pointer transition-all duration-200 flex gap-4 items-start select-none group",

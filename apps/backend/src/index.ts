@@ -18,7 +18,7 @@ if (process.env.NODE_ENV !== "production") {
   app.use("*", logger())
 }
 
-// CORS production guard
+// Cors production guard
 if (process.env.NODE_ENV === "production" && !process.env.CORS_ORIGIN) {
   throw new Error("CORS_ORIGIN required in production")
 }
@@ -41,7 +41,8 @@ app.use("*", async (c, next) => {
   c.header("X-Content-Type-Options", "nosniff")
   c.header("X-Frame-Options", "DENY")
   c.header("Referrer-Policy", "strict-origin-when-cross-origin")
-  c.header("X-XSS-Protection", "1; mode=block")
+  c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+  c.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
 })
 
 // Serve local uploads in development

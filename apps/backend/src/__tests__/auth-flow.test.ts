@@ -171,7 +171,7 @@ describe("Auth Flow - Password Reset", () => {
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.message).toBeDefined()
-    // In dev mode, token is returned
+    // Dev mode returns token
     if (json.token) {
       resetToken = json.token
     }
@@ -215,7 +215,7 @@ describe("Auth Flow - Login Restrictions", () => {
   const googleOnlyEmail = `googleonly-${randomBytes(4).toString("hex")}@example.com`
 
   beforeAll(async () => {
-    // Create user without password (Google-only user)
+    // Google-only user creation
     const [googleUser] = await db.insert(publics).values({
       email: googleOnlyEmail,
       password: null,
@@ -329,8 +329,8 @@ describe("Auth Flow - Member Application", () => {
         organizationName: "Test Organization",
         organizationEmail: "org@test.com",
         organizationPhone: "08123456789",
-        roleDescription: "This is my role description in the organization",
-        mbgDescription: "This is how I relate to MBG program",
+        roleInOrganization: "This is my role description in the organization",
+        organizationMbgRole: "This is how I relate to MBG program",
       },
     })
     expect(res.status).toBe(200)

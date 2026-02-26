@@ -213,7 +213,7 @@ function DataFiltersComponent({ onFilter }: DataFiltersProps) {
             />
           </div>
 
-          {/* ACTION BUTTONS */}
+          {/* Action buttons */}
           <div className="lg:col-span-4 sm:col-span-2 lg:col-start-auto relative z-0 flex gap-2">
             <button
               type="button"

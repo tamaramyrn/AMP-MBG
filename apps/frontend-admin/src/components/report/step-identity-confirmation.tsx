@@ -91,7 +91,7 @@ function StepIdentityConfirmationComponent({ formData, updateFormData }: StepIde
         </p>
       </div>
 
-      {/* AGREEMENT */}
+      {/* Agreement */}
       <div 
         className={`rounded-lg p-4 border transition-colors cursor-pointer ${
             formData.agreement 
@@ -111,7 +111,7 @@ function StepIdentityConfirmationComponent({ formData, updateFormData }: StepIde
         </div>
       </div>
 
-      {/* REPORT SUMMARY */}
+      {/* Report summary */}
       <div className="bg-blue-20 rounded-lg p-5 border border-blue-30">
         <h3 className="h6 text-blue-100 mb-3 font-bold">Ringkasan Laporan Anda:</h3>
         <ul className="body-sm text-general-80 space-y-2">

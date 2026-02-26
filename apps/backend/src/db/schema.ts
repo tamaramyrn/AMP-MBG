@@ -1,9 +1,7 @@
-import { pgTable, text, timestamp, varchar, pgEnum, uuid, boolean, index, integer, smallint, uniqueIndex } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, varchar, pgEnum, uuid, boolean, index, integer, smallint } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 
-// ============================================
-// ENUMS
-// ============================================
+// Enums
 
 export const signupMethodEnum = pgEnum("signup_method", ["manual", "google"])
 export const memberTypeEnum = pgEnum("member_type", ["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"])
@@ -13,9 +11,7 @@ export const reportCategoryEnum = pgEnum("report_category", ["poisoning", "kitch
 export const relationEnum = pgEnum("relation", ["parent", "teacher", "principal", "supplier", "student", "community", "other"])
 export const kitchenNeedsStatusEnum = pgEnum("kitchen_needs_status", ["pending", "processed", "completed", "not_found"])
 
-// ============================================
-// LOCATION TABLES
-// ============================================
+// Location tables
 
 export const provinces = pgTable("provinces", {
   id: varchar("id", { length: 2 }).primaryKey(),
@@ -34,9 +30,7 @@ export const districts = pgTable("districts", {
   name: varchar("name", { length: 100 }).notNull(),
 }, (table) => [index("districts_city_idx").on(table.cityId)])
 
-// ============================================
-// ADMIN TABLE
-// ============================================
+// Admin table
 
 export const admins = pgTable("admins", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -51,15 +45,13 @@ export const admins = pgTable("admins", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
 
-// ============================================
-// PUBLIC USERS TABLE
-// ============================================
+// Public users table
 
 export const publics = pgTable("publics", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: varchar("email", { length: 255 }).unique().notNull(),
   phone: varchar("phone", { length: 15 }).unique(),
-  password: text("password"), // nullable for Google-only auth
+  password: text("password"),
   name: varchar("name", { length: 255 }).notNull(),
   signupMethod: signupMethodEnum("signup_method").default("manual").notNull(),
   googleId: varchar("google_id", { length: 255 }).unique(),
@@ -74,9 +66,7 @@ export const publics = pgTable("publics", {
   index("publics_google_id_idx").on(table.googleId),
 ])
 
-// ============================================
-// MEMBERS TABLE (Extension of publics)
-// ============================================
+// Members table
 
 export const members = pgTable("members", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -98,9 +88,7 @@ export const members = pgTable("members", {
   index("members_is_verified_idx").on(table.isVerified),
 ])
 
-// ============================================
-// MBG SCHEDULES
-// ============================================
+// MBG schedules
 
 export const mbgSchedules = pgTable("mbg_schedules", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -120,9 +108,7 @@ export const mbgSchedules = pgTable("mbg_schedules", {
   index("mbg_schedules_city_idx").on(table.cityId),
 ])
 
-// ============================================
-// REPORTS
-// ============================================
+// Reports
 
 export const reports = pgTable("reports", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -182,9 +168,7 @@ export const reportStatusHistory = pgTable("report_status_history", {
   index("status_history_report_idx").on(table.reportId),
 ])
 
-// ============================================
-// SESSIONS
-// ============================================
+// Sessions
 
 export const sessions = pgTable("sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -214,9 +198,7 @@ export const adminSessions = pgTable("admin_sessions", {
   index("admin_sessions_token_idx").on(table.token),
 ])
 
-// ============================================
-// PASSWORD RESET TOKENS
-// ============================================
+// Password reset tokens
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -229,9 +211,7 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   index("password_reset_token_idx").on(table.token),
 ])
 
-// ============================================
-// KITCHEN NEEDS
-// ============================================
+// Kitchen needs
 
 export const kitchenNeeds = pgTable("kitchen_needs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -261,9 +241,7 @@ export const kitchenNeedsRequests = pgTable("kitchen_needs_requests", {
   index("kitchen_needs_requests_status_idx").on(table.status),
 ])
 
-// ============================================
-// RELATIONS
-// ============================================
+// Relations
 
 export const provincesRelations = relations(provinces, ({ many }) => ({
   cities: many(cities),

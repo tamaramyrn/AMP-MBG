@@ -331,7 +331,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores time for parent during consumption hours", () => {
-      // 9 AM on Monday - within consumption time
+      // Monday 9AM, consumption time
       const result = calculateReportScore({
         relation: "parent",
         description: "Test description",
@@ -349,7 +349,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores time for supplier during preparation hours", () => {
-      // 2 AM - within preparation/cooking time
+      // 2AM, preparation/cooking time
       const result = calculateReportScore({
         relation: "supplier",
         description: "Test description",
@@ -367,7 +367,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores time for student during school hours", () => {
-      // 10 AM - within student consumption time
+      // 10AM, student consumption time
       const result = calculateReportScore({
         relation: "student",
         description: "Test description",
@@ -384,7 +384,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores time for community during visible hours", () => {
-      // 7 AM - during delivery time
+      // 7AM, delivery time
       const result = calculateReportScore({
         relation: "community",
         description: "Test description",
@@ -401,7 +401,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores lower for time outside relation-specific windows", () => {
-      // 3 PM - outside student's normal school hours
+      // 3PM, outside school hours
       const result = calculateReportScore({
         relation: "student",
         description: "Test description",
@@ -435,7 +435,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores delivery time highly", () => {
-      // 7 AM - primary delivery time
+      // 7AM, primary delivery time
       const result = calculateReportScore({
         relation: "other",
         description: "Test description",
@@ -486,7 +486,7 @@ describe("Scoring Library", () => {
     })
 
     test("handles Saturday school day", () => {
-      // Saturday - some schools have Saturday classes
+      // Saturday school classes possible
       const result = calculateReportScore({
         relation: "teacher",
         description: "Test description",
@@ -536,7 +536,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores time without relation - consumption time", () => {
-      // 10 AM - within consumption time (7-12)
+      // 10AM, consumption window
       const result = calculateReportScore({
         relation: "other",
         description: "Short",
@@ -553,7 +553,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores time without relation - delivery time", () => {
-      // 7 AM - within delivery time (6-9)
+      // 7AM, delivery window
       const result = calculateReportScore({
         relation: "other",
         description: "Short",
@@ -570,7 +570,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores time without relation - preparation time", () => {
-      // 1 AM - within preparation time (20-4)
+      // 1AM, preparation window
       const result = calculateReportScore({
         relation: "other",
         description: "Short",
@@ -587,7 +587,7 @@ describe("Scoring Library", () => {
     })
 
     test("scores time without relation - cooking time", () => {
-      // Midnight - within cooking time (23-8)
+      // Midnight, cooking window
       const result = calculateReportScore({
         relation: "other",
         description: "Short",

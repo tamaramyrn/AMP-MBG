@@ -16,7 +16,7 @@ const reports = new Hono()
 const createReportSchema = z.object({
   category: z.enum(["poisoning", "kitchen", "quality", "policy", "implementation", "social"]),
   title: z.string().min(10, "Judul minimal 10 karakter").max(255),
-  description: z.string().min(50, "Deskripsi minimal 50 karakter"),
+  description: z.string().min(50, "Deskripsi minimal 50 karakter").max(5000),
   location: z.string().min(5, "Lokasi wajib diisi").max(255),
   provinceId: z.string().length(2, "Provinsi wajib dipilih"),
   cityId: z.string().min(4).max(5, "Kota/Kabupaten wajib dipilih"),
@@ -27,8 +27,8 @@ const createReportSchema = z.object({
 })
 
 const querySchema = z.object({
-  page: z.string().optional().transform((val) => parseInt(val || "1")),
-  limit: z.string().optional().transform((val) => parseInt(val || "10")),
+  page: z.string().optional().transform((val) => Math.max(1, parseInt(val || "1"))),
+  limit: z.string().optional().transform((val) => Math.min(100, Math.max(1, parseInt(val || "10")))),
   category: z.enum(["poisoning", "kitchen", "quality", "policy", "implementation", "social"]).optional(),
   status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]).optional(),
   credibilityLevel: z.enum(["high", "medium", "low"]).optional(),
@@ -382,8 +382,8 @@ reports.route("/", userReports)
 const authUserReports = new Hono<{ Variables: UserVariables }>()
 
 authUserReports.get("/my/reports", authMiddleware, zValidator("query", z.object({
-  page: z.string().optional().transform((val) => parseInt(val || "1")),
-  limit: z.string().optional().transform((val) => parseInt(val || "10")),
+  page: z.string().optional().transform((val) => Math.max(1, parseInt(val || "1"))),
+  limit: z.string().optional().transform((val) => Math.min(100, Math.max(1, parseInt(val || "10")))),
 })), async (c) => {
   const user = c.get("user")
   const { page, limit } = c.req.valid("query")
@@ -497,11 +497,14 @@ authUserReports.delete("/:id/files/:fileId", authMiddleware, async (c) => {
     return c.json({ error: "Forbidden" }, 403)
   }
 
-  const file = await db.query.reportFiles.findFirst({ where: eq(schema.reportFiles.id, fileId) })
+  const file = await db.query.reportFiles.findFirst({
+    where: and(eq(schema.reportFiles.id, fileId), eq(schema.reportFiles.reportId, id)),
+  })
   if (!file) return c.json({ error: "File not found" }, 404)
 
-  const key = file.fileUrl.split("/").slice(-2).join("/")
-  await deleteFile(key)
+  const keyMatch = file.fileUrl.match(/reports\/[a-f0-9-]+\.[a-z]+$/i)
+  if (!keyMatch) return c.json({ error: "Invalid file reference" }, 400)
+  await deleteFile(keyMatch[0])
   await db.delete(schema.reportFiles).where(eq(schema.reportFiles.id, fileId))
 
   return c.json({ message: "File deleted successfully" })

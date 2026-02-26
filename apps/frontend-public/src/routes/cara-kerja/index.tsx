@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useSEO } from "@/hooks/use-seo"
+import { SEO } from "@/config/seo"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
 import { Camera, Upload, Search, ShieldCheck, MessageCircle, Play } from "lucide-react"
@@ -35,6 +37,7 @@ const steps = [
 ]
 
 function CaraKerjaPage() {
+  useSEO(SEO.caraKerja)
   const navigate = useNavigate()
 
   const handleLaporClick = () => {

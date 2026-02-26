@@ -3,12 +3,14 @@ import { AuthLayout } from "@/components/auth/auth-layout"
 import { useState } from "react"
 import { ArrowLeft, CheckCircle2, Mail, Loader2 } from "lucide-react"
 import { authService } from "@/services/auth"
+import { useSEO } from "@/hooks/use-seo"
 
 export const Route = createFileRoute('/auth/forgot-password')({
   component: ForgotPasswordPage,
 })
 
 function ForgotPasswordPage() {
+  useSEO({ title: "Lupa Kata Sandi", description: "Reset kata sandi akun AMP MBG", path: "/auth/forgot-password", noindex: true })
   const [email, setEmail] = useState("")
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)

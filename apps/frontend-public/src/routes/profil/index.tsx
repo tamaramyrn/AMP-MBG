@@ -7,12 +7,14 @@ import { KitchenNeedsHistory } from "@/components/profile/kitchen-needs-history"
 import { useState, useEffect } from "react"
 import { AlertCircle, Users, ArrowRight, LogOut } from "lucide-react"
 import { authService } from "@/services/auth"
+import { useSEO } from "@/hooks/use-seo"
 
 export const Route = createFileRoute("/profil/")({
   component: ProfilPage,
 })
 
 function ProfilPage() {
+  useSEO({ title: "Profil", description: "Kelola profil akun AMP MBG", path: "/profil/", noindex: true })
   const navigate = useNavigate()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [canApplyMember, setCanApplyMember] = useState(false)

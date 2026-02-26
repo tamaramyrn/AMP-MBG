@@ -211,8 +211,8 @@ function scoreNarrative(description: string): number {
 function scoreReporterHistory(reportCount: number, verifiedCount: number): number {
   if (reportCount === 0) return 1
   const verifiedRatio = verifiedCount / reportCount
-  if (verifiedRatio >= 0.7 && reportCount >= 2) return 3
-  if (verifiedRatio >= 0.4) return 2
+  if (verifiedRatio >= 0.5 && reportCount >= 2) return 3
+  if (verifiedRatio >= 0.3) return 2
   if (reportCount <= 2) return 1
   return 0
 }

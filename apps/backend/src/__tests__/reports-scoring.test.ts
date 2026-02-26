@@ -114,7 +114,7 @@ describe("Reports Scoring - MBG Schedule Matching", () => {
   test("creates report not matching MBG schedule", async () => {
     if (!userToken) return
 
-    // Create a date that doesn't match (Sunday)
+    // Sunday date, no match
     const date = new Date()
     while (date.getDay() !== 0) {
       date.setDate(date.getDate() + 1)

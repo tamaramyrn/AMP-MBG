@@ -8,6 +8,8 @@ import { DataSummaryCards } from "@/components/dashboard/data-summary-cards"
 import { DataFilters, type FilterValues } from "@/components/dashboard/data-filters"
 import { DataTable, type ReportRow } from "@/components/dashboard/data-table"
 import { reportsService, type ReportsQuery, type ReportCategory, type ReportStatus } from "@/services/reports"
+import { useSEO } from "@/hooks/use-seo"
+import { SEO } from "@/config/seo"
 
 export const Route = createFileRoute("/data-laporan/")({
   component: DataLaporanPage,
@@ -24,6 +26,7 @@ const INITIAL_FILTERS: FilterValues = {
 }
 
 function DataLaporanPage() {
+  useSEO(SEO.dataLaporan)
   const [filters, setFilters] = useState<FilterValues>(INITIAL_FILTERS)
 
   const query = useMemo<ReportsQuery>(() => ({

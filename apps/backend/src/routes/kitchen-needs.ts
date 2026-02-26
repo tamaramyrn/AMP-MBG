@@ -4,6 +4,7 @@ import { z } from "zod"
 import { eq, desc, sql, and, asc } from "drizzle-orm"
 import { db, schema } from "../db"
 import { authMiddleware, adminMiddleware } from "../middleware/auth"
+import { uploadFile, validateFile } from "../lib/storage"
 import type { AuthUser, AuthAdmin } from "../types"
 
 type UserVariables = { user: AuthUser }
@@ -110,25 +111,11 @@ kitchenNeeds.post("/admin/upload", adminMiddleware, async (c) => {
 
   if (!file) return c.json({ error: "File not found" }, 400)
 
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"]
-  if (!allowedTypes.includes(file.type)) {
-    return c.json({ error: "File format not supported" }, 400)
-  }
+  const validation = await validateFile(file)
+  if (!validation.valid) return c.json({ error: validation.error }, 400)
 
-  const maxSize = 5 * 1024 * 1024
-  if (file.size > maxSize) {
-    return c.json({ error: "Maximum file size is 5MB" }, 400)
-  }
-
-  const ext = file.name.split(".").pop() || "jpg"
-  const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
-  const filepath = `./uploads/kitchen-needs/${filename}`
-
-  const buffer = await file.arrayBuffer()
-  await Bun.write(filepath, buffer)
-
-  const imageUrl = `/uploads/kitchen-needs/${filename}`
-  return c.json({ data: { imageUrl }, message: "Image uploaded successfully" })
+  const { url } = await uploadFile(file, "kitchen-needs")
+  return c.json({ data: { imageUrl: url }, message: "Image uploaded successfully" })
 })
 
 // Admin: Create kitchen need
@@ -190,8 +177,8 @@ kitchenNeeds.delete("/admin/:id", adminMiddleware, async (c) => {
 
 // Admin: Get all requests
 const requestsQuerySchema = z.object({
-  page: z.string().optional().transform((val) => parseInt(val || "1")),
-  limit: z.string().optional().transform((val) => parseInt(val || "20")),
+  page: z.string().optional().transform((val) => Math.max(1, parseInt(val || "1"))),
+  limit: z.string().optional().transform((val) => Math.min(100, Math.max(1, parseInt(val || "20")))),
   status: z.enum(["pending", "processed", "completed", "not_found"]).optional(),
 })
 

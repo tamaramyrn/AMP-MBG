@@ -168,7 +168,6 @@ function LocationMapPreviewComponent({
         })
       }
     } catch {
-      // Silent fail
     }
   }, [onCoordinatesChange, onAddressResolved])
 
@@ -178,7 +177,6 @@ function LocationMapPreviewComponent({
     reverseGeocode(lat, lng)
   }, [reverseGeocode])
 
-  // Auto-search on change
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
@@ -215,7 +213,7 @@ function LocationMapPreviewComponent({
         )}
       </div>
 
-      {/* Search input */}
+      {/* Search */}
       <div className="flex gap-2">
         <input
           type="text"
@@ -236,7 +234,7 @@ function LocationMapPreviewComponent({
         </button>
       </div>
 
-      {/* Map container */}
+      {/* Map */}
       <div className="relative rounded-lg overflow-hidden border border-general-30 h-[400px]">
         <MapContainer
           center={DEFAULT_CENTER}
@@ -253,7 +251,7 @@ function LocationMapPreviewComponent({
           {position && <Marker position={position} icon={markerIcon} />}
         </MapContainer>
 
-        {/* Click hint */}
+        {/* Hint overlay */}
         {!position && !isSearching && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/5 pointer-events-none">
             <div className="bg-general-20/90 px-3 py-2 rounded-lg shadow-sm">
@@ -266,7 +264,7 @@ function LocationMapPreviewComponent({
         )}
       </div>
 
-      {/* Error */}
+      {/* Search error */}
       {searchError && (
         <div className="flex items-center gap-2 text-red-100">
           <AlertCircle className="w-4 h-4" />
@@ -274,7 +272,7 @@ function LocationMapPreviewComponent({
         </div>
       )}
 
-      {/* Address details */}
+      {/* Address info */}
       {addressInfo && (
         <div className="bg-general-30/30 rounded-lg p-3 space-y-2">
           <p className="text-xs text-general-70 line-clamp-2">{addressInfo}</p>

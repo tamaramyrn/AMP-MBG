@@ -15,8 +15,8 @@ export interface OrganizationInfo {
   name: string
   email: string
   phone: string
-  roleDescription: string
-  mbgDescription: string
+  roleInOrganization: string
+  organizationMbgRole: string
 }
 
 export interface Member {

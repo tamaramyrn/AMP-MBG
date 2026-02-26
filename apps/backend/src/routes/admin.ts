@@ -13,10 +13,10 @@ const admin = new Hono<{ Variables: Variables }>()
 
 admin.use("*", adminMiddleware)
 
-// PUBLIC USERS management
+// Public users management
 const userQuerySchema = z.object({
-  page: z.string().optional().transform((val) => parseInt(val || "1")),
-  limit: z.string().optional().transform((val) => parseInt(val || "10")),
+  page: z.string().optional().transform((val) => Math.max(1, parseInt(val || "1"))),
+  limit: z.string().optional().transform((val) => Math.min(100, Math.max(1, parseInt(val || "10")))),
   search: z.string().max(100).optional(),
   signupMethod: z.enum(["manual", "google"]).optional(),
 })
@@ -76,7 +76,7 @@ admin.get("/users/:id", async (c) => {
   return c.json({
     data: {
       ...user,
-      hasPassword: !!user.password,
+      hasPassword: user.signupMethod === "manual",
       isGoogleLinked: !!user.googleId,
       isMember: !!user.member,
     }
@@ -171,8 +171,8 @@ admin.get("/reports/:id/history", async (c) => {
 
 // Reports management
 const adminReportsQuerySchema = z.object({
-  page: z.string().optional().transform((val) => parseInt(val || "1")),
-  limit: z.string().optional().transform((val) => parseInt(val || "10")),
+  page: z.string().optional().transform((val) => Math.max(1, parseInt(val || "1"))),
+  limit: z.string().optional().transform((val) => Math.min(100, Math.max(1, parseInt(val || "10")))),
   status: z.enum(["pending", "analyzing", "needs_evidence", "invalid", "in_progress", "resolved"]).optional(),
   category: z.enum(["poisoning", "kitchen", "quality", "policy", "implementation", "social"]).optional(),
   credibilityLevel: z.enum(["high", "medium", "low"]).optional(),
@@ -279,14 +279,16 @@ admin.get("/reports/export", zValidator("query", z.object({
 
   const data = await db.query.reports.findMany({
     where: whereClause,
+    limit: 10000,
     orderBy: [desc(schema.reports.createdAt)],
     with: { province: true, city: true, district: true, public: { columns: { name: true } } },
   })
 
   if (format === "csv") {
+    const csvSafe = (s: string) => s.replace(/^[=+\-@\t\r]/g, "'$&").replace(/"/g, '""')
     const headers = "ID,Title,Category,Status,Province,City,Incident Date,Score,Credibility,Created\n"
     const rows = data.map((r) =>
-      `"${r.id}","${r.title}","${r.category}","${r.status}","${r.province?.name || ""}","${r.city?.name || ""}","${r.incidentDate.toISOString()}","${r.totalScore}","${r.credibilityLevel}","${r.createdAt.toISOString()}"`
+      `"${r.id}","${csvSafe(r.title)}","${r.category}","${r.status}","${csvSafe(r.province?.name || "")}","${csvSafe(r.city?.name || "")}","${r.incidentDate.toISOString()}","${r.totalScore}","${r.credibilityLevel}","${r.createdAt.toISOString()}"`
     ).join("\n")
 
     c.header("Content-Type", "text/csv")
@@ -531,6 +533,7 @@ admin.get("/analytics", zValidator("query", analyticsQuerySchema), async (c) => 
     }).from(schema.reports),
     db.select({
       total: sql<number>`count(*)`,
+      active: sql<number>`count(*) filter (where ${schema.publics.lastLoginAt} >= now() - interval '30 days')`,
       withGoogle: sql<number>`count(*) filter (where ${schema.publics.googleId} is not null)`,
     }).from(schema.publics),
     trendQuery,
@@ -643,8 +646,8 @@ admin.get("/analytics", zValidator("query", analyticsQuerySchema), async (c) => 
 
 // User sessions management
 admin.get("/sessions", zValidator("query", z.object({
-  page: z.string().optional().transform((val) => parseInt(val || "1")),
-  limit: z.string().optional().transform((val) => parseInt(val || "20")),
+  page: z.string().optional().transform((val) => Math.max(1, parseInt(val || "1"))),
+  limit: z.string().optional().transform((val) => Math.min(100, Math.max(1, parseInt(val || "20")))),
   userId: z.string().uuid().optional(),
 })), async (c) => {
   const { page, limit, userId } = c.req.valid("query")
@@ -698,10 +701,10 @@ admin.post("/sessions/:userId/revoke-all", async (c) => {
   return c.json({ message: "All user sessions revoked" })
 })
 
-// MBG Schedule Management
+// MBG schedule management
 const mbgScheduleQuerySchema = z.object({
-  page: z.string().optional().transform((val) => parseInt(val || "1")),
-  limit: z.string().optional().transform((val) => parseInt(val || "20")),
+  page: z.string().optional().transform((val) => Math.max(1, parseInt(val || "1"))),
+  limit: z.string().optional().transform((val) => Math.min(100, Math.max(1, parseInt(val || "20")))),
   provinceId: z.string().optional(),
   cityId: z.string().optional(),
   isActive: z.enum(["true", "false"]).optional().transform((val) => val === "true"),
@@ -841,7 +844,7 @@ admin.get("/reports/:id/scoring", async (c) => {
   })
 })
 
-// ADMIN ACCOUNTS management
+// Admin accounts management
 const adminQuerySchema = z.object({
   search: z.string().max(100).optional(),
   isActive: z.enum(["true", "false"]).optional().transform((val) => val === "true" ? true : val === "false" ? false : undefined),
@@ -942,7 +945,7 @@ admin.delete("/admins/:id", async (c) => {
   return c.json({ message: "Admin deleted successfully" })
 })
 
-// MEMBER management
+// Member management
 const memberQuerySchema = z.object({
   status: z.enum(["verified", "pending", "all"]).optional().default("all"),
   memberType: z.enum(["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"]).optional(),
@@ -1001,8 +1004,8 @@ admin.get("/members", zValidator("query", memberQuerySchema), async (c) => {
         name: m.organizationName,
         email: m.organizationEmail || "",
         phone: m.organizationPhone || "",
-        roleDescription: m.roleInOrganization || "",
-        mbgDescription: m.organizationMbgRole || "",
+        roleInOrganization: m.roleInOrganization || "",
+        organizationMbgRole: m.organizationMbgRole || "",
       }
     }))
   })
@@ -1113,8 +1116,8 @@ admin.get("/members/:id", async (c) => {
         name: member.organizationName,
         email: member.organizationEmail || "",
         phone: member.organizationPhone || "",
-        roleDescription: member.roleInOrganization || "",
-        mbgDescription: member.organizationMbgRole || "",
+        roleInOrganization: member.roleInOrganization || "",
+        organizationMbgRole: member.organizationMbgRole || "",
       }
     }
   })

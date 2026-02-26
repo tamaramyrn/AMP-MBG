@@ -7,9 +7,10 @@ import { hashPassword, verifyPassword } from "../lib/password"
 import { signToken } from "../lib/jwt"
 import { authMiddleware, adminMiddleware, tempAuthMiddleware, hashToken } from "../middleware/auth"
 import { rateLimiter } from "../middleware/rate-limit"
-import { randomBytes } from "crypto"
+import { randomBytes, createHash } from "crypto"
 import { sendEmail, getPasswordResetEmailHtml } from "../lib/email"
 import type { AuthUser, AuthAdmin } from "../types"
+import { formatPhoneNumber } from "../lib/validation"
 
 type UserVariables = { user: AuthUser }
 type AdminVariables = { admin: AuthAdmin }
@@ -49,9 +50,7 @@ async function createAdminSession(c: any, adminId: string, token: string) {
   }
 }
 
-// ============================================
-// VALIDATORS
-// ============================================
+// Validators
 
 const phoneValidator = z.string().min(9, "Nomor telepon minimal 9 digit").max(15, "Nomor telepon maksimal 15 digit")
 const emailValidator = z.string().email("Email tidak valid").toLowerCase()
@@ -103,9 +102,7 @@ const completePhoneSchema = z.object({
   phone: phoneValidator,
 })
 
-// ============================================
-// GOOGLE OAUTH HELPERS
-// ============================================
+// Google OAuth helpers
 
 async function verifyGoogleToken(credential: string): Promise<{ email: string; name: string; sub: string } | null> {
   try {
@@ -113,6 +110,7 @@ async function verifyGoogleToken(credential: string): Promise<{ email: string; n
     if (!response.ok) return null
     const payload = await response.json()
     if (!payload.email || !payload.sub) return null
+    if (payload.aud !== process.env.GOOGLE_CLIENT_ID) return null
     return { email: payload.email, name: payload.name || payload.email.split("@")[0], sub: payload.sub }
   } catch {
     return null
@@ -165,18 +163,8 @@ async function exchangeGoogleCode(code: string): Promise<{ email: string; name: 
   }
 }
 
-function formatPhone(rawPhone: string): string {
-  let phone = rawPhone.replace(/\D/g, "")
-  if (phone.startsWith("62")) phone = "+" + phone
-  else if (phone.startsWith("08")) phone = "+62" + phone.slice(1)
-  else if (phone.startsWith("8")) phone = "+62" + phone
-  else phone = "+62" + phone
-  return phone
-}
 
-// ============================================
-// ADMIN AUTH ROUTES
-// ============================================
+// Admin auth routes
 
 auth.post("/admin/login", rateLimiter(10, 15 * 60 * 1000), zValidator("json", adminLoginSchema), async (c) => {
   const { email, password } = c.req.valid("json")
@@ -229,14 +217,12 @@ auth.post("/admin/logout", adminMiddleware, async (c) => {
   return c.json({ message: "Logout successful" })
 })
 
-// ============================================
-// PUBLIC AUTH ROUTES
-// ============================================
+// Public auth routes
 
 auth.post("/signup", rateLimiter(5, 15 * 60 * 1000), zValidator("json", userSignupSchema), async (c) => {
   const { email, password, name, phone: rawPhone } = c.req.valid("json")
 
-  const formattedPhone = formatPhone(rawPhone)
+  const formattedPhone = formatPhoneNumber(rawPhone)
 
   const existingPublic = await db.query.publics.findFirst({
     where: eq(schema.publics.email, email),
@@ -295,7 +281,7 @@ auth.post("/login", rateLimiter(10, 15 * 60 * 1000), zValidator("json", userLogi
   let phoneWithPrefix = identifier
   const cleanPhone = identifier.replace(/\D/g, "")
   if (/^\d{9,15}$/.test(cleanPhone)) {
-    phoneWithPrefix = formatPhone(cleanPhone)
+    phoneWithPrefix = formatPhoneNumber(cleanPhone)
   }
 
   const publicUser = await db.query.publics.findFirst({
@@ -388,9 +374,7 @@ auth.post("/logout", authMiddleware, async (c) => {
   return c.json({ message: "Logout successful" })
 })
 
-// ============================================
-// GOOGLE AUTH ROUTES
-// ============================================
+// Google auth routes
 
 auth.post("/google/code", rateLimiter(10, 15 * 60 * 1000), zValidator("json", googleCodeSchema), async (c) => {
   const { code } = c.req.valid("json")
@@ -502,7 +486,7 @@ auth.post("/google/complete-phone", tempAuthMiddleware, zValidator("json", compl
   if (!publicUser.googleId) return c.json({ error: "This feature is for Google accounts only" }, 400)
   if (publicUser.phone) return c.json({ error: "Phone number already set" }, 400)
 
-  const formattedPhone = formatPhone(rawPhone)
+  const formattedPhone = formatPhoneNumber(rawPhone)
 
   const existingPhone = await db.query.publics.findFirst({
     where: eq(schema.publics.phone, formattedPhone),
@@ -529,9 +513,7 @@ auth.post("/google/complete-phone", tempAuthMiddleware, zValidator("json", compl
   })
 })
 
-// ============================================
-// PASSWORD RESET ROUTES
-// ============================================
+// Password reset routes
 
 auth.post("/forgot-password", rateLimiter(3, 15 * 60 * 1000), zValidator("json", forgotPasswordSchema), async (c) => {
   const { email } = c.req.valid("json")
@@ -545,18 +527,19 @@ auth.post("/forgot-password", rateLimiter(3, 15 * 60 * 1000), zValidator("json",
   }
 
   if (!publicUser.password && publicUser.googleId) {
-    return c.json({ error: "This account uses Google sign-in. Please login with Google or create a password first." }, 400)
+    return c.json({ message: "If the email is registered, a reset link will be sent" })
   }
 
   await db.delete(schema.passwordResetTokens)
     .where(eq(schema.passwordResetTokens.publicId, publicUser.id))
 
   const token = generateToken()
+  const hashedResetToken = createHash("sha256").update(token).digest("hex")
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
 
   await db.insert(schema.passwordResetTokens).values({
     publicId: publicUser.id,
-    token,
+    token: hashedResetToken,
     expiresAt,
   })
 
@@ -573,25 +556,21 @@ auth.post("/forgot-password", rateLimiter(3, 15 * 60 * 1000), zValidator("json",
   })
 
   if (!emailSent) {
-    console.error("[Forgot Password] Failed to send email to:", publicUser.email)
-    console.error("[Forgot Password] Check SMTP environment variables")
-  } else {
-    console.log("[Forgot Password] Email sent successfully to:", publicUser.email)
+    console.error("[Forgot Password] Failed to send email. Check SMTP configuration.")
   }
 
   return c.json({
-    message: emailSent
-      ? "Password reset link has been sent to your email"
-      : "If the email is registered, a reset link will be sent",
+    message: "If the email is registered, a reset link will be sent",
   })
 })
 
 auth.get("/verify-reset-token/:token", rateLimiter(5, 15 * 60 * 1000), async (c) => {
   const token = c.req.param("token")
+  const hashedToken = createHash("sha256").update(token).digest("hex")
 
   const resetToken = await db.query.passwordResetTokens.findFirst({
     where: and(
-      eq(schema.passwordResetTokens.token, token),
+      eq(schema.passwordResetTokens.token, hashedToken),
       gt(schema.passwordResetTokens.expiresAt, new Date())
     ),
   })
@@ -605,10 +584,11 @@ auth.get("/verify-reset-token/:token", rateLimiter(5, 15 * 60 * 1000), async (c)
 
 auth.post("/reset-password", rateLimiter(5, 15 * 60 * 1000), zValidator("json", resetPasswordSchema), async (c) => {
   const { token, password } = c.req.valid("json")
+  const hashedToken = createHash("sha256").update(token).digest("hex")
 
   const resetToken = await db.query.passwordResetTokens.findFirst({
     where: and(
-      eq(schema.passwordResetTokens.token, token),
+      eq(schema.passwordResetTokens.token, hashedToken),
       gt(schema.passwordResetTokens.expiresAt, new Date())
     ),
     with: { public: true },
@@ -635,9 +615,7 @@ auth.post("/reset-password", rateLimiter(5, 15 * 60 * 1000), zValidator("json", 
   return c.json({ message: "Password reset successful" })
 })
 
-// ============================================
-// PROFILE ROUTES
-// ============================================
+// Profile routes
 
 const updateProfileSchema = z.object({
   name: z.string().min(1).max(255).optional(),
@@ -712,17 +690,15 @@ auth.post("/create-password", authMiddleware, zValidator("json", z.object({
   return c.json({ message: "Password created successfully" })
 })
 
-// ============================================
-// MEMBER APPLICATION
-// ============================================
+// Member application
 
 const applyMemberSchema = z.object({
   memberType: z.enum(["supplier", "caterer", "school", "government", "foundation", "ngo", "farmer", "other"]),
   organizationName: z.string().min(3, "Nama organisasi minimal 3 karakter").max(255),
   organizationEmail: z.string().email("Email organisasi tidak valid"),
   organizationPhone: z.string().min(9, "Nomor telepon minimal 9 digit").max(15),
-  roleDescription: z.string().min(10, "Deskripsi peran minimal 10 karakter").max(500),
-  mbgDescription: z.string().min(10, "Deskripsi peran MBG minimal 10 karakter").max(500),
+  roleInOrganization: z.string().min(10, "Deskripsi peran minimal 10 karakter").max(500),
+  organizationMbgRole: z.string().min(10, "Deskripsi peran MBG minimal 10 karakter").max(500),
 })
 
 auth.post("/apply-member", authMiddleware, zValidator("json", applyMemberSchema), async (c) => {
@@ -748,8 +724,8 @@ auth.post("/apply-member", authMiddleware, zValidator("json", applyMemberSchema)
     organizationName: data.organizationName,
     organizationEmail: data.organizationEmail,
     organizationPhone: data.organizationPhone,
-    roleInOrganization: data.roleDescription,
-    organizationMbgRole: data.mbgDescription,
+    roleInOrganization: data.roleInOrganization,
+    organizationMbgRole: data.organizationMbgRole,
   })
 
   return c.json({

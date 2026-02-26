@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { lazy, Suspense } from "react"
+import { useSEO } from "@/hooks/use-seo"
+import { SEO } from "@/config/seo"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
 import { HeroSection } from "@/components/home/hero-section"
@@ -21,6 +23,8 @@ export const Route = createFileRoute("/")({
 })
 
 function HomePage() {
+  useSEO(SEO.home)
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
