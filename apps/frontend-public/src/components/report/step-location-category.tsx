@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, Suspense, lazy } from "react"
 import { AlertCircle, Loader2 } from "lucide-react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ReportFormData, Timezone } from "./report-form"
 import type { ResolvedAddress } from "./location-map-preview"
 import { categoriesService } from "@/services/categories"
@@ -24,6 +24,7 @@ const TIMEZONES: { value: Timezone; label: string; offset: number }[] = [
 ]
 
 function StepLocationCategoryComponent({ formData, updateFormData }: StepLocationCategoryProps) {
+  const queryClient = useQueryClient()
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
     queryKey: ["categories"], queryFn: async () => (await categoriesService.getCategories()).data, staleTime: 3600000,
   })
@@ -237,8 +238,22 @@ function StepLocationCategoryComponent({ formData, updateFormData }: StepLocatio
                     )
                     const d = result.data
                     const updates: Partial<ReportFormData> = {}
-                    if (d.provinceId) updates.province = d.provinceId
-                    if (d.cityId) updates.city = d.cityId
+                    if (d.provinceId) {
+                      updates.province = d.provinceId
+                      await queryClient.fetchQuery({
+                        queryKey: ["cities", d.provinceId],
+                        queryFn: async () => (await locationsService.getCities(d.provinceId!)).data,
+                        staleTime: 1800000,
+                      })
+                    }
+                    if (d.cityId) {
+                      updates.city = d.cityId
+                      await queryClient.fetchQuery({
+                        queryKey: ["districts", d.cityId],
+                        queryFn: async () => (await locationsService.getDistricts(d.cityId!)).data,
+                        staleTime: 1800000,
+                      })
+                    }
                     if (d.districtId) updates.district = d.districtId
                     if (Object.keys(updates).length > 0) updateFormData(updates)
                   }}
