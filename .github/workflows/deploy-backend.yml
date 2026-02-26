@@ -46,6 +46,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build-and-push
+    if: ${{ secrets.DOKPLOY_WEBHOOK_URL != '' }}
     steps:
       - name: Trigger Dokploy webhook
         run: |
