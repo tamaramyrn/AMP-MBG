@@ -524,11 +524,11 @@ auth.post("/forgot-password", rateLimiter(3, 15 * 60 * 1000), zValidator("json",
   })
 
   if (!publicUser) {
-    return c.json({ message: "Jika email terdaftar, tautan reset akan dikirim" })
+    return c.json({ error: "Email tidak terdaftar dalam sistem" }, 404)
   }
 
   if (!publicUser.password && publicUser.googleId) {
-    return c.json({ message: "Jika email terdaftar, tautan reset akan dikirim" })
+    return c.json({ error: "Akun ini terdaftar melalui Google. Silakan login menggunakan Google." }, 400)
   }
 
   await db.delete(schema.passwordResetTokens)

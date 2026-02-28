@@ -941,6 +941,7 @@ admin.delete("/admins/:id", async (c) => {
 
   const adminUser = await db.query.admins.findFirst({ where: eq(schema.admins.id, id) })
   if (!adminUser) return c.json({ error: "Admin tidak ditemukan" }, 404)
+  if (adminUser.adminRole === "Super Admin") return c.json({ error: "Super Admin tidak dapat dihapus" }, 400)
 
   await db.delete(schema.admins).where(eq(schema.admins.id, id))
   return c.json({ message: "Admin berhasil dihapus" })

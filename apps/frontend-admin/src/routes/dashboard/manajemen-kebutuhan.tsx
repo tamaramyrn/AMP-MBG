@@ -421,14 +421,20 @@ function KitchenContentModal({ initialData, onClose, onDelete, onSuccess }: { in
 
             {/* Deskripsi */}
             <div>
-              <label className={labelClass}>Deskripsi</label>
-              <textarea 
+              <div className="flex justify-between items-end mb-1">
+                <label className={labelClass}>Deskripsi</label>
+                <span className={`text-xs font-medium ${(formData.description?.length ?? 0) > 0 && (formData.description?.length ?? 0) < 10 ? 'text-red-500' : 'text-general-60'}`}>
+                  {(formData.description?.length ?? 0) > 0 && (formData.description?.length ?? 0) < 10 ? `Minimal 10 karakter (${formData.description?.length}/10)` : ''}
+                </span>
+              </div>
+              <textarea
                 required
+                minLength={10}
                 rows={4}
                 value={formData.description}
                 onChange={e => setFormData({...formData, description: e.target.value})}
-                className={`${inputClass} resize-none`}
-                placeholder="Jelaskan peran dan kenapa SPPG membutuhkannya..."
+                className={`${inputClass} resize-none ${(formData.description?.length ?? 0) > 0 && (formData.description?.length ?? 0) < 10 ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}`}
+                placeholder="Jelaskan peran dan kenapa SPPG membutuhkannya... (min. 10 karakter)"
               />
             </div>
 

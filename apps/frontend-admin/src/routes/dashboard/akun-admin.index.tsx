@@ -30,13 +30,15 @@ export const Route = createFileRoute("/dashboard/akun-admin/")({
 })
 
 const ADMIN_ROLE_OPTIONS = [
-  { value: "Director", label: "Director" },
-  { value: "Marketing", label: "Marketing" },
-  { value: "IT", label: "IT" },
-  { value: "Finance", label: "Finance" },
-  { value: "Operations", label: "Operations" },
-  { value: "HR", label: "Human Resources" },
-  { value: "Legal", label: "Legal" },
+  { value: "Super Admin", label: "Super Admin" },
+  { value: "Koordinator Nasional", label: "Koordinator Nasional" },
+  { value: "Validator Laporan", label: "Validator Laporan" },
+  { value: "Data Analyst", label: "Data Analyst" },
+  { value: "Finance Manager", label: "Finance Manager" },
+  { value: "Operations Manager", label: "Operations Manager" },
+  { value: "HR Manager", label: "HR Manager" },
+  { value: "IT Support", label: "IT Support" },
+  { value: "Media Relations", label: "Media Relations" },
 ]
 
 // Custom select component
@@ -338,13 +340,15 @@ function AkunAdminPage() {
 
                         <td className="p-4 align-middle text-center">
                           <div className="flex justify-center">
-                            <button
-                              onClick={() => handleDeleteClick(admin.id)}
-                              className="p-2 bg-red-20 text-red-100 hover:bg-red-30 border border-red-30 rounded-lg transition-colors shadow-sm disabled:opacity-50"
-                              title="Hapus Akun Admin"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {admin.adminRole !== "Super Admin" && (
+                              <button
+                                onClick={() => handleDeleteClick(admin.id)}
+                                className="p-2 bg-red-20 text-red-100 hover:bg-red-30 border border-red-30 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                                title="Hapus Akun Admin"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

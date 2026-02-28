@@ -5,7 +5,7 @@ import { ProfileForm } from "@/components/profile/profile-form"
 import { ReportHistory } from "@/components/profile/report-history"
 import { KitchenNeedsHistory } from "@/components/profile/kitchen-needs-history"
 import { useState, useMemo } from "react"
-import { AlertCircle, Users, ArrowRight, LogOut } from "lucide-react"
+import { AlertCircle, Users, ArrowRight, LogOut, Clock, CheckCircle2 } from "lucide-react"
 import { authService } from "@/services/auth"
 import { useSEO } from "@/hooks/use-seo"
 
@@ -17,9 +17,12 @@ function ProfilPage() {
   useSEO({ title: "Profil", description: "Kelola profil akun AMP MBG", path: "/profil/", noindex: true })
   const navigate = useNavigate()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
-  const canApplyMember = useMemo(() => {
+  const { canApplyMember, memberStatus } = useMemo(() => {
     const user = authService.getCurrentUser()
-    return !!user && !user.isMember
+    return {
+      canApplyMember: !!user && !user.isMember,
+      memberStatus: user?.memberStatus || null,
+    }
   }, [])
 
   const confirmLogout = () => {
@@ -65,8 +68,37 @@ function ProfilPage() {
                 <ProfileForm />
               </div>
 
-              {/* 2. Member banner */}
-              {canApplyMember && (
+              {/* 2. Member status */}
+              {memberStatus === "pending" && (
+                <div className="w-full bg-orange-20/50 border border-orange-30 rounded-2xl p-6 md:p-8 relative overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-orange-100/10 rounded-xl flex items-center justify-center shrink-0">
+                      <Clock className="w-6 h-6 text-orange-100" />
+                    </div>
+                    <div>
+                      <h3 className="h5 text-general-100 font-bold mb-1">Pendaftaran Anggota Sedang Diproses</h3>
+                      <p className="body-sm text-general-60">Menunggu verifikasi admin. Kami akan memperbarui status pendaftaran Anda.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {memberStatus === "verified" && (
+                <div className="w-full bg-green-20/50 border border-green-30 rounded-2xl p-6 md:p-8 relative overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-green-100/10 rounded-xl flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-6 h-6 text-green-100" />
+                    </div>
+                    <div>
+                      <h3 className="h5 text-general-100 font-bold mb-1">Anggota Terverifikasi</h3>
+                      <p className="body-sm text-general-60">Anda sudah menjadi anggota terverifikasi AMP MBG.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Member apply banner */}
+              {canApplyMember && !memberStatus && (
                 <div className="w-full bg-blue-20/50 border border-blue-30 rounded-2xl p-6 md:p-8 relative overflow-hidden shadow-sm">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/5 rounded-full blur-2xl -mr-10 -mt-10" />
                   
@@ -91,12 +123,12 @@ function ProfilPage() {
                 </div>
               )}
 
-              {/* 3. Report history */}
+              {/* 4. Report history */}
               <div className="w-full">
                 <ReportHistory />
               </div>
 
-              {/* 4. Kitchen needs history */}
+              {/* 5. Kitchen needs history */}
               <div className="w-full">
                 <KitchenNeedsHistory />
               </div>

@@ -158,13 +158,13 @@ describe("Auth Routes", () => {
       expect(res.status).toBe(400)
     })
 
-    test("returns success even for non-existent email (security)", async () => {
+    test("returns 404 for non-existent email", async () => {
       const res = await testRequest(app, "POST", "/api/auth/forgot-password", {
         body: { email: "nonexistent@example.com" },
       })
-      expect(res.status).toBe(200)
+      expect(res.status).toBe(404)
       const json = await res.json()
-      expect(json.message).toBeDefined()
+      expect(json.error).toBeDefined()
     })
   })
 

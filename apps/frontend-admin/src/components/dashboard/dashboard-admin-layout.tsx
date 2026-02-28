@@ -50,6 +50,28 @@ export function DashboardAnggotaLayout({ children }: DashboardAnggotaLayoutProps
     setIsMobileMenuOpen(false)
   }
 
+  const ROLE_ACCESS: Record<string, string[]> = {
+    "Super Admin": ["/dashboard", "/dashboard/laporan", "/dashboard/permintaan-kebutuhan-dapur", "/dashboard/manajemen-kebutuhan", "/dashboard/akun-admin", "/dashboard/akun-anggota"],
+    "Koordinator Nasional": ["/dashboard", "/dashboard/laporan"],
+    "Validator Laporan": ["/dashboard", "/dashboard/laporan"],
+    "Data Analyst": ["/dashboard", "/dashboard/laporan"],
+    "Operations Manager": ["/dashboard", "/dashboard/permintaan-kebutuhan-dapur", "/dashboard/manajemen-kebutuhan"],
+    "HR Manager": ["/dashboard", "/dashboard/akun-anggota"],
+    "Finance Manager": ["/dashboard"],
+    "IT Support": ["/dashboard"],
+    "Media Relations": ["/dashboard"],
+  }
+
+  const userRole = currentUser?.role || ""
+  const allowedPaths = ROLE_ACCESS[userRole] || ["/dashboard", "/dashboard/laporan"]
+
+  // Route-level access protection
+  const currentPath = location.pathname
+  const isPathAllowed = allowedPaths.some(p => p === "/dashboard" ? currentPath === "/dashboard" : currentPath.startsWith(p))
+  if (currentUser && !isPathAllowed) {
+    navigate({ to: "/dashboard" })
+  }
+
   const confirmLogout = () => {
     localStorage.removeItem("admin_currentUser")
     localStorage.removeItem("admin_token")
@@ -58,44 +80,45 @@ export function DashboardAnggotaLayout({ children }: DashboardAnggotaLayoutProps
     navigate({ to: "/auth/login" })
   }
 
-  const navItems = [
-    { 
-      to: "/dashboard", 
-      label: "Beranda", 
-      icon: LayoutDashboard, 
-      exact: true 
+  const allNavItems = [
+    {
+      to: "/dashboard",
+      label: "Beranda",
+      icon: LayoutDashboard,
+      exact: true
     },
-    { 
-      to: "/dashboard/laporan", 
-      label: "Laporan Masuk", 
-      icon: FileText, 
-      exact: false 
+    {
+      to: "/dashboard/laporan",
+      label: "Laporan Masuk",
+      icon: FileText,
+      exact: false
     },
-    { 
-      to: "/dashboard/permintaan-kebutuhan-dapur", 
-      label: "Permintaan Dapur", 
-      icon: Utensils, 
-      exact: false 
+    {
+      to: "/dashboard/permintaan-kebutuhan-dapur",
+      label: "Permintaan Dapur",
+      icon: Utensils,
+      exact: false
     },
-    { 
-      to: "/dashboard/manajemen-kebutuhan", 
-      label: "Manajemen Kebutuhan", 
-      icon: Briefcase, 
-      exact: false 
+    {
+      to: "/dashboard/manajemen-kebutuhan",
+      label: "Manajemen Kebutuhan",
+      icon: Briefcase,
+      exact: false
     },
-    { 
-      to: "/dashboard/akun-admin", 
-      label: "Akun Admin", 
-      icon: UserCog, 
-      exact: true 
+    {
+      to: "/dashboard/akun-admin",
+      label: "Akun Admin",
+      icon: UserCog,
+      exact: true
     },
-    { 
-      to: "/dashboard/akun-anggota", 
-      label: "Akun Anggota", 
-      icon: Users, 
-      exact: true 
+    {
+      to: "/dashboard/akun-anggota",
+      label: "Akun Anggota",
+      icon: Users,
+      exact: true
     },
   ]
+  const navItems = allNavItems.filter(item => allowedPaths.includes(item.to))
 
   const isActive = (path: string, exact: boolean) => {
     if (exact) return location.pathname === path

@@ -46,16 +46,16 @@ describe("Auth Coverage - Forgot Password", () => {
     }
   })
 
-  test("returns generic message for non-existent email", async () => {
+  test("returns 404 for non-existent email", async () => {
     const res = await testRequest(app, "POST", "/api/auth/forgot-password", {
       body: { email: "nonexistent-xyz@example.com" },
     })
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
     const json = await res.json()
-    expect(json.message).toBeDefined()
+    expect(json.error).toBeDefined()
   })
 
-  test("returns generic message for Google-only account", async () => {
+  test("returns 400 for Google-only account", async () => {
     const gUser = await db.query.publics.findFirst({
       where: eq(publics.id, googleUserId),
     })
@@ -63,9 +63,9 @@ describe("Auth Coverage - Forgot Password", () => {
     const res = await testRequest(app, "POST", "/api/auth/forgot-password", {
       body: { email: gUser.email },
     })
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(400)
     const json = await res.json()
-    expect(json.message).toBeDefined()
+    expect(json.error).toBeDefined()
   })
 
   test("sends reset link for valid user", async () => {

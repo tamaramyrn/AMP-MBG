@@ -212,7 +212,7 @@ function LaporanPage() {
                     return (
                     <tr key={item.id} className="border-b border-general-30 hover:bg-general-30/20 transition-colors">
                       <td className="p-4 text-center text-general-100 body-sm border-r border-general-30 align-middle">{indexOfFirstItem + idx + 1}</td>
-                      <td className="p-4 text-center text-general-100 body-sm border-r border-general-30 align-middle">{formatDate(item.createdAt)}</td>
+                      <td className="p-4 text-center text-general-100 body-sm border-r border-general-30 align-middle">{formatDate(item.incidentDate)}</td>
                       
                       <td className="p-4 border-r border-general-30 align-middle">
                         <div className="flex flex-col gap-0.5 body-sm">
